@@ -1,0 +1,23 @@
+{
+ "n": 70000,
+ "grid": [
+  250,
+  280
+ ],
+ "seed_time_s": 0.007475376129150391,
+ "cleanup_elapsed_s": 1.590531082,
+ "rounds": 50,
+ "converged": true,
+ "seed_cost": 10822.767573297137,
+ "final_cost": 2462.0352107105273,
+ "rasterfairy_time_s": 0.24070239067077637,
+ "rasterfairy_cost": 3122.182187833851,
+ "knn10_preservation_seed": 0.010885714285714285,
+ "knn10_preservation_final": 0.5491699999999999,
+ "knn10_preservation_rasterfairy": 0.4640442857142857,
+ "label10_agreement_embedding": 0.9454271428571429,
+ "label10_agreement_seed": 0.5349771428571428,
+ "label10_agreement_final": 0.9297557142857142,
+ "label10_agreement_rasterfairy": 0.9202814285714286,
+ "metrics_time_s": 2.0694210529327393
+}

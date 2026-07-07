@@ -1,0 +1,295 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{microtype}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{hyperref}
+\usepackage{xcolor}
+
+\graphicspath{{figures/}}
+\input{stats.tex}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!60!black,
+  urlcolor=blue!60!black,
+  citecolor=blue!60!black
+}
+
+\newcommand{\megalap}{\texttt{megalap}}
+\newcommand{\cost}{\operatorname{cost}}
+
+\title{\textbf{MegaLAP: Multiscale Window Descent\\for Large Point-to-Grid Assignment}}
+\author{Kyle McDonald}
+\date{July 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Assigning $n$ points in the plane to $n$ distinct cells of a regular grid with minimum total squared displacement is a linear assignment problem (LAP). It is the standard way to turn a 2D embedding into an image atlas, and it stops being practical long before atlases stop being interesting: the dense cost matrix alone needs $8n^2$ bytes ($7.3$~TiB at one million points), and exact solvers on top of it scale near-cubically.
+
+We show that this problem has a remarkably simple quasi-linear solution. Exact LAPs restricted to small windows of the grid (at most $6{\times}6$ cells) are microsecond-scale, embarrassingly parallel, and monotonically decrease the global objective---but windows of adjacent cells only move points a few cells per sweep, so purely local refinement needs a number of sweeps proportional to the grid extent. This is why practical grid-layout tools rely on top-down \emph{construction} instead, and construction leaves large optimality gaps. One loop dissolves the dilemma: run the same windows on \emph{strided} subgrids, halving the stride from grid-spanning to one, the way shell sort generalizes insertion sort. Misplacements are then corrected in logarithmically many rounds, and the starting assignment stops mattering: from a \emph{uniformly random} permutation, seven rounds reach $0.1\%$ above the exact optimum, and convergence typically lands within $0.005$--$0.1\%$ of the certified optimum across every point distribution we test (always under $1.5\%$ excess RMS displacement, even where the optimal cost itself nearly vanishes). A $40{,}000$-point assignment converges in $\StatFortyKConvergeS$~s where our exact reference needs $\StatFortyKOracleS$~s; a million-point assignment reaches within $0.1\%$ of its converged cost in $\StatMillionWithinTenthS$~s. Memory stays linear, the assignment is legal after every round, and grids with more cells than points need no padding: unfilled cells drift to where they least distort the layout, or can be placed by hand with a cell mask to shape the atlas. The method is available as the \megalap{} Python package (\texttt{pip install megalap}).
+\end{abstract}
+
+\section{Introduction}
+\label{sec:intro}
+
+A recurring task in data visualization is to snap a 2D point cloud onto a regular grid: start from an embedding of a large collection---images, documents, audio clips---produced by Isomap, t-SNE, or UMAP \cite{tenenbaum2000,vandermaaten2008,mcinnes2018}, and give every item its own cell of an image atlas. The grid removes overdraw and overlap while the assignment preserves as much of the embedding's geometry as possible. Formally, with points $p_1, \ldots, p_n$ in the plane and grid cell centers $g_1, \ldots, g_m$, $m \ge n$, an \emph{assignment} gives every point its own cell, with no cell used twice. Writing $a(i)$ for the cell of point $i$, we want the assignment minimizing the total squared displacement
+\begin{equation}
+\cost(a) \;=\; \sum_{i=1}^{n} \bigl\| p_i - g_{a(i)} \bigr\|^2.
+\label{eq:objective}
+\end{equation}
+This is a linear assignment problem, solvable exactly by the Hungarian method, shortest augmenting paths, or auctions \cite{kuhn1955,jonker1987,bertsekas1988}. The trouble is scale. The dense formulation stores $nm$ costs---$32$~GiB of float64 at $n=65{,}536$, $7.3$~TiB at one million---and dense exact solvers run in $O(n^3)$ worst-case time. Computing costs on demand removes the memory wall but not the time wall. Meanwhile the atlases people actually want to build keep growing: hundreds of thousands to millions of items.
+
+This paper shows that near-optimal solutions to \eqref{eq:objective} are much cheaper than they look, using two ingredients that are each almost embarrassingly simple.
+
+\textbf{Ingredient 1: window moves.} Take any legal assignment. Choose a small window of the grid---at most $6{\times}6$ cells---and solve the assignment problem \emph{restricted to that window} exactly: the points currently occupying the window's cells are optimally re-matched to those same cells. A $36$-cell exact LAP takes microseconds. The global cost can only decrease, the assignment stays legal, and windows that do not share cells can be solved in parallel. Sweeping shifted windows across the grid is a strong local optimizer.
+
+\textbf{Ingredient 2: strides.} Local windows have a blind spot: a point that belongs $k$ cells away must diffuse there through $O(k)$ overlapping windows, so local sweeps alone need rounds proportional to the grid extent. The standard escape is to sidestep refinement altogether and \emph{construct} the assignment top-down---RasterFairy's recursive splitting \cite{klingemann2016} is the canonical recipe---accepting whatever quality the construction happens to deliver. The better fix is to change the windows, not the starting point. For a stride $s$, split the grid into $s^2$ interleaved subgrids by taking every $s$-th row and every $s$-th column, and tile each subgrid with the same $6{\times}6$ windows. A window at stride $s$ spans $5s{+}1$ cells, so one exact solve can carry a point most of the way across the grid. Halving the stride from grid-spanning down to one gives a coarse-to-fine schedule in which a misplacement of any distance is corrected in $O(\log)$ rounds, each costing exactly as much as a local sweep. This is shell sort's gap sequence \cite{shell1959}, transplanted from sorting to spatial assignment, or, equivalently, a multigrid smoother \cite{brandt1977} that coarsens the neighborhood structure instead of the problem.
+
+Together these form \emph{multiscale window descent} (Section~\ref{sec:method}): seed with anything legal, run one round per stride from coarse to fine, then repeat stride-$1$ rounds until nothing changes. The empirical behavior (Section~\ref{sec:eval}) is striking:
+
+\begin{itemize}
+  \item \textbf{Initialization does not matter.} From a uniformly random permutation---the worst start we can construct---the method reaches $0.1\%$ above the exact optimum on a $200{\times}200$ grid in $\StatConvRoundsToTenth$ rounds ($\StatConvRandomTimeToTenthS$~s) and converges at $\StatConvRandomFinal\%$. The same windows without strides---the natural local-search baseline---stall $30$--$150{\times}$ higher from every start we tried, including RasterFairy's construction.
+  \item \textbf{Quality is uniform across geometry.} Across six point distributions chosen to break spatial heuristics (separated blobs, rings, spirals, heavy-tailed mixtures), converged gaps have family medians of $0.02$--$0.07\%$---except where the optimal cost itself nearly vanishes and the ratio degenerates, which we quantify in Section~\ref{sec:distributions}.
+  \item \textbf{Scale.} Cost per round is linear in $n$. A $40$k-point problem converges in $\StatFortyKConvergeS$~s (exact reference: $\StatFortyKOracleS$~s); a million-point problem is within $0.1\%$ of its converged cost after $\StatMillionWithinTenthS$~s; the largest run is a $\StatLargestSide{\times}\StatLargestSide$ grid ($\StatLargestN$ points), where the dense cost matrix alone would occupy $\StatLargestDenseGiB$~TiB.
+  \item \textbf{Holes are free.} When the grid has more cells than points, window solves become rectangular and empty cells drift into the sparse regions of the cloud. No ghost points, no padding, no special cases---and orders of magnitude lower cost than pinning the leftover cells (Section~\ref{sec:holes}).
+\end{itemize}
+
+Our contributions: (1) the multiscale window descent algorithm---exact small LAPs on strided window tilings under a geometric stride schedule---with its monotonicity, legality, parallelism, and linear-memory properties; (2) evidence that convergence is independent of initialization, so the construction step other grid-layout methods are built around can be replaced by a sort; (3) a treatment of partially filled grids as rectangular window LAPs with drifting holes, removing padding and ghost points; (4) an evaluation protocol with certified exact references up to $40$k points, six distribution families, and schedule/window/thread ablations; and (5) \megalap{}, an open-source Python package with a native, parallel C++ implementation, plus scripts reproducing every figure and number in this paper.
+
+\section{Related Work}
+\label{sec:related}
+
+\textbf{Exact assignment.} The LAP is classical: the Hungarian method \cite{kuhn1955}, the Jonker--Volgenant shortest-augmenting-path algorithm \cite{jonker1987}, whose rectangular variant \cite{crouse2016} underlies the standard SciPy solver \cite{virtanen2020}, and Bertsekas' auction algorithm \cite{bertsekas1988}. All give certificates of optimality; none is practical at millions of points on dense geometric instances. Geometric structure helps: Vaidya \cite{vaidya1989} improved exact planar matching, Raghvendra--Agarwal give a near-linear $\varepsilon$-approximation \cite{raghvendra2020}, and Gattani et al.\ \cite{gattani2023} a robust exact algorithm with good expected behavior on random 2D inputs. These algorithms are considerably more intricate than what we propose, and, to our knowledge, none ships in a maintained package that handles millions of points; but they remain the right tools when an optimality certificate is required, and we use an on-demand auction solver as our exact reference.
+
+\textbf{Optimal transport.} Entropic regularization \cite{cuturi2013,flamary2021} scales OT to large problems but produces soft couplings, not one-to-one assignments; rounding a Sinkhorn plan to a permutation reintroduces the hard problem. Multiscale OT solvers \cite{merigot2011,schmitzer2016} solve coarsened problems and refine, keeping global optimality via sparse candidate sets --- a more powerful but far heavier machinery. Most recently, BSP-OT \cite{genest2025} constructs sparse transport plans and bijections in loglinear time by recursively splitting both measures with matched counts and merging randomized constructions; it is the strongest scalable constructor we know of, it minimizes exactly our objective, and we compare against it directly in Section~\ref{sec:bspot}. Our method never coarsens the problem or the measure; it always works on the full-resolution assignment and instead coarsens the \emph{neighborhood structure} of a local search, which is what makes it a dozen lines of logic around one small exact solver.
+
+\textbf{Grid layouts in visualization.} Snapping embeddings to grids is folklore in the visualization community. RasterFairy \cite{klingemann2016} is the canonical tool: it \emph{constructs} the assignment top-down by recursive balanced splitting and stops there---the result is never refined against \eqref{eq:objective}, and Section~\ref{sec:convergence} measures what that leaves on the table. IsoMatch \cite{fried2015} assigns via dense LAP at small scale. Self-organizing maps \cite{kohonen1990} and kernelized sorting \cite{quadrianto2009} learn grid arrangements from high-dimensional data directly. Closest in spirit, Linear Assignment Sorting (LAS/FLAS) \cite{barthel2023} improves visually sorted grids with local exact assignments over neighborhoods of decreasing radius, and has been parallelized to sort millions of Gaussian-splat parameters \cite{morgenstern2024}; cluster-aware grid layouts \cite{zhou2024} optimize perceptual criteria. These systems optimize objectives defined on high-dimensional features (each move re-blurs a SOM-like target map), so quality is measured by proxy metrics rather than distance to a computable optimum. Our setting is deliberately narrower---the input is already a 2D embedding, the objective is fixed---which is what makes exact per-window solves, global monotonicity, and percent-level gaps against a certified optimum possible. Balanced and constrained clustering \cite{malinen2014,bradley2000} underlie the exact-cardinality splits that construction methods require.
+
+\section{Multiscale Window Descent}
+\label{sec:method}
+
+\subsection{Setting}
+Points are normalized so the cloud and the grid share the unit square; grid cells are laid out on a regular lattice, inset from the square's edge by a small margin ($0.03$ in all experiments). The assignment is stored both ways: $a(i)$ gives point $i$'s cell, and an owner array gives each cell's point ($-1$ for empty). The objective is \eqref{eq:objective}. Squared distance is the visually right choice for atlases: it charges a few long teleports far more than many one-cell nudges, and long teleports are what visibly tear a layout. When an exact optimum $a^\star$ is available we report the \emph{gap} $100\,(\cost(a)-\cost(a^\star))/\cost(a^\star)$, in percent.
+
+\subsection{Window moves}
+A \emph{window} is a small block of grid cells, at most $6\times6$. The \emph{window move} collects the points currently assigned to a window's cells and re-matches them optimally to those same cells with a dense Jonker--Volgenant solve of size at most $36$ (Figure~\ref{fig:windows}, left). The current matching is one candidate the solver can return, and we apply the result only when it is \emph{strictly} cheaper, so every applied move lowers the global cost; because a move only shuffles points within its own window, the assignment stays legal. Strict decrease over a finite set of states also guarantees termination---tied re-matchings (from duplicate points, say) are discarded rather than oscillated between.
+
+Windows that share no cells touch disjoint points, so a whole \emph{tiling} of side-by-side windows can be solved concurrently and applied without conflict (Figure~\ref{fig:windows}, center). We call one such tiling a \emph{phase}. Shifting the tiling by half a window horizontally, vertically, and both gives four phases that overlap each other (Figure~\ref{fig:windows}, right), so improvements propagate between neighboring windows; four phases make one \emph{round}. One round solves ${\sim}\,4n/36$ windows and costs $O(n\,w^4)$ arithmetic at window size $w$ ($O(w^6)$ per window over $n/w^2$ windows, four times), with perfect data parallelism inside each phase.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{windows_and_phases.png}
+  \caption{The building blocks. Left: a window move optimally re-matches the points in one window (dots) to that window's cells (squares). Center: disjoint windows tile the grid and are solved in parallel; this is one phase. Right: the four phases are offset by half a window (dashed), so improvements cross window boundaries.}
+  \label{fig:windows}
+\end{figure}
+
+\subsection{The locality bottleneck}
+Rounds of adjacent-cell windows are a powerful \emph{local} optimizer and a hopeless global one. A point that belongs $k$ cells away can move at most one window-width per phase toward its destination, and in practice drifts more slowly, since each intermediate window must prefer the intermediate step. Reaching a target $k$ cells away therefore needs $\Theta(k)$ rounds: correction \emph{diffuses}. On a $200{\times}200$ grid, a raster-sorted start still has points displaced by dozens of cells, and after $20$ seconds of local-only rounds the gap is stuck near $\StatConvLocalFinal\%$ (Figure~\ref{fig:convergence}). This bottleneck explains the shape of existing tools: if refinement cannot repair global structure, everything rides on the initial construction---which is exactly how construction-only methods like RasterFairy \cite{klingemann2016} are designed---and whatever the construction gets wrong at long range stays wrong.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.85\linewidth]{strided_windows.png}
+  \caption{A $6{\times}6$ window at stride $1$ (left) covers adjacent cells; at stride $4$ (right) the same window covers every fourth cell and spans a $21{\times}21$ block of the grid. The stride-$s$ cells split into $s^2$ interleaved subgrids (a second one shown in gray), each tiled by disjoint windows, so a stride-$s$ round costs the same as a stride-$1$ round.}
+  \label{fig:strided}
+\end{figure}
+
+\subsection{Strided windows}
+The repair is to let windows act at every length scale. Fix a stride $s \ge 1$ and stripe the grid: take every $s$-th row and every $s$-th column, starting from some offset. The cells where they intersect form a regular subgrid, and the $s^2$ possible offsets give $s^2$ interleaved subgrids that together cover every cell exactly once. Now tile each subgrid with the same $6{\times}6$ windows, shifted through the same four phases (Figure~\ref{fig:strided}). A window at stride $s$ still contains at most $36$ cells, but they span $5s{+}1$ rows and columns of the full grid: one exact solve can move a point $5s$ cells at once. Crucially, the accounting does not change---every cell still belongs to exactly one window per phase, so a stride-$s$ round solves the same number of windows, costs the same, parallelizes the same, and lowers the cost for the same reason. A stride-$s$ round \emph{is} a stride-$1$ round applied simultaneously to $s^2$ interleaved subproblems.
+
+\begin{algorithm}[t]
+\caption{Multiscale window descent}
+\label{alg:descent}
+\begin{algorithmic}[1]
+\State $a \gets$ any legal assignment \Comment{e.g.\ sort by $(y,x)$, fill cells in raster order}
+\State $S \gets (s_{\max}, s_{\max}/2, \ldots, 2, 1)$ \Comment{$s_{\max}$: smallest power of 2 with $6\,s_{\max} \ge$ grid extent}
+\For{$s \in S$, then $s = 1$ repeatedly}
+  \For{phase offset $\phi \in \{(0,0), (0,3), (3,0), (3,3)\}$}
+    \State solve all windows of the stride-$s$, offset-$\phi$ tiling exactly, in parallel
+  \EndFor
+  \If{$s = 1$ and no assignment changed} \Return $a$ \Comment{converged}
+  \EndIf
+  \If{optional time budget exhausted} \Return $a$
+  \EndIf
+\EndFor
+\end{algorithmic}
+\end{algorithm}
+
+The schedule (Algorithm~\ref{alg:descent}) starts at the smallest power-of-two stride whose windows span the whole grid and halves down to one; on non-square grids the two axes carry independent strides, so a $50{\times}1000$ grid descends $(16,256), (8,128), \ldots, (1,1)$. After the descent, stride-$1$ rounds repeat until a full round changes nothing, at which point the assignment is \emph{window-optimal}: no $6{\times}6$ window at any offset can improve it. The descent visits $O(\log(\text{extent}))$ strides, and a displacement of any magnitude is reduced to window scale by the time the schedule reaches fine strides---the same argument that takes shell sort from $\Theta(n^2)$ to near $n\log^2 n$ comparisons \cite{shell1959}. We observe empirically (Section~\ref{sec:ablations}) that after one descent, re-running coarse strides never helps: the remaining error is local, and the schedule is insensitive to details like the stride ratio, as long as it starts grid-spanning and ends at one.
+
+Figure~\ref{fig:action} shows the descent working on a $512{\times}512$ grid: each coarse round fixes structure at its own scale, and the final polish is imperceptible at figure resolution.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{multiscale_action.png}
+  \caption{Multiscale window descent on a $512{\times}512$ grid ($262$k points). Cells are colored by the source position of their occupant; smooth color means faithful geometry. From a raster seed, the stride-$128$ round fixes global placement, intermediate strides fix intermediate scales, and stride-$1$ polishing is invisible at this resolution.}
+  \label{fig:action}
+\end{figure}
+
+\subsection{Grids with more cells than points}
+\label{sec:method-holes}
+When $m > n$ (a $70{,}001$-point cloud has no pleasant factorization), the grid must carry $m-n$ empty cells, and the question is where they go. Existing practice decides \emph{in advance}: RasterFairy lays the leftover cells out as a partial final row, and more generally a tool picks which cells will be used before any optimization happens. In our framework the question answers itself: a window whose cells include empty ones simply yields a \emph{rectangular} assignment problem ($k$ points to $\ell \ge k$ cells), which the same solver handles, and the same strictly-cheaper rule applies. Empty cells---\emph{holes}---become movable objects that drift wherever they least hurt the objective. In practice they collect where the cloud is sparsest relative to the grid: along the outline of the cloud's shape and in its interior density dips, not stacked in a corner or a trailing row (Figure~\ref{fig:holes}, right). The initial assignment spreads the sorted points evenly across the cells, so no hole starts far from where it is needed.
+
+Sometimes the user \emph{wants} to dictate the empty cells---to shape the atlas as a circle, cut its corners, or keep a tidy half-empty last row. The same machinery does this directly: a boolean \emph{mask} marks which cells may be used, masked-out cells are skipped when windows are built, and everything else is unchanged (Figure~\ref{fig:masks}). Free-drifting holes are the default because they cost the least; a mask trades some optimality for control.
+
+\subsection{Implementation}
+\label{sec:impl}
+\megalap{}'s kernel is ${\sim}600$ lines of C++ behind a three-function Python API. Per phase, the window list is built on the fly ($O(n)$, trivial next to the solves) and chunked across hardware threads; applying results is serial and cheap. The window solver is a fixed-size rectangular JV specialized to $\le 36$ cells with stack-allocated state. Costs are computed from coordinates on demand; total memory is the points, two index arrays, and the grid axes---linear in $n$ with a small constant. Thread scheduling never affects results (phases apply disjoint window results), so run-to-convergence output is deterministic given inputs and parameters.
+
+There is no tuning to do and no stopping condition to pick: by default the solver runs until a full stride-$1$ round finds nothing to improve, which the strictly-cheaper rule guarantees will happen, and which every experiment in this paper reached. An optional wall-clock budget stops early for interactive use; because the process is front-loaded (Section~\ref{sec:scaling}), early stops cost little quality. The high-level \texttt{snap\_to\_grid(points)} picks a near-square grid when none is given (or takes a mask), seeds, runs Algorithm~\ref{alg:descent} to convergence, and returns grid positions, the assignment, and the grid shape.
+
+\section{Evaluation}
+\label{sec:eval}
+
+\subsection{Protocol}
+\label{sec:protocol}
+Experiments run on a desktop with a \StatMachine{} ($\StatThreads$ hardware threads, $\StatMemory$~GB RAM), Linux, GCC \texttt{-O3}; cleanup uses all threads unless stated. Synthetic instances come from six families (Figure~\ref{fig:distributions}): \emph{meander} (normalized Gaussian random walks, resembling folded embeddings; the default), \emph{uniform}, \emph{two blobs}, \emph{ring}, \emph{spiral}, and \emph{mixture} (five unequal Gaussians). Instances are indexed by a seed; every configuration reports the median over seeds $\{0,1,2\}$, and figures show min--max bands where visible. Exact references come from an on-demand auction solver run to completion; on instances where dense JV, SciPy, and the auction solver all finish, the three agree to a relative difference below $\StatOracleMaxRelErr$ (worst case over $12$ instances), so we treat the auction cost as the optimum $\cost(\pi^\star)$. References are precomputed for all $96{\times}96$ instances of the six families and meander instances up to $200{\times}200$ ($40$k points, $\StatFortyKOracleS$~s per solve). Above $40$k points exact references are impractical for us; there we report time to reach within $0.1\%$ of the run's own converged cost, and say so explicitly. One caveat on the gap metric: it is a \emph{relative} measure, and the uniform family drives the optimal cost toward zero, which inflates relative gaps there (Section~\ref{sec:distributions}); absolute costs remain tiny.
+
+All numbers and figures in this paper regenerate from scripts in the paper repository at \url{https://github.com/kylemcdonald/megalap-paper}; every statistic quoted in the text is a \LaTeX{} macro emitted by the export script, so text and data cannot drift apart. The evaluated package version is \megalap{}~0.2.0.
+
+\subsection{Convergence, and why initialization does not matter}
+\label{sec:convergence}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{convergence.png}
+  \caption{Gap to the exact optimum on $200{\times}200$ meander instances (median of $3$; right panel adds initialization time and a min--max band). Multiscale descent converges to $0.004$--$0.02\%$ within a quarter of a second from either start; the same windows without strides (``local only'') stall near $0.6\%$ regardless of start, even from RasterFairy's construction.}
+  \label{fig:convergence}
+\end{figure}
+
+Figure~\ref{fig:convergence} is the paper's central experiment, and it separates the two ingredients of Section~\ref{sec:method}. From a random permutation---median starting gap around $500\%$---multiscale descent crosses $1\%$ in five rounds, $0.1\%$ in $\StatConvRoundsToTenth$, and converges at $\StatConvRandomFinal\%$ within a quarter of a second. The raster start follows the same trajectory to the same floor (landing, if anything, marginally higher): one coarse round erases the difference between a random and a sorted start, so nothing smarter than a sort is worth doing before descent.
+
+Removing the strides---the same solver, windows of adjacent cells only---tells the opposite story and quantifies the diffusion bound of Section~\ref{sec:method}: from the raster start, local-only refinement needs ${\sim}660$ rounds and $12$~s just to cross $1\%$, and after $880$ rounds is still crawling at $\StatConvLocalFinal\%$. Nor can a better start rescue it. RasterFairy \cite{klingemann2016} itself\footnote{We run the released \texttt{rasterfairy} package. Its splits sort integer-cast coordinates---it expects pixel-scale input such as t-SNE screen positions---so point clouds are scaled up before the call; its output is unaffected.} is a far stronger construction---it starts at $\StatConvRasterFairySeedGap\%$ where the raster sort starts at ${\sim}210\%$---yet after the same $20$-second budget of local windows it sits at $\StatConvRasterFairyLocalFinal\%$, indistinguishable from the raster start, because the misplacements that remain are precisely the long-range ones local windows cannot execute. Construction quality is irrelevant in both directions: multiscale descent does not need it, and local refinement cannot exploit it. (Section~\ref{sec:bspot} pushes this one step further: seeding descent with a state-of-the-art constructor is mildly counterproductive.)
+
+\subsection{Scaling}
+\label{sec:scaling}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{scaling.png}
+  \caption{Left: wall time versus problem size on meander instances (median of $3$ up to $640$k points; single stress runs above). Where exact references exist ($n \le 40$k), time to $0.1\%$ true gap; everywhere, time to full convergence and time to reach within $0.1\%$ of the converged cost. BSP-OT's construction time is shown for context; its gaps are ${\sim}2\%$ (Section~\ref{sec:bspot}). Right: per-round time is linear in $n$.}
+  \label{fig:scaling}
+\end{figure}
+
+Figure~\ref{fig:scaling} sweeps meander instances from $5$k to $4.2$M points. Three regimes are visible. Against the exact solver, the crossover is immediate: at $5$k points the oracle takes ${\sim}5$~s while descent converges in well under a second; at $40$k the oracle needs $\StatFortyKOracleS$~s versus $\StatFortyKConvergeS$~s to \emph{converge} (final gap $\StatFortyKGap\%$) and $\StatFortyKToTenthS$~s to $0.1\%$. Second, per-round cost is linear in $n$ across three orders of magnitude (right panel)---there is no $n^2$ anywhere in the pipeline---and memory follows suit: the largest run ($\StatLargestN$ points) peaks at $\StatLargestPeakRssGiB$~GiB of process memory, benchmark harness included, where its dense cost matrix alone would occupy $\StatLargestDenseGiB$~TiB. Third, every run reaches a true fixed point, with no time limit involved: $\StatSixHundredKConvergeS$~s at $640$k points, $4.4$ minutes at $1.3$M, $\StatLargestConvergeMin$ minutes at $4.2$M. The anytime profile is heavily front-loaded, so an early stop costs little: the $1.3$M-point assignment is within $0.1\%$ of its converged cost after $\StatMillionWithinTenthS$~s, and the $4.2$M-point assignment after $\StatLargestWithinTenthS$~s---the remaining hours-scale tail buys only the final tenth of a percent (cf.\ Figure~\ref{fig:action}).
+
+\subsection{Robustness across distributions}
+\label{sec:distributions}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{distributions.png}
+  \caption{The six instance families at $40$k points ($200{\times}200$, seed $0$), solved four ways. Each cell takes its occupant's color, multiplied by a graph-paper grid in input space (spacing $0.1$, thickness $0.02$, half brightness), so the wavy lines trace each solution's distortion; the annotation under each grid is that solution's gap above the exact optimum and its solve time. The constructions' errors are plainly visible: torn, banded lines for RasterFairy, hazy seams for BSP-OT. Our converged result is visually indistinguishable from the exact optimum in every family. Uniform's larger relative gaps reflect a near-zero optimal cost, not a worse layout.}
+  \label{fig:distributions}
+\end{figure}
+
+Multiscale descent has no preferred geometry (Figure~\ref{fig:distributions}). At $40$k points, family medians land between $0.02\%$ and $0.07\%$, and every run converges in at most $\StatDistMaxTime$~s. Rings and spirals, which defeat axis-aligned recursive splitting, sit at $0.04$--$0.07\%$; two separated blobs, the classic failure case for local search (points trapped on the wrong side of the gap), converge to $0.02\%$ because coarse strides move points between blobs as easily as within them; starting gaps up to $\StatDistMaxSeedGap{\times}$ the optimum are erased along the way. The worst individual run (one two-blobs instance) converges at $0.44\%$. The one number needing interpretation is uniform's $\approx 2.7\%$: a uniform cloud nearly \emph{is} a grid, so the optimal cost approaches zero and a relative gap over a vanishing denominator exaggerates sub-cell-scale imperfections. In absolute terms a $2.7\%$ cost gap is a $\sqrt{1.027} \approx 1.3\%$ excess in RMS displacement---each point travels about one percent farther than in the exact optimum---and the run's entire excess cost is orders of magnitude below any other family's \emph{optimal} cost.
+
+\subsection{Comparison with BSP-OT}
+\label{sec:bspot}
+
+\begin{table}[t]
+  \centering
+  \caption{BSP-OT (its default of $16$ merged plans) versus multiscale descent run to convergence, on the six families at $40$k points ($200{\times}200$, medians of $3$ instances, same machine). Both optimize the same objective; gaps are against the same exact references. Uniform's gaps are inflated by its near-zero optimal cost for both methods (Section~\ref{sec:distributions}).}
+  \label{tab:bspot}
+  \input{bspot_table.tex}
+\end{table}
+
+The strongest scalable alternative for this problem is BSP-OT \cite{genest2025}, which builds a bijection between two point sets in loglinear time: recursively split both sets into halves of matched size along data-adapted directions until singletons pair up, then merge several randomized constructions, keeping cost-decreasing swaps. It minimizes exactly our objective, and its official implementation is parallel C++,\footnote{\url{https://github.com/baptiste-genest/BSP-OT}, evaluated at its bijective-matching default settings via the header-only release; our driver is \texttt{solvers/cpp/bspot\_grid.cpp}.} so it makes a demanding baseline. Table~\ref{tab:bspot} compares the two on the six families at $40$k points.
+
+The two methods sit at different points on the quality--time curve. BSP-OT delivers its answer in $0.04$--$0.07$~s---several times faster than full convergence of descent---at gaps of $1.5$--$2.3\%$ on typical families, roughly $100\times$ the converged descent gaps. Its spread across geometry is also much wider: $0.07\%$ on two separated blobs, whose isotropic clusters are ideal for its splits, but $13\%$ on the spiral, whose thin curved structure crosses every splitting plane. Extra randomized plans saturate quickly ($64$ plans: $1.6\%$ on meander at ${\sim}3\times$ the time). At scale it is genuinely loglinear---$\StatBspotLargestTime$~s for $4.2$ million points---about half of descent's within-$0.1\%$-of-converged time ($\StatLargestWithinTenthS$~s) at roughly $20\times$ the gap.
+
+A natural idea is to combine them: construct with BSP-OT, refine with descent. It does not help. From BSP-OT starts ($\StatBspotSeedGap\%$ gap in $0.03$~s), descent converges \emph{slower} and to slightly \emph{worse} fixed points than from the raster sort---median final gap $\StatBspotSeedFinal\%$ versus $\StatConvRandomFinal$--$0.02\%$ on the same instances. A construction commits to mid-scale structure that the coarse-to-fine schedule visits only once; from an unstructured start, descent makes those decisions itself, and makes them better. This is the sharpest form of Section~\ref{sec:convergence}'s conclusion: for this solver, good constructions are not merely unnecessary but mildly counterproductive.
+
+The comparison cuts both ways. BSP-OT handles arbitrary dimensions, partial matchings, and sparse couplings---none of which we attempt---and when a percent-level map in milliseconds is the goal, it is the right tool. Descent exploits the one thing BSP-OT cannot: the target is a grid, which is what makes strided window tilings, and their convergence to hundredth-of-a-percent gaps, possible.
+
+\subsection{Partially filled grids}
+\label{sec:holes}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{holes.png}
+  \caption{Left: gap to the exact \emph{rectangular} optimum as the fill ratio $n/m$ varies ($96{\times}96$ grid, median of $3$). Letting the holes drift tracks the optimum within a fraction of a percent; fixing them in advance to the trailing cells (a partial-last-rows layout) is catastrophically worse, because it forces the whole layout into the first $n$ cells. Right: where the holes go at fill $0.7$.}
+  \label{fig:holes}
+\end{figure}
+
+Section~\ref{sec:method-holes}'s rectangular windows are evaluated against exact rectangular optima in Figure~\ref{fig:holes}. The comparison is between letting the holes drift and fixing them in advance to the trailing cells of the grid, the way a partial-last-row layout does. At fill ratio $0.85$, free holes land $\StatHolesFreeGap\%$ above the true optimum while the fixed-in-advance layout lands $\StatHolesPinnedGap\%$ above it---not a subtle difference but a change of category, since committing the empty cells up front forbids them from participating in the layout at all. Two caveats. First, the gap floor with holes ($0.4$--$0.8\%$ at fills $0.7$--$0.95$) is visibly higher than the filled case ($\approx 0.02\%$): hole placement is a global combinatorial choice that windows optimize only locally, and we flag it as the least-converged aspect of the method---while noting it is still over four hundred times closer to optimal than deciding the holes in advance. Second, at very low fill ($0.5$) the \emph{relative} gap inflates to $\approx 8\%$ for the same denominator reason as the uniform family: with abundant spare cells the optimal cost itself collapses (median $12$ versus $342$ at full occupancy), so each percent represents a tiny absolute distortion.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{masks.png}
+  \caption{Where the empty cells go, on a $128{\times}128$ grid (cells colored by their occupant's source position; light cells are empty). Left: by default holes drift to the sparse parts of the cloud. Center and right: a boolean cell mask instead dictates the usable cells exactly, so shaped atlases work out of the box.}
+  \label{fig:masks}
+\end{figure}
+
+When control matters more than the last fraction of a percent, the mask mode of Section~\ref{sec:method-holes} places the empty cells exactly where the user says (Figure~\ref{fig:masks}): restrict the atlas to a circle, cut its corners, or reserve a half-empty last row by masking the trailing cells---the fixed-in-advance baseline above is precisely that last mask, so Figure~\ref{fig:holes} doubles as the price list for this control.
+
+\subsection{Ablations}
+\label{sec:ablations}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{ablations.png}
+  \caption{Left: window size trades per-round cost against reach; $w{=}2$ cannot reach $0.1\%$, and $w \in \{4,5,6\}$ are all reasonable. Right: schedule variants at equal $20$~s budget ($200{\times}200$, median of $3$). Everything that starts grid-spanning and ends at stride $1$ works; local-only and fine-to-coarse do not.}
+  \label{fig:ablations}
+\end{figure}
+
+\textbf{Window size} (Figure~\ref{fig:ablations}, left). Per-window work grows as $O(w^6)$, but larger windows buy proportionally more reach and better local optima: $w{=}2$ stalls near $7\%$ and $w{=}3$ near $0.26\%$, while $w \in \{4,5,6\}$ all reach $0.1\%$ in ${\sim}0.14$~s at this scale (differences within noise) and the converged gap improves with $w$. We ship $w=6$, the largest our fixed-size kernel supports.
+
+\textbf{Schedule} (Figure~\ref{fig:ablations}, right). At a fixed budget, the default descent, a ratio-$4$ descent, and a cycled descent are indistinguishable; starting at half depth is slightly worse; running the descent \emph{backwards} (fine-to-coarse) or not at all is one to two orders of magnitude worse. The schedule needs only two properties: span the grid once, and end at stride one. We also verified that from a converged state, re-running the full descent changes nothing in any tested instance---the fixed point is stable across the whole move class, which is why the default schedule does not bother revisiting coarse strides.
+
+\textbf{Threads.} Rounds parallelize at $\StatThreadSpeedup{\times}$ throughput on $24$ threads versus one on a $512{\times}512$ instance (window solves dominate and are independent; the serial apply step caps further scaling). Thread count does not affect results, only speed.
+
+\subsection{End-to-end example: an atlas of all of MNIST}
+\label{sec:mnist}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{mnist_atlas_full_with_crop_box.png}
+  \caption{All $70{,}000$ MNIST digits on a $250{\times}280$ grid, from a UMAP embedding, assigned by multiscale window descent. The box marks Figure~\ref{fig:mnist-detail}'s crop.}
+  \label{fig:mnist-full}
+\end{figure}
+
+\begin{figure}[t]
+  \centering
+  \begin{minipage}[c]{0.58\linewidth}
+    \includegraphics[width=\linewidth]{mnist_atlas_detail.png}
+  \end{minipage}\hfill
+  \begin{minipage}[c]{0.38\linewidth}
+    \includegraphics[width=\linewidth]{mnist_trace.png}
+  \end{minipage}
+  \caption{Left: detail crop; neighboring cells hold visually similar digits, with smooth transitions across style and class boundaries. Right: the cleanup trace; coarse-stride rounds (marked) do most of the work.}
+  \label{fig:mnist-detail}
+\end{figure}
+
+As an end-to-end demonstration we embed all $70{,}000$ MNIST digits \cite{lecun1998} with UMAP ($15$ neighbors, min-dist $0.05$, seed $0$) and assign them to a $250{\times}280$ grid---which is exact, since $70{,}000 = 250 \times 280$. From the raster start, descent \StatMnistConverged{} after $\StatMnistRounds$ rounds in $\StatMnistElapsed$~s, cutting assignment cost by $\StatMnistCostDropPct\%$ (Figure~\ref{fig:mnist-detail}, right; no exact reference is computable at this size).
+
+Because a cost number is not per se evidence of a good \emph{picture}, we also measure structure directly, and compare against two constructions on the same embedding: RasterFairy and BSP-OT. The converged descent reaches $\StatMnistKnnFinal\%$ $10$-nearest-neighbor preservation between embedding and grid, and $\StatMnistLabelFinal\%$ of each digit's $10$ nearest grid neighbors share its label, against a ceiling of $\StatMnistLabelEmbed\%$ in the continuous embedding itself (the raster start alone manages $\StatMnistKnnSeed\%$ neighbor preservation). The two constructions fail in opposite ways. RasterFairy roughly preserves neighborhoods ($\StatMnistKnnRasterFairy\%$) but leaves $\StatMnistRasterFairyExcessPct\%$ extra squared displacement ($\StatMnistRasterFairyCost$ versus $\StatMnistFinalCost$)---large, coherent block errors. BSP-OT leaves only $\StatBspotMnistExcessPct\%$ extra cost ($\StatBspotMnistCost$, in $\StatBspotMnistTimeMs$~ms) but scrambles fine neighborhoods, preserving just $\StatBspotMnistKnn\%$---many small, independent errors. Low cost and neighborhood fidelity are evidently separate achievements; converged descent is the only configuration that delivers both, and the whole run costs $\StatMnistElapsed$~s.
+
+\section{Limitations}
+\label{sec:limitations}
+
+\textbf{No certificate.} Window-optimality is not optimality; we provide no worst-case approximation bound, and adversarial fixed points strictly above the optimum exist in principle. Empirically the floor sits at $0.01$--$0.1\%$ across every family we tried, but applications needing certified optimality should use exact solvers---which remain entirely practical below ${\sim}10$k points, and can consume our output as a warm start.
+
+\textbf{The hole floor.} With many empty cells the converged gap rises to $\approx 0.5$--$1\%$ (Section~\ref{sec:holes}); hole placement has a global component our moves only approximate, and at very low fill the relative gap is further inflated by a collapsing optimal cost.
+
+\textbf{Relative gaps degenerate when the optimum is tiny.} The uniform family shows this; comparisons there should use absolute cost.
+
+\textbf{Scope.} The method optimizes \eqref{eq:objective} and nothing else: it inherits whatever the embedding got wrong, and it does not optimize high-dimensional neighborhood metrics directly, unlike LAS/FLAS-style systems \cite{barthel2023}. It is specialized to regular grids; the strided-subgrid construction extends naturally to any grid-structured target set, but irregular targets would need a different way of generating windows.
+
+\section{Conclusion}
+\label{sec:conclusion}
+
+The obstacle to large point-to-grid assignment was never the exactness of small solves---it was the diffusive reach of local refinement, which forced existing tools to bet everything on top-down construction. Running the same exact window solves over strided subgrids under a shell-sort schedule removes the bottleneck at its source: any legal assignment, including a random one, converges to within a fraction of a percent of optimal in logarithmically many linear-cost rounds, so no construction step is needed at all. The resulting solver is a few hundred lines around one $36$-cell exact kernel, handles ragged problem sizes without padding, and turns million-point atlases into an interactive operation. It ships as \texttt{pip install megalap}, and every number in this paper regenerates from the accompanying repository.
+
+\bibliographystyle{plain}
+\bibliography{references}
+
+\end{document}
