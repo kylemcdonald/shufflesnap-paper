@@ -38,6 +38,7 @@ paper/build/
 # Local compiled binaries
 solvers/cpp/exact_grid_lap
 solvers/cpp/bspot_grid
+solvers/cpp/bspot_grid_giga
 
 # Large benchmark artifacts (regenerable via bench_billion.py)
 benchmarks/results/assignments/billion_*.npy

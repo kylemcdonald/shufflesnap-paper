@@ -1,0 +1,15 @@
+{
+ "side": 31623,
+ "n": 1000014129,
+ "instance_seed": 0,
+ "solver": "bspot_grid_giga (single-plan port of computeGaussianMatching)",
+ "plans": 1,
+ "rng_seed": 0,
+ "threads": 1,
+ "solve_time_s": 392.119733037,
+ "assignment_cost": 45657426.740265705,
+ "megalap_final_cost_6h": 42251730.53376677,
+ "excess_over_megalap_pct": 8.06048927103038,
+ "peak_rss_gib": 48.4317626953125,
+ "note": "stock BSP-OT needs ~90 GiB (1 plan) / ~290+ GiB (16 plans) at this n; at 1e8 stock 16-plan costs +12.2% over megalap final, stock 1-plan +24-28%"
+}
