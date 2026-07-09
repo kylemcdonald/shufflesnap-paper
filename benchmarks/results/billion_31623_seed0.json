@@ -1,0 +1,19 @@
+{
+ "side": 31623,
+ "n": 1000014129,
+ "instance_seed": 0,
+ "gen_time_s": 61.36825370788574,
+ "seed_time_s": 88.59889483451843,
+ "budget_s": 21600.0,
+ "rounds": 54,
+ "elapsed_s": 21654.324998805,
+ "converged": false,
+ "per_round_s": 401.0060184963889,
+ "final_cost": 42251730.53376677,
+ "time_within_1pct_of_final_s": 1196.509579595,
+ "time_within_0p1pct_of_final_s": 2055.471560699,
+ "time_within_0p01pct_of_final_s": 2930.45902402,
+ "time_within_0p001pct_of_final_s": 10876.686068503,
+ "peak_rss_gib": 37.28838348388672,
+ "dense_matrix_gib": 7450791136.9176855
+}
