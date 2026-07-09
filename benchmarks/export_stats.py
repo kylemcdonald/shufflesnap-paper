@@ -107,6 +107,26 @@ def main() -> None:
     macros["StatGigaPeakRssGiB"] = fmt(giga["peak_rss_gib"], 1)
     macros["StatGigaDenseMTiB"] = fmt(giga["dense_matrix_gib"] / (1024.0 * 1e6), 1)
 
+    # gigascale BSP-OT reference run (bspot_grid_giga, single plan)
+    bspot_giga = json.loads((RESULTS / "billion_bspot_31623_seed0.json").read_text())
+    macros["StatGigaBspotTimeMin"] = fmt(bspot_giga["solve_time_s"] / 60.0, 1)
+    macros["StatGigaBspotExcessPct"] = fmt(bspot_giga["excess_over_megalap_pct"], 1)
+    macros["StatGigaBspotPeakRssGiB"] = fmt(bspot_giga["peak_rss_gib"], 0)
+    ref = bspot_giga["ref_1e8"]
+    macros["StatGigaBspotStockOnePlanGiB"] = fmt(ref["stock_1plan_peak_rss_gib"] * 10.0, 0)
+    macros["StatGigaBspotStockDefaultGiB"] = fmt(ref["stock_16plan_peak_rss_gib_omp4"] * 10.0, 0)
+    macros["StatHundredMBspotDefaultGiB"] = fmt(ref["stock_16plan_peak_rss_gib_omp4"], 0)
+    ref_base = ref["megalap_final_cost_500s_run"]
+    macros["StatHundredMBspotSixteenExcessPct"] = fmt(
+        100 * (ref["stock_16plan_cost"] / ref_base - 1), 1)
+    one_plan = [ref["stock_1plan_cost"], ref["giga_1plan_cost"]]
+    macros["StatHundredMBspotOneExcessLoPct"] = fmt(100 * (min(one_plan) / ref_base - 1), 0)
+    macros["StatHundredMBspotOneExcessHiPct"] = fmt(100 * (max(one_plan) / ref_base - 1), 0)
+    giga_trace = pd.read_csv(RESULTS / f"billion_traces_{giga['side']}_seed{giga['instance_seed']}.csv")
+    crossed = giga_trace[giga_trace["cost"] <= bspot_giga["assignment_cost"]]
+    macros["StatGigaCrossBspotMin"] = fmt(float(crossed["elapsed_s"].min()) / 60.0, 1)
+    macros["StatGigaCrossBspotRound"] = str(int(crossed["round"].min()))
+
     holes = pd.read_csv(RESULTS / "holes.csv")
     h85 = holes[holes["fill_ratio"] == 0.85].median(numeric_only=True)
     macros["StatHolesFreeGap"] = fmt(h85["free_gap_pct"], 2)
