@@ -91,6 +91,22 @@ def main() -> None:
     conv800 = scal[scal["side"] == 800].median(numeric_only=True)
     macros["StatSixHundredKConvergeS"] = fmt(conv800["elapsed_s"], 0)
 
+    # gigascale stress run (bench_billion.py); thresholds are relative to the
+    # run's own final cost at budget end, not a converged fixed point
+    giga = json.loads((RESULTS / "billion_31623_seed0.json").read_text())
+    macros["StatGigaSide"] = str(giga["side"])
+    macros["StatGigaNBillion"] = f"{giga['n'] / 1e9:.2f}"
+    macros["StatGigaRounds"] = str(giga["rounds"])
+    macros["StatGigaBudgetH"] = fmt(giga["budget_s"] / 3600.0, 0)
+    macros["StatGigaPerRoundMin"] = fmt(giga["per_round_s"] / 60.0, 1)
+    macros["StatGigaSeedS"] = fmt(giga["seed_time_s"], 0)
+    macros["StatGigaWithinOneMin"] = fmt(giga["time_within_1pct_of_final_s"] / 60.0, 0)
+    macros["StatGigaWithinTenthMin"] = fmt(giga["time_within_0p1pct_of_final_s"] / 60.0, 0)
+    macros["StatGigaWithinHundredthMin"] = fmt(giga["time_within_0p01pct_of_final_s"] / 60.0, 0)
+    macros["StatGigaWithinThousandthH"] = fmt(giga["time_within_0p001pct_of_final_s"] / 3600.0, 1)
+    macros["StatGigaPeakRssGiB"] = fmt(giga["peak_rss_gib"], 1)
+    macros["StatGigaDenseMTiB"] = fmt(giga["dense_matrix_gib"] / (1024.0 * 1e6), 1)
+
     holes = pd.read_csv(RESULTS / "holes.csv")
     h85 = holes[holes["fill_ratio"] == 0.85].median(numeric_only=True)
     macros["StatHolesFreeGap"] = fmt(h85["free_gap_pct"], 2)

@@ -40,4 +40,4 @@ solvers/cpp/exact_grid_lap
 solvers/cpp/bspot_grid
 
 # Large benchmark artifacts (regenerable via bench_billion.py)
-benchmarks/results/assignments/
+benchmarks/results/assignments/billion_*.npy
