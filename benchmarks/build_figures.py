@@ -162,7 +162,7 @@ def fig_ablations() -> None:
     ax.set_yscale("log")
     ax.set_xticks(med.index)
     ax.set_xlabel("window size")
-    ax.set_ylabel("gap after 20 s (%)")
+    ax.set_ylabel("converged gap (%)")
     ax.set_title("window size: quality")
 
     ax = axes[1]
@@ -193,11 +193,11 @@ def fig_ablations() -> None:
     ax.set_yticks(y)
     ax.set_yticklabels(med.index, fontsize=7)
     ax.set_xscale("log")
-    ax.set_xlim(1e-2, 3)
+    ax.set_xlim(2e-3, 3)
     ax.set_xticks([1e-2, 1e-1, 1])
     ax.set_xticklabels(["0.01", "0.1", "1"])
     ax.minorticks_off()
-    ax.set_xlabel("gap after 20 s (%)")
+    ax.set_xlabel("converged gap (%)")
     ax.set_title("stride schedule")
     ax.invert_yaxis()
     for yi, v in zip(y, final):

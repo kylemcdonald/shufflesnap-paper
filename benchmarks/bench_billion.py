@@ -1,9 +1,9 @@
 """Billion-scale meander: convergence timing on side*side points.
 
 Generates a meander (random-walk) point set chunk by chunk with the same RNG
-stream as make_points("meander", n, seed), seeds it with a quantized raster
-ordering (a memory-lean stand-in for seed_raster's lexsort), then runs
-multiscale window cleanup with a wall-clock budget and full round tracing.
+stream as make_points("meander", n, seed), seeds it with the package default
+(a deterministic random permutation), then runs multiscale window cleanup
+with a wall-clock budget and full round tracing.
 
 Writes results/billion_{side}_seed{seed}.json, billion_traces_{side}_seed{seed}.csv,
 and the final assignment as int32 into results/assignments/.
@@ -63,27 +63,10 @@ def generate_meander(n: int, seed: int = 0, chunk: int = CHUNK) -> np.ndarray:
     return pts
 
 
-def quantized_raster_seed(pts: np.ndarray, chunk: int = CHUNK) -> np.ndarray:
-    """seed_raster with a packed uint64 (y, x) sort key.
-
-    seed_raster lexsorts two float64 keys, which buffers both key columns at
-    full length; packing 32-bit quantized coordinates into one uint64 key
-    halves that. Ordering matches seed_raster up to 2^-32 quantization ties,
-    which is irrelevant here: the multiscale schedule erases seed differences
-    within a few rounds.
-    """
-    n = len(pts)
-    key = np.empty(n, dtype=np.uint64)
-    for i0 in range(0, n, chunk):
-        i1 = min(i0 + chunk, n)
-        xq = (pts[i0:i1, 0] * 4294967296.0).astype(np.uint64)
-        yq = (pts[i0:i1, 1] * 4294967296.0).astype(np.uint64)
-        key[i0:i1] = (yq << np.uint64(32)) | xq
-    order = np.argsort(key, kind="stable")
-    del key
-    assignment = np.empty(n, dtype=np.int64)
-    assignment[order] = np.arange(n, dtype=np.int64)
-    return assignment
+def random_seed(n: int) -> np.ndarray:
+    """The package's default seed for a full grid: a deterministic random
+    permutation (one int64 array, in-place Fisher-Yates)."""
+    return np.random.default_rng(0).permutation(n).astype(np.int64, copy=False)
 
 
 def read_rss_gib() -> tuple[float, float]:
@@ -125,7 +108,7 @@ def main() -> None:
         print("generation verified bit-identical to make_points", flush=True)
 
     t0 = time.time()
-    seed_assignment = quantized_raster_seed(pts)
+    seed_assignment = random_seed(n)
     seed_time = time.time() - t0
     print(f"seeded in {seed_time:.1f}s rss={read_rss_gib()[0]:.1f}GiB", flush=True)
 

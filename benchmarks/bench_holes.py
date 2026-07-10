@@ -29,7 +29,6 @@ from bench_common import (
     make_points,
     results_dir,
     seed_default,
-    seed_raster,
 )
 
 SIDE = 96
@@ -56,10 +55,11 @@ def main() -> None:
             free_cost = float(free["final_cost"])
 
             # predetermined holes: only the first n cells are usable, so the
-            # empty cells sit at the end of the grid no matter what
+            # empty cells sit at the end of the grid no matter what; the
+            # masked region itself gets the default (random) seed
             mask = np.zeros(m, dtype=bool)
             mask[:n] = True
-            packed = seed_raster(points, total_cells=n)
+            packed = seed_default(points, n)
             fixed = megalap.window_cleanup(
                 points, packed, rows=SIDE, cols=SIDE, cell_mask=mask,
             )

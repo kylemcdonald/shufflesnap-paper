@@ -1,4 +1,5 @@
-"""Ablations: window size, stride schedule, and thread scaling.
+"""Ablations: window size, stride schedule, and thread scaling,
+all from the default seed (a random permutation).
 
 Writes results/ablation_window.csv, results/ablation_schedule.csv,
 results/ablation_threads.csv.
@@ -19,7 +20,7 @@ from bench_common import (
     gap_pct,
     make_points,
     results_dir,
-    seed_raster,
+    seed_default,
 )
 
 SIDE = 200
@@ -64,7 +65,7 @@ def window_ablation() -> None:
     for instance_seed in SEEDS:
         points = make_points("meander", SIDE * SIDE, seed=instance_seed)
         optimum = exact_instance("meander", SIDE, instance_seed)["cost"]
-        seed_assignment = seed_raster(points)
+        seed_assignment = seed_default(points, SIDE * SIDE)
         for window in [2, 3, 4, 5, 6]:
             stats = run(points, seed_assignment, optimum, window_size=window)
             rows.append({"instance_seed": instance_seed, "window_size": window, **stats})
@@ -94,7 +95,7 @@ def schedule_ablation() -> None:
     for instance_seed in SEEDS:
         points = make_points("meander", SIDE * SIDE, seed=instance_seed)
         optimum = exact_instance("meander", SIDE, instance_seed)["cost"]
-        seed_assignment = seed_raster(points)
+        seed_assignment = seed_default(points, SIDE * SIDE)
         for label, strides in schedules.items():
             stats = run(points, seed_assignment, optimum, strides=strides)
             rows.append({"instance_seed": instance_seed, "schedule": label, **stats})
@@ -105,7 +106,7 @@ def schedule_ablation() -> None:
 def thread_ablation() -> None:
     side = 512
     points = make_points("meander", side * side, seed=0)
-    seed_assignment = seed_raster(points)
+    seed_assignment = seed_default(points, side * side)
     rows = []
     for threads in [1, 2, 4, 8, 16, 24]:
         t0 = time.time()

@@ -80,12 +80,13 @@ def main() -> None:
     macros["StatFortyKToTenthS"] = fmt(row200["time_to_0p1pct_s"], 2)
     row1024 = scal[scal["side"] == 1131].median(numeric_only=True)
     macros["StatMillionWithinTenthS"] = fmt(row1024["time_within_0p1pct_of_final_s"], 1)
+    macros["StatMillionConvergeS"] = fmt(row1024["elapsed_s"], 0)
     macros["StatMillionPerRoundS"] = fmt(row1024["per_round_s"], 2)
     largest = scal[scal["side"] == scal["side"].max()].median(numeric_only=True)
     macros["StatLargestSide"] = str(int(scal["side"].max()))
     macros["StatLargestN"] = f"{largest['n'] / 1e6:.1f} million"
     macros["StatLargestWithinTenthS"] = fmt(largest["time_within_0p1pct_of_final_s"], 1)
-    macros["StatLargestConvergeMin"] = fmt(largest["elapsed_s"] / 60.0, 0)
+    macros["StatLargestConvergeMin"] = fmt(largest["elapsed_s"] / 60.0, 1)
     macros["StatLargestDenseGiB"] = f"{largest['dense_matrix_gib']/1024:.0f}"
     macros["StatLargestPeakRssGiB"] = fmt(scal["peak_rss_gib"].max(), 1)
     conv800 = scal[scal["side"] == 800].median(numeric_only=True)
@@ -110,7 +111,9 @@ def main() -> None:
     # gigascale BSP-OT reference run (bspot_grid_giga, single plan)
     bspot_giga = json.loads((RESULTS / "billion_bspot_31623_seed0.json").read_text())
     macros["StatGigaBspotTimeMin"] = fmt(bspot_giga["solve_time_s"] / 60.0, 1)
-    macros["StatGigaBspotExcessPct"] = fmt(bspot_giga["excess_over_megalap_pct"], 1)
+    # recompute against the current megalap run rather than the stored field
+    macros["StatGigaBspotExcessPct"] = fmt(
+        100 * (bspot_giga["assignment_cost"] / giga["final_cost"] - 1), 1)
     macros["StatGigaBspotPeakRssGiB"] = fmt(bspot_giga["peak_rss_gib"], 0)
     ref = bspot_giga["ref_1e8"]
     macros["StatGigaBspotStockOnePlanGiB"] = fmt(ref["stock_1plan_peak_rss_gib"] * 10.0, 0)
@@ -134,7 +137,11 @@ def main() -> None:
 
     window = pd.read_csv(RESULTS / "ablation_window.csv")
     w = window.groupby("window_size").median(numeric_only=True)
-    macros["StatWindowBest"] = str(int(w["time_to_0p1pct_s"].idxmin()))
+    # only windows that reached 0.1% on every instance qualify
+    reached_all = window.groupby("window_size")["time_to_0p1pct_s"].count() == \
+        window.groupby("window_size").size()
+    macros["StatWindowBest"] = str(int(
+        w.loc[reached_all[reached_all].index, "time_to_0p1pct_s"].idxmin()))
 
     # initialization ablation (bench_init.py)
     init_fam = pd.read_csv(RESULTS / "init_families.csv")

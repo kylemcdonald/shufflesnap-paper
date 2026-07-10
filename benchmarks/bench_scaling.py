@@ -1,10 +1,10 @@
 """Scaling: convergence time and quality from 5k to 4.2M points.
 
-For each grid side, runs multiscale cleanup (raster seed) with a budget cap
-and records the full trace. Where an exact reference exists (side <= 200) the
-gap is reported against it, and the oracle's own solve time gives the exact-
-solver crossover. Writes results/scaling.csv (one row per side/seed) and
-results/scaling_traces.csv.
+For each grid side, runs multiscale cleanup from the default seed (a random
+permutation) with a budget cap and records the full trace. Where an exact
+reference exists (side <= 200) the gap is reported against it, and the
+oracle's own solve time gives the exact-solver crossover. Writes
+results/scaling.csv (one row per side/seed) and results/scaling_traces.csv.
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ from bench_common import (
     gap_pct,
     make_points,
     results_dir,
-    seed_raster,
+    seed_default,
 )
 
 SIDES = [71, 100, 141, 200, 283, 400, 566, 800, 1131, 1600, 2048]
@@ -46,7 +46,7 @@ def main() -> None:
                 continue  # largest cases are single-seed stress runs
             points = make_points("meander", n, seed=instance_seed)
             t0 = time.time()
-            seed_assignment = seed_raster(points)
+            seed_assignment = seed_default(points, n)
             seed_time = time.time() - t0
 
             budget = STRESS_BUDGET_S if side > 800 else BUDGET_S

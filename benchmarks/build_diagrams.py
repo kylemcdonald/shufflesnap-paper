@@ -19,7 +19,7 @@ from matplotlib.patches import Rectangle
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import megalap
-from bench_common import make_points, seed_raster
+from bench_common import make_points, seed_default
 
 REPO = Path(__file__).resolve().parents[1]
 FIGURES = REPO / "paper" / "figures"
@@ -179,10 +179,10 @@ def fig_multiscale_action() -> None:
     points = make_points("meander", n, seed=0)
     colors = lab_to_srgb(points)
 
-    assignment = seed_raster(points)
+    assignment = seed_default(points, n)
     schedule = megalap.default_stride_schedule(side, side)
 
-    snapshots = [("seed (raster)", assignment.copy(), None)]
+    snapshots = [("seed (random)", assignment.copy(), None)]
     capture_after = {0, 2, 4, len(schedule) - 1}
     for i, (sr, sc) in enumerate(schedule):
         result = megalap.window_cleanup(
