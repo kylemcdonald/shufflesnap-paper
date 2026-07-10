@@ -36,7 +36,7 @@ from bench_common import (
     build_target_grid,
     results_dir,
     rasterfairy_assignment,
-    seed_raster,
+    seed_default,
 )
 
 GRID_W, GRID_H = 250, 280
@@ -186,7 +186,7 @@ def main() -> None:
     targets = build_target_grid(GRID_W, GRID_H, MARGIN)
 
     t0 = time.time()
-    seed = seed_raster(points)
+    seed = seed_default(points, GRID_W * GRID_H)
     seed_time = time.time() - t0
     seed_cost = assignment_cost(points, targets, seed)
 

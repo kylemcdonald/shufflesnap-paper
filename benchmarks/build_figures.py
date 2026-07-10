@@ -207,6 +207,58 @@ def fig_ablations() -> None:
     plt.close(fig)
 
 
+def fig_init() -> None:
+    fam = pd.read_csv(RESULTS / "init_families.csv")
+    scal = pd.read_csv(RESULTS / "init_scaling.csv")
+    fig, axes = plt.subplots(1, 2, figsize=(7.2, 2.7), width_ratios=[1.4, 1])
+
+    # left: converged gap per family at 200x200, raster vs random
+    ax = axes[0]
+    families = ["meander", "two_blobs", "ring", "spiral", "mixture", "uniform"]
+    labels = ["meander", "two blobs", "ring", "spiral", "mixture", "uniform"]
+    sub200 = fam[fam["side"] == 200]
+    for x, family in enumerate(families):
+        g = sub200[sub200["family"] == family]
+        raster = g[g["init"] == "raster"]["final_gap_pct"].to_numpy()
+        ax.scatter(np.full(raster.shape, x - 0.13), raster, s=18,
+                   facecolors="none", edgecolors=C["green"], linewidths=1.2,
+                   zorder=3)
+        for iseed, gi in g[g["init"] == "random"].groupby("instance_seed"):
+            v = gi["final_gap_pct"]
+            ax.plot([x + 0.13, x + 0.13], [v.min(), v.max()],
+                    color=C["blue"], linewidth=1.0, alpha=0.6, zorder=2)
+            ax.scatter([x + 0.13], [v.median()], s=18, color=C["blue"], zorder=3)
+    ax.set_yscale("log")
+    ax.set_xticks(range(len(families)))
+    ax.set_xticklabels(labels, fontsize=7.5)
+    ax.set_ylabel("converged gap (%)")
+    ax.set_title("converged gap by seed, $200{\\times}200$")
+    ax.scatter([], [], s=18, facecolors="none", edgecolors=C["green"],
+               linewidths=1.2, label="raster seed")
+    ax.scatter([], [], s=18, color=C["blue"], label="random seed (min-max of 5)")
+    ax.legend(fontsize=7, loc="upper left", handletextpad=0.2)
+
+    # right: rounds to strict convergence vs scale (meander)
+    ax = axes[1]
+    for init, color, label in [("raster", C["green"], "raster seed"),
+                               ("random", C["blue"], "random seed")]:
+        med = scal[scal["init"] == init].groupby("side")["rounds"].median()
+        ax.plot(med.index, med.values, "o-", color=color, markersize=4,
+                label=label)
+    ax.set_xscale("log")
+    sides = sorted(scal["side"].unique())
+    ax.set_xticks(sides)
+    ax.set_xticklabels([str(s) for s in sides], fontsize=7)
+    ax.minorticks_off()
+    ax.set_xlabel("grid side (points = side$^2$)")
+    ax.set_ylabel("rounds to convergence")
+    ax.set_title("convergence effort vs. scale")
+    ax.legend(fontsize=7, loc="upper left")
+    fig.tight_layout()
+    fig.savefig(FIGURES / "init.png", bbox_inches="tight")
+    plt.close(fig)
+
+
 def _cached_solution(name: str, compute):
     """Load a solver's assignment + solve time from the cache, computing once.
 
@@ -256,7 +308,7 @@ def fig_distributions() -> None:
         exact_square_assignment,
         gap_pct,
         rasterfairy_assignment,
-        seed_raster,
+        seed_default,
     )
     from bench_bspot import run_bspot
 
@@ -272,7 +324,8 @@ def fig_distributions() -> None:
                   "ours", "exact optimum"]
 
     def megalap_solution(pts, side):
-        result = megalap.window_cleanup(pts, seed_raster(pts), rows=side, cols=side)
+        seed = seed_default(pts, side * side)
+        result = megalap.window_cleanup(pts, seed, rows=side, cols=side)
         return result["assignment"], float(result["elapsed_s"])
 
     def bspot_solution(pts, side):
@@ -357,11 +410,11 @@ def fig_holes() -> None:
     ax.set_title("hole handling quality, 96×96 grid")
 
     import megalap
-    from bench_common import seed_raster
+    from bench_common import seed_default
     side = 96
     n = int(0.7 * side * side)
     pts = make_points("meander", n, seed=0)
-    seed = seed_raster(pts, total_cells=side * side)
+    seed = seed_default(pts, side * side)
     res = megalap.window_cleanup(pts, seed, rows=side, cols=side)
     occupied = np.zeros(side * side, dtype=bool)
     occupied[res["assignment"]] = True
@@ -401,11 +454,12 @@ def fig_mnist_trace() -> None:
 
 def main() -> None:
     FIGURES.mkdir(parents=True, exist_ok=True)
-    which = sys.argv[1:] or ["convergence", "scaling", "ablations", "distributions", "holes", "mnist"]
+    which = sys.argv[1:] or ["convergence", "scaling", "ablations", "init", "distributions", "holes", "mnist"]
     builders = {
         "convergence": fig_convergence,
         "scaling": fig_scaling,
         "ablations": fig_ablations,
+        "init": fig_init,
         "distributions": fig_distributions,
         "holes": fig_holes,
         "mnist": fig_mnist_trace,

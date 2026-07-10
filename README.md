@@ -29,6 +29,7 @@ Run the experiments (exact references are cached in `benchmarks/results/exact_ca
 ./.venv/bin/python benchmarks/bench_convergence.py
 ./.venv/bin/python benchmarks/bench_distributions.py
 ./.venv/bin/python benchmarks/bench_ablations.py
+./.venv/bin/python benchmarks/bench_init.py
 ./.venv/bin/python benchmarks/bench_holes.py
 ./.venv/bin/python benchmarks/bench_oracle_check.py
 ./.venv/bin/python benchmarks/bench_scaling.py

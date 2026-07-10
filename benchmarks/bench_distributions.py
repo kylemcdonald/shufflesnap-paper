@@ -1,8 +1,8 @@
-"""Robustness across point distributions at 96x96 with exact references.
+"""Robustness across point distributions at 200x200 with exact references.
 
 For each distribution and instance seed, runs multiscale cleanup to
-convergence from a raster seed and records the trace. Writes
-results/distributions.csv.
+convergence from the default seed (a random permutation) and records the
+trace. Writes results/distributions.csv.
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ from bench_common import (
     gap_pct,
     make_points,
     results_dir,
-    seed_raster,
+    seed_default,
 )
 
 SIDE = 200
@@ -39,7 +39,7 @@ def main() -> None:
         for instance_seed in SEEDS:
             points = make_points(dist, SIDE * SIDE, seed=instance_seed)
             optimum = exact_instance(dist, SIDE, instance_seed)["cost"]
-            seed_assignment = seed_raster(points)
+            seed_assignment = seed_default(points, SIDE * SIDE)
             result = megalap.window_cleanup(
                 points, seed_assignment, rows=SIDE, cols=SIDE,
                 budget_seconds=BUDGET_S, trace_rounds=True,

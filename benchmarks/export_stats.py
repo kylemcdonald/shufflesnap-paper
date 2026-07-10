@@ -136,6 +136,56 @@ def main() -> None:
     w = window.groupby("window_size").median(numeric_only=True)
     macros["StatWindowBest"] = str(int(w["time_to_0p1pct_s"].idxmin()))
 
+    # initialization ablation (bench_init.py)
+    init_fam = pd.read_csv(RESULTS / "init_families.csv")
+    paired = []
+    for (family, side, iseed), g in init_fam.groupby(
+            ["family", "side", "instance_seed"]):
+        raster = float(g[g["init"] == "raster"]["final_gap_pct"].iloc[0])
+        random_med = float(g[g["init"] == "random"]["final_gap_pct"].median())
+        paired.append({"family": family, "side": side,
+                       "raster": raster, "random": random_med})
+    paired = pd.DataFrame(paired)
+    nonuni = paired[paired["family"] != "uniform"]
+    macros["StatInitInstances"] = str(len(nonuni))
+    macros["StatInitWins"] = str(int((nonuni["raster"] > nonuni["random"]).sum()))
+    macros["StatInitMedianRatio"] = fmt((nonuni["raster"] / nonuni["random"]).median(), 1)
+    n200 = nonuni[nonuni["side"] == 200]
+    macros["StatInitRatioTwoHundred"] = fmt((n200["raster"] / n200["random"]).median(), 1)
+    uni = paired[paired["family"] == "uniform"]
+    macros["StatInitUniformRatio"] = fmt((uni["raster"] / uni["random"]).median(), 2)
+
+    init_scal = pd.read_csv(RESULTS / "init_scaling.csv")
+    wins = 0
+    total = 0
+    for (side, iseed), g in init_scal.groupby(["side", "instance_seed"]):
+        raster_cost = float(g[g["init"] == "raster"]["final_cost"].iloc[0])
+        random_cost = float(g[g["init"] == "random"]["final_cost"].median())
+        wins += raster_cost > random_cost
+        total += 1
+    macros["StatInitScaleWins"] = str(wins)
+    macros["StatInitScaleTotal"] = str(total)
+    s_large = init_scal[init_scal["side"] == init_scal["side"].max()]
+    macros["StatInitLargestSide"] = str(int(init_scal["side"].max()))
+    for init, name in [("raster", "Raster"), ("random", "Random")]:
+        sub = s_large[s_large["init"] == init]
+        macros[f"StatInitRoundsLargest{name}"] = str(int(sub["rounds"].median()))
+        digits = 0 if init == "raster" else 1
+        macros[f"StatInitTimeLargest{name}S"] = fmt(sub["elapsed_s"].median(), digits)
+
+    init_holes = pd.read_csv(RESULTS / "init_holes.csv")
+
+    def hole_med(init: str, fill: float) -> float:
+        sub = init_holes[(init_holes["init"] == init)
+                         & (init_holes["fill_ratio"] == fill)]
+        return float(sub["final_gap_pct"].median())
+
+    macros["StatInitHolesSpreadHalf"] = fmt(hole_med("raster", 0.5), 1)
+    macros["StatInitHolesRandomHalf"] = fmt(hole_med("random_sorted", 0.5), 2)
+    macros["StatInitHolesSpreadNinetyFive"] = fmt(hole_med("raster", 0.95), 2)
+    macros["StatInitHolesRandomNinetyFive"] = fmt(hole_med("random_sorted", 0.95), 2)
+    macros["StatInitHolesShuffledNinetyFive"] = fmt(hole_med("random", 0.95), 2)
+
     threads = pd.read_csv(RESULTS / "ablation_threads.csv")
     t1 = threads[threads["threads"] == 1]["rounds_per_s"].iloc[0]
     tbest = threads["rounds_per_s"].max()

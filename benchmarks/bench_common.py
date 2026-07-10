@@ -118,6 +118,33 @@ def seed_random(n: int, rng_seed: int = 0) -> np.ndarray:
     return np.random.default_rng(rng_seed).permutation(n).astype(np.int64)
 
 
+def seed_random_cells(n: int, total_cells: int, rng_seed: int = 0) -> np.ndarray:
+    """Random subset of cells in random order; a full permutation when
+    n == total_cells."""
+    rng = np.random.default_rng(rng_seed)
+    return rng.permutation(total_cells)[:n].astype(np.int64)
+
+
+def seed_random_sorted(points: np.ndarray, total_cells: int,
+                       rng_seed: int = 0) -> np.ndarray:
+    """Random cell subset, points mapped to it in (y, x)-sorted order."""
+    n = len(points)
+    cells = np.sort(np.random.default_rng(rng_seed).permutation(total_cells)[:n])
+    order = np.lexsort((points[:, 0], points[:, 1]))
+    assignment = np.empty(n, dtype=np.int64)
+    assignment[order] = cells.astype(np.int64)
+    return assignment
+
+
+def seed_default(points: np.ndarray, total_cells: int) -> np.ndarray:
+    """megalap 0.3.0's default seed: a random permutation on full grids, a
+    random cell subset in sorted point order when there are holes."""
+    n = len(points)
+    if n == total_cells:
+        return seed_random(n)
+    return seed_random_sorted(points, total_cells)
+
+
 def rasterfairy_assignment(points: np.ndarray, width: int, height: int):
     """Assignment via the RasterFairy package (Klingemann 2016), timed.
 

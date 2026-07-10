@@ -1,8 +1,9 @@
 """Holes: quality of rectangular (free-hole) assignment as fill ratio varies.
 
 Compares two strategies against the exact rectangular optimum at 96x96:
-  free-holes     spread seed + rectangular multiscale cleanup (the default):
-                 the solver decides where the empty cells end up
+  free-holes     default seed (random cell subset, sorted point order) +
+                 rectangular multiscale cleanup: the solver decides where
+                 the empty cells end up
   predetermined  the empty cells are fixed in advance to the trailing cells
                  (as a partial-last-rows layout does), via a cell mask
 
@@ -27,6 +28,7 @@ from bench_common import (
     gap_pct,
     make_points,
     results_dir,
+    seed_default,
     seed_raster,
 )
 
@@ -47,10 +49,10 @@ def main() -> None:
             key = f"rect-meander:{SIDE}x{SIDE}:n{n}:seed{instance_seed}"
             optimum = exact_rect_cost(points, SIDE, SIDE, key=key)
 
-            spread = seed_raster(points, total_cells=m)
-            seed_cost = assignment_cost(points, targets, spread)
+            default_seed = seed_default(points, m)
+            seed_cost = assignment_cost(points, targets, default_seed)
 
-            free = megalap.window_cleanup(points, spread, rows=SIDE, cols=SIDE)
+            free = megalap.window_cleanup(points, default_seed, rows=SIDE, cols=SIDE)
             free_cost = float(free["final_cost"])
 
             # predetermined holes: only the first n cells are usable, so the
