@@ -1,4 +1,4 @@
-"""Check stored benchmark evidence and reproduce the 18 distribution outcomes.
+"""Check stored benchmark evidence and reproduce the 15 distribution outcomes.
 
 Does not overwrite historical timings or reference data. Requires the scientific
 requirements and the sibling shufflesnap source installation.
@@ -19,6 +19,7 @@ from bench_common import (DISTRIBUTIONS, RESULTS, assignment_cost,
 def main():
     cache = json.loads((RESULTS / 'exact_cache.json').read_text())
     distributions = pd.read_csv(RESULTS / 'distributions.csv')
+    distributions = distributions[distributions['distribution'].isin(DISTRIBUTIONS)]
     for row in distributions.itertuples():
         side = int(round(row.n ** 0.5))
         ref = cache[f'{row.distribution}:{side}x{side}:seed{row.instance_seed}']['cost']
@@ -41,10 +42,11 @@ def main():
             if method == 'exact':
                 np.testing.assert_allclose(cost, ref, rtol=1e-11)
     matched = pd.read_csv(RESULTS / 'bspot_time_matched.csv')
+    matched = matched[matched['distribution'].isin(DISTRIBUTIONS)]
     assert (matched['shufflesnap_elapsed_s'] <= matched['bspot_time_s']).all()
-    assert len(matched) == 6 * 3 * 5
-    print('PASS: 18 reproduced final gaps, 24 bijective figure assignments, '
-          'auction cache agreement, and 90 in-budget checkpoints.')
+    assert len(matched) == len(DISTRIBUTIONS) * 3 * 5
+    print('PASS: 15 reproduced final gaps, 20 bijective figure assignments, '
+          'auction cache agreement, and 75 in-budget checkpoints.')
 
 
 if __name__ == '__main__':

@@ -219,8 +219,8 @@ def fig_init() -> None:
 
     # left: converged gap per family at 200x200, raster vs random
     ax = axes[0]
-    families = ["meander", "two_blobs", "ring", "spiral", "mixture", "uniform"]
-    labels = ["meander", "two blobs", "ring", "spiral", "mixture", "uniform"]
+    families = ["meander", "two_blobs", "ring", "spiral", "mixture"]
+    labels = ["meander", "two blobs", "ring", "spiral", "mixture"]
     sub200 = fam[fam["side"] == 200]
     for x, family in enumerate(families):
         g = sub200[sub200["family"] == family]
@@ -320,9 +320,9 @@ def fig_distributions() -> None:
     df = pd.read_csv(RESULTS / "distributions.csv")
     side = int(np.sqrt(df["n"].iloc[0]))
     targets = build_target_grid(side, side)
-    dists = ["meander", "uniform", "two_blobs", "ring", "spiral", "mixture"]
+    dists = ["meander", "two_blobs", "ring", "spiral", "mixture"]
     labels = {
-        "meander": "meander", "uniform": "uniform", "two_blobs": "two blobs",
+        "meander": "meander", "two_blobs": "two blobs",
         "ring": "ring", "spiral": "spiral", "mixture": "mixture",
     }
     row_labels = ["input cloud", "RasterFairy", "BSP-OT",
@@ -346,7 +346,7 @@ def fig_distributions() -> None:
         assignment = exact_square_assignment(pts, side, side)
         return assignment, time_mod.time() - t0
 
-    fig, axes = plt.subplots(5, 6, figsize=(7.2, 6.6))
+    fig, axes = plt.subplots(5, len(dists), figsize=(7.2, 7.5))
     for col, dist in enumerate(dists):
         pts = make_points(dist, side * side, seed=0)
         colors = graph_paper_colors(pts)

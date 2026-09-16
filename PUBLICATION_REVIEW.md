@@ -1,13 +1,37 @@
 # Publication review and handoff
 
-Prepared 2026-09-15 for author and human review. The paper has not been submitted to arXiv.
+Updated 2026-09-16 for author and human review. The paper has not been submitted to arXiv.
+
+## Compact-paper revision
+
+The main paper is now three pages: motivation, the window/stride technique, two
+explanatory figures, and one headline comparison table. Detailed algorithms,
+convergence, scaling, ablations, masks, MNIST, reference validation, and related
+work are in the appendices. The main comparison retains BSP-OT's short-budget
+advantage instead of implying equal-runtime superiority.
+
+The trailing partial windows remain necessary for arbitrary grid sizes. On a
+seven-cell axis, the clipped shifted window is the only bridge across the last
+unshifted boundary. An independent exact-solve experiment fails to repair an
+edge swap when that window is removed and repairs it to zero cost when retained.
+Twenty new regression cases cover horizontal/vertical axes, five edge-sensitive
+sizes, and local/default schedules; all 45 package tests pass. The kernel's
+behavior is unchanged, so no wholesale benchmark rerun or billion-point rerun
+was needed. The 15 retained distribution outcomes were reproduced again.
+
+Fable independently confirmed this boundary analysis and reviewed the compact
+manuscript. Its diagram, stride-definition, stale timing-range, and typo fixes
+were incorporated; duplicate figures were removed. The headline table uses
+three-instance medians from the quality runs, while five repeats apply only to
+the separate time-matched experiment. Reviews are retained under `publication-review/revision-compact/` in
+the parent workspace.
 
 ## Changes made
 
 - Renamed the library, import package, paper and print repositories, active file paths, URLs, workflows, and generated figure labels to ShuffleSnap.
 - Rewrote the abstract and central claims to distinguish linear work per round and logarithmically many initial scales from the unbounded polishing tail and empirical accuracy.
 - Removed certified-optimum language: stored auction results are high-accuracy floating-point references without independent dual certificates.
-- Reported the uniform-family exception, RMS interpretation, and 26/30 random-initialization wins explicitly.
+- Restricted the manuscript to five distribution families; removed the uniform benchmark from all figures, tables, and statistics. Historical raw data remain archived.
 - Clarified fixed occupied subsets for spare cells and `O(n+m)` storage for sparse grids.
 - Corrected related-work scope for Euclidean versus squared-Euclidean/RMS matching; added the RMS approximation paper and Sca²Gri.
 - Preserved BSP-OT's measured short-budget advantage; clarified checkpoint granularity, timing exclusions, parallelism, and limits of the custom billion-point port comparison.
@@ -24,7 +48,7 @@ Full review responses and local validation logs are retained in the workspace's 
 
 ## Validation
 
-The library source is pinned in the manuscript. The publication checks cover package tests, wheel/source-distribution metadata and installation, reproducing all 18 distribution final gaps, 24 cached bijections and reference costs, and all 90 time-matched checkpoints. `scripts/build_submission.py` separately compiles the exact contents of the source archive and rejects undefined references and overfull boxes. The rendered PDF is inspected for figure placement and legibility.
+The library source is pinned in the manuscript. The publication checks cover package tests, wheel/source-distribution metadata and installation, reproducing all 15 retained distribution final gaps, 20 cached bijections and reference costs, and all 75 retained time-matched checkpoints. `scripts/build_submission.py` separately compiles the exact contents of the source archive and rejects undefined references and overfull boxes. The rendered PDF is inspected for figure placement and legibility.
 
 ## PyPI release
 

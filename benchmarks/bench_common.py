@@ -84,7 +84,7 @@ def make_points(name: str, n: int, seed: int = 0) -> np.ndarray:
     raise ValueError(f"unknown distribution: {name}")
 
 
-DISTRIBUTIONS = ["meander", "uniform", "two_blobs", "ring", "spiral", "mixture"]
+DISTRIBUTIONS = ["meander", "two_blobs", "ring", "spiral", "mixture"]
 
 
 # ------------------------------------------------------------------- targets

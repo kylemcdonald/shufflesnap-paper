@@ -31,6 +31,7 @@ python3 -m venv .venv
 .venv/bin/python benchmarks/export_stats.py
 .venv/bin/python benchmarks/build_figures.py
 .venv/bin/python benchmarks/build_diagrams.py
+.venv/bin/python benchmarks/build_overview.py
 ```
 
 The numerical figures use stored CSV/JSON results and cached small assignments. Diagram generation executes small solver examples. The MNIST raster figures and billion-point image are supplied; rebuilding those images is separate from regenerating the numerical plots.
@@ -78,8 +79,14 @@ The driver evaluates Gaussian bijective matching with explicitly chosen plan cou
 - `benchmarks/refresh_bspot_references.py` updates stress-test comparisons against the stored descent summaries.
 - `benchmarks/render_billion_4x_box_area_tiled.py` and `benchmarks/render_billion_antialias.py` generate exploratory antialiased print renders, kept locally under the ignored render-variant paths.
 - `benchmarks/render_billion_test.py` renders interpolation views from the large local artifacts; see `--help`.
-- `scripts/check_results.py` reproduces all 18 distribution outcomes and checks cached assignments and time-matched checkpoints without changing recorded timings.
+- `scripts/check_results.py` reproduces all 15 retained distribution outcomes and checks cached assignments and time-matched checkpoints without changing recorded timings.
 
 ```bash
 .venv/bin/python scripts/check_results.py
 ```
+
+The main paper is a short introduction to the technique and its headline comparison;
+algorithm details and experimental evidence follow in appendices. The current
+benchmark suite and generated manuscript use five distribution families. Archived
+raw measurements from the earlier suite remain available for provenance, but are
+excluded from the current figures, tables, and headline statistics.
