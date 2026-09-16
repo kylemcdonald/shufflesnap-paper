@@ -22,7 +22,7 @@ No benchmark reruns or Python scientific dependencies are needed to build from t
 
 ## Reproduce figures and statistics
 
-Use the pinned library source: the old PyPI release is not the evaluated development version. From this repository, with Python 3.12 and a C++ compiler:
+ShuffleSnap 0.3.0 is [available on PyPI](https://pypi.org/project/shufflesnap/0.3.0/). The commands below retain the exact source revision cited in the paper for reproduction. From this repository, with Python 3.12 and a C++ compiler:
 
 ```bash
 python3 -m venv .venv
