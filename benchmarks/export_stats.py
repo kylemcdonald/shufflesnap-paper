@@ -1,7 +1,7 @@
 """Export headline numbers from benchmark CSVs as LaTeX macros (paper/stats.tex).
 
 Every number quoted in the manuscript comes from this file, so text and
-figures cannot drift apart.
+figures cannot diverge.
 """
 
 from __future__ import annotations
@@ -111,7 +111,7 @@ def main() -> None:
     # gigascale BSP-OT reference run (bspot_grid_giga, single plan)
     bspot_giga = json.loads((RESULTS / "billion_bspot_31623_seed0.json").read_text())
     macros["StatGigaBspotTimeMin"] = fmt(bspot_giga["solve_time_s"] / 60.0, 1)
-    # recompute against the current megalap run rather than the stored field
+    # recompute against the current shufflesnap run rather than the stored field
     macros["StatGigaBspotExcessPct"] = fmt(
         100 * (bspot_giga["assignment_cost"] / giga["final_cost"] - 1), 1)
     macros["StatGigaBspotPeakRssGiB"] = fmt(bspot_giga["peak_rss_gib"], 0)
@@ -119,7 +119,7 @@ def main() -> None:
     macros["StatGigaBspotStockOnePlanGiB"] = fmt(ref["stock_1plan_peak_rss_gib"] * 10.0, 0)
     macros["StatGigaBspotStockDefaultGiB"] = fmt(ref["stock_16plan_peak_rss_gib_omp4"] * 10.0, 0)
     macros["StatHundredMBspotDefaultGiB"] = fmt(ref["stock_16plan_peak_rss_gib_omp4"], 0)
-    ref_base = ref["megalap_final_cost_500s_run"]
+    ref_base = ref["shufflesnap_final_cost_500s_run"]
     macros["StatHundredMBspotSixteenExcessPct"] = fmt(
         100 * (ref["stock_16plan_cost"] / ref_base - 1), 1)
     one_plan = [ref["stock_1plan_cost"], ref["giga_1plan_cost"]]
@@ -129,11 +129,6 @@ def main() -> None:
     crossed = giga_trace[giga_trace["cost"] <= bspot_giga["assignment_cost"]]
     macros["StatGigaCrossBspotMin"] = fmt(float(crossed["elapsed_s"].min()) / 60.0, 1)
     macros["StatGigaCrossBspotRound"] = str(int(crossed["round"].min()))
-
-    holes = pd.read_csv(RESULTS / "holes.csv")
-    h85 = holes[holes["fill_ratio"] == 0.85].median(numeric_only=True)
-    macros["StatHolesFreeGap"] = fmt(h85["free_gap_pct"], 2)
-    macros["StatHolesPinnedGap"] = fmt(h85["pinned_gap_pct"], 0)
 
     window = pd.read_csv(RESULTS / "ablation_window.csv")
     w = window.groupby("window_size").median(numeric_only=True)
@@ -180,19 +175,6 @@ def main() -> None:
         digits = 0 if init == "raster" else 1
         macros[f"StatInitTimeLargest{name}S"] = fmt(sub["elapsed_s"].median(), digits)
 
-    init_holes = pd.read_csv(RESULTS / "init_holes.csv")
-
-    def hole_med(init: str, fill: float) -> float:
-        sub = init_holes[(init_holes["init"] == init)
-                         & (init_holes["fill_ratio"] == fill)]
-        return float(sub["final_gap_pct"].median())
-
-    macros["StatInitHolesSpreadHalf"] = fmt(hole_med("raster", 0.5), 1)
-    macros["StatInitHolesRandomHalf"] = fmt(hole_med("random_sorted", 0.5), 2)
-    macros["StatInitHolesSpreadNinetyFive"] = fmt(hole_med("raster", 0.95), 2)
-    macros["StatInitHolesRandomNinetyFive"] = fmt(hole_med("random_sorted", 0.95), 2)
-    macros["StatInitHolesShuffledNinetyFive"] = fmt(hole_med("random", 0.95), 2)
-
     threads = pd.read_csv(RESULTS / "ablation_threads.csv")
     t1 = threads[threads["threads"] == 1]["rounds_per_s"].iloc[0]
     tbest = threads["rounds_per_s"].max()
@@ -236,27 +218,43 @@ def main() -> None:
     macros["StatBspotMnistKnn"] = fmt(100 * bspot_mnist["knn10_preservation"], 1)
     macros["StatBspotMnistLabel"] = fmt(100 * bspot_mnist["label10_agreement"], 1)
 
-    # per-family comparison table: BSP-OT (16 plans) vs converged descent at 40k
+    # Per-family comparison table: BSP-OT (16 plans), time-matched descent,
+    # and converged descent at 40k.  The time-matched CSV has five timing
+    # repeats per paired instance; take the per-instance median first, then
+    # the family median so every instance has equal weight.
     dist_med = dist.groupby("distribution")[["final_gap_pct", "elapsed_s"]].median()
     b16_med = b16.groupby("distribution")[["gap_pct", "time_s"]].median()
+    time_matched = pd.read_csv(RESULTS / "bspot_time_matched.csv")
+    time_matched_by_instance = time_matched.groupby(
+        ["distribution", "instance_seed"]
+    )["shufflesnap_gap_pct"].median()
+    time_matched_med = time_matched_by_instance.groupby("distribution").median()
+    macros["StatBspotTimeMatchedWins"] = str(int(
+        (time_matched_med <= b16_med["gap_pct"]).sum()
+    ))
+    macros["StatBspotTimeMatchedTotal"] = str(len(time_matched_med))
+    macros["StatBspotTimeMatchedMeanderGap"] = fmt(
+        float(time_matched_med.loc["meander"]), 2
+    )
     order = ["meander", "uniform", "two_blobs", "ring", "spiral", "mixture"]
     names = {"meander": "meander", "uniform": "uniform", "two_blobs": "two blobs",
              "ring": "ring", "spiral": "spiral", "mixture": "mixture"}
     table_rows = []
     for family in order:
         bg, bt = b16_med.loc[family, "gap_pct"], b16_med.loc[family, "time_s"]
+        tg = time_matched_med.loc[family]
         mg, mt = dist_med.loc[family, "final_gap_pct"], dist_med.loc[family, "elapsed_s"]
         table_rows.append(
-            f"    {names[family]} & {bg:.2f} & {bt:.2f} & {mg:.3f} & {mt:.2f} \\\\"
+            f"    {names[family]} & {bg:.2f} & {bt:.2f} & {tg:.2f} & {mg:.3f} & {mt:.2f} \\\\"
         )
     body = "\n".join(table_rows)
     (REPO / "paper" / "bspot_table.tex").write_text(
         "% Auto-generated by benchmarks/export_stats.py -- do not edit.\n"
-        "\\begin{tabular}{lrrrr}\n"
+        "\\begin{tabular}{lrrrrr}\n"
         "  \\toprule\n"
-        "  & \\multicolumn{2}{c}{BSP-OT} & \\multicolumn{2}{c}{ours} \\\\\n"
-        "  \\cmidrule(lr){2-3} \\cmidrule(lr){4-5}\n"
-        "  family & gap (\\%) & time (s) & gap (\\%) & time (s) \\\\\n"
+        "  & \\multicolumn{2}{c}{BSP-OT} & \\multicolumn{3}{c}{ShuffleSnap} \\\\\n"
+        "  \\cmidrule(lr){2-3} \\cmidrule(lr){4-6}\n"
+        "  family & gap (\\%) & time (s) & gap @ $t_{\\mathrm{BSP}}$ (\\%) & converged gap (\\%) & time (s) \\\\\n"
         "  \\midrule\n"
         f"{body}\n"
         "  \\bottomrule\n"

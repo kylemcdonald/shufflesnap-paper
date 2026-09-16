@@ -9,6 +9,8 @@ driver solvers/cpp/bspot_grid (see its header for build instructions).
 
 Outputs:
   results/bspot_quality.csv   six families at 200x200, plans in {1, 16, 64}
+  results/bspot_time_matched.csv
+                              ShuffleSnap at each 16-plan BSP-OT time budget
   results/bspot_scaling.csv   meander, sides 71..2048, plans=16
   results/bspot_seed.csv      BSP-OT construction as the start of descent
   results/bspot_mnist.json    MNIST 70k embedding-to-grid comparison
@@ -16,6 +18,7 @@ Outputs:
 
 from __future__ import annotations
 
+import argparse
 import csv
 import json
 import subprocess
@@ -28,7 +31,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-import megalap
+import shufflesnap
 from bench_common import (
     DISTRIBUTIONS,
     REPO,
@@ -39,10 +42,11 @@ from bench_common import (
     make_points,
     normalize,
     results_dir,
-    seed_raster,
+    seed_default,
 )
 
 DRIVER = REPO / "solvers" / "cpp" / "bspot_grid"
+TIME_MATCHED_REPEATS = 5
 
 
 def run_bspot(points: np.ndarray, rows: int, cols: int, plans: int,
@@ -98,6 +102,92 @@ def quality() -> None:
     print(f"wrote {path}")
 
 
+def time_matched() -> None:
+    """Measure ShuffleSnap at the per-instance 16-plan BSP-OT time budgets.
+
+    ``window_cleanup`` only checks its budget between complete rounds, so a
+    direct budgeted call can overrun a sub-second budget by almost one round.
+    We instead trace a run requested with each instance's individual BSP-OT
+    time and retain the last complete ShuffleSnap round at or before that budget.
+    The seed itself is the legal t=0 checkpoint.
+    This is a conservative, strict time-matched comparison of cleanup time;
+    like the existing table, it excludes input construction and seeding.
+    """
+    bspot_path = results_dir() / "bspot_quality.csv"
+    with bspot_path.open(newline="") as f:
+        bspot_rows = [
+            row for row in csv.DictReader(f)
+            if int(row["plans"]) == 16
+        ]
+    if not bspot_rows:
+        raise RuntimeError(f"no 16-plan BSP-OT rows in {bspot_path}")
+
+    rows_out = []
+    for bspot in bspot_rows:
+        dist = bspot["distribution"]
+        instance_seed = int(bspot["instance_seed"])
+        n = int(bspot["n"])
+        side = int(round(n ** 0.5))
+        if side * side != n:
+            raise ValueError(f"time-matched benchmark requires a square grid, got n={n}")
+        bspot_time_s = float(bspot["time_s"])
+        bspot_gap_pct = float(bspot["gap_pct"])
+
+        points = make_points(dist, n, seed=instance_seed)
+        targets = build_target_grid(side, side)
+        optimum = exact_instance(dist, side, instance_seed)["cost"]
+        for rep in range(TIME_MATCHED_REPEATS):
+            t0 = time.perf_counter()
+            seed_assignment = seed_default(points, n)
+            seed_time_s = time.perf_counter() - t0
+            seed_cost = assignment_cost(points, targets, seed_assignment)
+            result = shufflesnap.window_cleanup(
+                points,
+                seed_assignment,
+                rows=side,
+                cols=side,
+                budget_seconds=bspot_time_s,
+                trace_rounds=True,
+            )
+
+            checkpoints = [(0, 0.0, seed_cost)]
+            checkpoints.extend(
+                (round_idx, float(elapsed), float(cost))
+                for round_idx, (elapsed, cost) in enumerate(zip(
+                    result["round_elapsed_s"], result["round_costs"]
+                ), start=1)
+            )
+            round_idx, matched_elapsed_s, matched_cost = max(
+                (checkpoint for checkpoint in checkpoints if checkpoint[1] <= bspot_time_s),
+                key=lambda checkpoint: checkpoint[1],
+            )
+            row = {
+                "distribution": dist,
+                "instance_seed": instance_seed,
+                "rep": rep,
+                "n": n,
+                "bspot_time_s": bspot_time_s,
+                "bspot_gap_pct": bspot_gap_pct,
+                "shufflesnap_budget_s": bspot_time_s,
+                "shufflesnap_gap_pct": gap_pct(matched_cost, optimum),
+                "shufflesnap_elapsed_s": matched_elapsed_s,
+                "rounds_within_budget": round_idx,
+                "seed_time_s": seed_time_s,
+                "trace_run_elapsed_s": float(result["elapsed_s"]),
+            }
+            rows_out.append(row)
+            print(row, flush=True)
+
+    path = results_dir() / "bspot_time_matched.csv"
+    with path.open("w", newline="") as f:
+        writer = csv.DictWriter(
+            f, fieldnames=list(rows_out[0].keys()), lineterminator="\n"
+        )
+        writer.writeheader()
+        writer.writerows(rows_out)
+    print(f"wrote {path}")
+
+
 def scaling() -> None:
     rows_out = []
     for side in [71, 100, 141, 200, 283, 400, 566, 800, 1131, 1600, 2048]:
@@ -131,7 +221,7 @@ def as_seed() -> None:
         optimum = exact_instance("meander", side, instance_seed)["cost"]
         bspot = run_bspot(points, side, side, plans=16, seed=instance_seed,
                           want_assignment=True)
-        result = megalap.window_cleanup(points, bspot["assignment"],
+        result = shufflesnap.window_cleanup(points, bspot["assignment"],
                                         rows=side, cols=side)
         rows_out.append({
             "instance_seed": instance_seed,
@@ -171,7 +261,17 @@ def mnist() -> None:
 
 
 if __name__ == "__main__":
-    quality()
-    scaling()
-    as_seed()
-    mnist()
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--time-matched", action="store_true",
+        help="run only the per-instance ShuffleSnap-at-BSP-OT-time experiment",
+    )
+    args = parser.parse_args()
+    if args.time_matched:
+        time_matched()
+    else:
+        quality()
+        time_matched()
+        scaling()
+        as_seed()
+        mnist()

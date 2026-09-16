@@ -1,6 +1,6 @@
-"""Exploratory 10k x 10k renders of a billion-point assignment (not paper figures).
+"""Render a billion-point assignment for the appendix and exploratory views.
 
-Renders two views of a saved assignment (megalap or BSP-OT) of the
+Renders two views of a saved assignment (shufflesnap or BSP-OT) of the
 bench_billion meander instance:
 
   {tag}_interp{P}.png       every point splatted at (1-t)*initial + t*assigned
@@ -15,8 +15,11 @@ bincount-based, so beyond the coordinates and the int32 assignment nothing
 point-sized is held.
 
 Example:
-  python render_billion_test.py --side 31623                 # megalap result
+  python render_billion_test.py --side 31623                 # shufflesnap result
   python render_billion_test.py --side 31623 --tag bspot     # BSP-OT result
+
+The default ShuffleSnap interpolation render is copied to
+paper/figures/billion_interp75.png for the appendix.
 """
 
 from __future__ import annotations
@@ -50,8 +53,8 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--side", type=int, required=True)
     parser.add_argument("--seed", type=int, default=0)
-    parser.add_argument("--tag", default="megalap",
-                        help="assignment tag: 'megalap' reads billion_meander_{side}_seed{seed}.npy, "
+    parser.add_argument("--tag", default="shufflesnap",
+                        help="assignment tag: 'shufflesnap' reads billion_meander_{side}_seed{seed}.npy, "
                              "anything else reads billion_{tag}_{side}_seed{seed}.npy")
     parser.add_argument("--interp", type=float, default=0.75,
                         help="interpolation fraction toward the assigned cell center")
@@ -61,7 +64,7 @@ def main() -> None:
 
     side, out = args.side, args.out_size
     n = side * side
-    if args.tag == "megalap":
+    if args.tag == "shufflesnap":
         asn_name = f"billion_meander_{side}_seed{args.seed}.npy"
     else:
         asn_name = f"billion_{args.tag}_{side}_seed{args.seed}.npy"

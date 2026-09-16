@@ -9,12 +9,7 @@ sweeps, every run to strict convergence (budget_seconds=None):
   scaling    meander at sides {100, 141, 200, 283, 400, 566, 800};
              raster vs 3 random permutations; gaps where an exact reference
              is cached, raw final costs everywhere (paired comparison)
-  holes      rect-meander at 96x96, fill 0.5-0.95; the seed decomposes into
-             which cells are used (evenly spread vs random subset) and how
-             points map to them (sorted vs shuffled), giving a 2x2 of
-             variants; gaps vs cached exact rectangular refs
-
-Writes results/init_families.csv, init_scaling.csv, init_holes.csv.
+Writes results/init_families.csv and init_scaling.csv.
 """
 
 from __future__ import annotations
@@ -27,41 +22,30 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-import megalap
+import shufflesnap
 from bench_common import (
     DISTRIBUTIONS,
     assignment_cost,
     build_target_grid,
     exact_instance,
-    exact_rect_cost,
     gap_pct,
     make_points,
     results_dir,
     seed_random_cells,
-    seed_random_sorted,
     seed_raster,
 )
 
 FAMILY_SIDES = [96, 200]
 SCALING_SIDES = [100, 141, 200, 283, 400, 566, 800]
-HOLE_SIDE = 96
-HOLE_FILLS = [0.5, 0.7, 0.85, 0.95]
 SEEDS = [0, 1, 2]
 FAMILY_REPS = 5
 SCALING_REPS = 3
-HOLE_REPS = 5
-
-
-def seed_spread_shuffled(n: int, total_cells: int, rng_seed: int) -> np.ndarray:
-    """Evenly spread cells, points mapped to them in random order."""
-    picks = np.floor(np.arange(n, dtype=np.float64) * (total_cells / n)).astype(np.int64)
-    return picks[np.random.default_rng(rng_seed).permutation(n)]
 
 
 def run_to_convergence(points, seed_assignment, rows, cols, targets, optimum):
     """One converged cleanup; gap fields are blank when optimum is None."""
     seed_cost = assignment_cost(points, targets, seed_assignment)
-    result = megalap.window_cleanup(
+    result = shufflesnap.window_cleanup(
         points, seed_assignment, rows=rows, cols=cols,
         budget_seconds=None, trace_rounds=True,
     )
@@ -151,42 +135,9 @@ def scaling_sweep() -> None:
     write_csv(results_dir() / "init_scaling.csv", rows)
 
 
-def hole_sweep() -> None:
-    m = HOLE_SIDE * HOLE_SIDE
-    targets = build_target_grid(HOLE_SIDE, HOLE_SIDE)
-    rows: list[dict] = []
-    for fill in HOLE_FILLS:
-        n = int(round(fill * m))
-        for instance_seed in SEEDS:
-            points = make_points("meander", n, seed=instance_seed)
-            key = f"rect-meander:{HOLE_SIDE}x{HOLE_SIDE}:n{n}:seed{instance_seed}"
-            optimum = exact_rect_cost(points, HOLE_SIDE, HOLE_SIDE, key=key)
-            runs = [("raster", "", seed_raster(points, total_cells=m))]
-            for rep in range(HOLE_REPS):
-                rng_seed = 1000 * instance_seed + rep
-                runs.append(("random", rep, seed_random_cells(n, m, rng_seed)))
-                runs.append(("spread_shuffled", rep, seed_spread_shuffled(n, m, rng_seed)))
-                runs.append(("random_sorted", rep, seed_random_sorted(points, m, rng_seed)))
-            for init, rep, seed_assignment in runs:
-                stats = run_to_convergence(
-                    points, seed_assignment, HOLE_SIDE, HOLE_SIDE, targets, optimum)
-                rows.append({
-                    "fill_ratio": fill, "n": n, "cells": m,
-                    "instance_seed": instance_seed,
-                    "init": init, "rep": rep, **stats,
-                })
-                print(
-                    f"holes fill={fill} seed={instance_seed} {init}{rep} "
-                    f"final={stats['final_gap_pct']:.4f}% rounds={stats['rounds']}",
-                    flush=True)
-    write_csv(results_dir() / "init_holes.csv", rows)
-
-
 if __name__ == "__main__":
-    which = set(sys.argv[1:]) or {"families", "holes", "scaling"}
+    which = set(sys.argv[1:]) or {"families", "scaling"}
     if "families" in which:
         family_sweep()
-    if "holes" in which:
-        hole_sweep()
     if "scaling" in which:
         scaling_sweep()

@@ -18,7 +18,7 @@ from matplotlib.patches import Rectangle
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-import megalap
+import shufflesnap
 from bench_common import make_points, seed_default
 
 REPO = Path(__file__).resolve().parents[1]
@@ -47,49 +47,62 @@ def fig_windows_and_phases() -> None:
         for spine in ax.spines.values():
             spine.set_color("#999999")
 
-    # (a) one window move: points inside a window, lines to their new cells
+    # (a) one dense window.  The cell set is spatially compact, but the source
+    # positions of the points currently assigned to those cells may lie inside
+    # or outside the window.
     ax = axes[0]
     side = 12
     draw_grid(ax, side)
-    rng = np.random.default_rng(4)
     ax.add_patch(Rectangle((2.5, 2.5), w, w, facecolor="#f2f5f8",
                            edgecolor=VERMILLION, linewidth=2.0, zorder=1))
-    cells = [(r, c) for r in range(3, 9) for c in range(3, 9)]
-    picked = rng.choice(len(cells), size=8, replace=False)
-    targets_rc = [cells[i] for i in rng.permutation(picked)]
-    for idx, tgt in zip(picked, targets_rc):
-        r, c = cells[idx]
-        px = c + rng.uniform(-1.4, 1.4)
-        py = r + rng.uniform(-1.4, 1.4)
-        px, py = np.clip([px, py], 2.8, 8.2)
-        ax.plot([px, tgt[1]], [py, tgt[0]], color="#b8c4cc", linewidth=0.9, zorder=2)
-        ax.plot(tgt[1], tgt[0], "s", color="#c9d4da", markersize=4.5, zorder=2)
+    for r in range(3, 9):
+        for c in range(3, 9):
+            ax.plot(c, r, "s", markerfacecolor="white", markeredgecolor="#aebbc4",
+                    markeredgewidth=0.7, markersize=4.2, zorder=2)
+    points = np.array([
+        [3.4, 3.7], [5.0, 4.2], [7.5, 3.4],
+        [3.9, 6.8], [6.2, 7.2], [7.8, 5.5],
+        [1.0, 1.2], [10.1, 1.7], [0.9, 6.1],
+        [10.2, 8.8], [5.3, 10.3], [1.7, 9.7],
+    ])
+    targets = np.array([
+        [4, 4], [5, 4], [7, 4], [4, 7], [6, 7], [8, 6],
+        [3, 3], [8, 3], [3, 6], [8, 8], [6, 8], [3, 8],
+    ])
+    for (px, py), (tx, ty) in zip(points, targets):
+        ax.plot([px, tx], [py, ty], color="#b8c4cc", linewidth=0.8, zorder=2)
         ax.plot(px, py, "o", color=BLUE, markersize=4, zorder=3)
-    ax.set_title("a window move: the points in a\nwindow are re-matched to its cells", fontsize=8)
+    ax.set_title("one dense window: all cells participate;\nassigned points may lie inside or outside", fontsize=8)
 
-    # (b) one phase: a tiling of disjoint windows
+    # (b) one phase: show the entire 3 x 3 tiling of disjoint windows.
     ax = axes[1]
     side = 18
     draw_grid(ax, side)
+    outline_inset = 0.12
     for i in range(side // w):
         for j in range(side // w):
-            shade = "#f2f5f8" if (i + j) % 2 == 0 else "#dfe8ef"
-            ax.add_patch(Rectangle((j * w - 0.5, i * w - 0.5), w, w,
-                                   facecolor=shade, edgecolor="#8ab0cc",
-                                   linewidth=1.2, zorder=1))
-    ax.set_title("a phase: disjoint windows tile the\ngrid and are solved in parallel", fontsize=8)
+            ax.add_patch(Rectangle((j * w - 0.5 + outline_inset,
+                                    i * w - 0.5 + outline_inset),
+                                   w - 2 * outline_inset, w - 2 * outline_inset,
+                                   facecolor="none", edgecolor=VERMILLION,
+                                   linewidth=1.4, linestyle=(0, (4, 2)), zorder=2))
+    ax.set_title("one phase: all 9 disjoint windows\nare solved in parallel", fontsize=8)
 
-    # (c) phases overlap: shifted tiling on top
+    # (c) the actual half-window-offset phase: complete windows plus the
+    # clipped windows at the far row and column edges.
     ax = axes[2]
     draw_grid(ax, side)
-    for i in range(side // w):
-        for j in range(side // w):
-            ax.add_patch(Rectangle((j * w - 0.5, i * w - 0.5), w, w,
-                                   facecolor="#f2f5f8", edgecolor="#8ab0cc",
-                                   linewidth=1.2, zorder=1))
-    ax.add_patch(Rectangle((w / 2 - 0.5 + w, w / 2 - 0.5), w, w, facecolor="none",
-                           edgecolor=VERMILLION, linewidth=2.0, linestyle="--", zorder=3))
-    ax.set_title("phases are offset by half a window,\nso neighboring windows exchange", fontsize=8)
+    shifted_bands = [(w / 2 - 0.5, w),
+                     (w / 2 - 0.5 + w, w),
+                     (w / 2 - 0.5 + 2 * w, w / 2)]
+    for y, height in shifted_bands:
+        for x, width in shifted_bands:
+            ax.add_patch(Rectangle((x + outline_inset, y + outline_inset),
+                                   width - 2 * outline_inset,
+                                   height - 2 * outline_inset,
+                                   facecolor="none", edgecolor=VERMILLION,
+                                   linewidth=1.4, linestyle=(0, (4, 2)), zorder=2))
+    ax.set_title("half-offset phase: 4 full and 5 clipped\nwindows match the kernel", fontsize=8)
 
     fig.tight_layout()
     fig.savefig(FIGURES / "windows_and_phases.png", bbox_inches="tight", dpi=200)
@@ -97,7 +110,7 @@ def fig_windows_and_phases() -> None:
 
 
 def fig_strided_windows() -> None:
-    """Left: stride-1 window tiling. Right: one stride-4 window's cells."""
+    """Left: one stride-4 window's cells. Right: stride-1 window tiling."""
     side = 24
     w = 6
     fig, axes = plt.subplots(1, 2, figsize=(6.4, 3.1))
@@ -114,22 +127,8 @@ def fig_strided_windows() -> None:
         for spine in ax.spines.values():
             spine.set_color("#999999")
 
-    # stride 1: shade the 16 tiles, highlight one
-    ax = axes[0]
-    for i in range(side // w):
-        for j in range(side // w):
-            shade = "#f2f5f8" if (i + j) % 2 == 0 else "#e2eaf1"
-            ax.add_patch(Rectangle((j * w - 0.5, i * w - 0.5), w, w,
-                                   facecolor=shade, edgecolor="none", zorder=1))
-    ax.add_patch(Rectangle((w - 0.5, w - 0.5), w, w, facecolor="none",
-                           edgecolor=VERMILLION, linewidth=2.0, zorder=3))
-    for r in range(w, 2 * w):
-        for c in range(w, 2 * w):
-            ax.plot(c, r, "s", color=BLUE, markersize=3.4, zorder=2)
-    ax.set_title("stride 1: one window covers\n6×6 adjacent cells", fontsize=9)
-
     # stride 4: cells of one window are spread across the grid
-    ax = axes[1]
+    ax = axes[0]
     stride = 4
     for r in range(w):
         for c in range(w):
@@ -141,6 +140,20 @@ def fig_strided_windows() -> None:
         for c in range(w):
             ax.plot(c * stride + 1, r * stride + 1, "s", color=GRAY, markersize=2.4, zorder=1)
     ax.set_title("stride 4: the same 6×6 window\ncovers every 4th cell", fontsize=9)
+
+    # stride 1: shade the 16 tiles, highlight one
+    ax = axes[1]
+    for i in range(side // w):
+        for j in range(side // w):
+            shade = "#f2f5f8" if (i + j) % 2 == 0 else "#e2eaf1"
+            ax.add_patch(Rectangle((j * w - 0.5, i * w - 0.5), w, w,
+                                   facecolor=shade, edgecolor="none", zorder=1))
+    ax.add_patch(Rectangle((w - 0.5, w - 0.5), w, w, facecolor="none",
+                           edgecolor=VERMILLION, linewidth=2.0, zorder=3))
+    for r in range(w, 2 * w):
+        for c in range(w, 2 * w):
+            ax.plot(c, r, "s", color=BLUE, markersize=3.4, zorder=2)
+    ax.set_title("stride 1: one window covers\n6×6 adjacent cells", fontsize=9)
 
     fig.tight_layout()
     fig.savefig(FIGURES / "strided_windows.png", bbox_inches="tight", dpi=200)
@@ -180,12 +193,12 @@ def fig_multiscale_action() -> None:
     colors = lab_to_srgb(points)
 
     assignment = seed_default(points, n)
-    schedule = megalap.default_stride_schedule(side, side)
+    schedule = shufflesnap.default_stride_schedule(side, side)
 
     snapshots = [("seed (random)", assignment.copy(), None)]
     capture_after = {0, 2, 4, len(schedule) - 1}
     for i, (sr, sc) in enumerate(schedule):
-        result = megalap.window_cleanup(
+        result = shufflesnap.window_cleanup(
             points, assignment, rows=side, cols=side,
             budget_seconds=0.0, strides=[(sr, sc)],
         )
@@ -193,7 +206,7 @@ def fig_multiscale_action() -> None:
         if i in capture_after:
             snapshots.append((f"after stride-{sr} round", assignment.copy(), sr))
 
-    result = megalap.window_cleanup(points, assignment, rows=side, cols=side)
+    result = shufflesnap.window_cleanup(points, assignment, rows=side, cols=side)
     snapshots.append(("converged", result["assignment"], None))
 
     fig, axes = plt.subplots(1, len(snapshots), figsize=(7.2, 1.45))
@@ -226,37 +239,29 @@ def _grid_image(side: int, points: np.ndarray, assignment: np.ndarray,
 
 
 def fig_masks() -> None:
-    """Where the empty cells go: free drift vs. shaped masks."""
+    """Two examples of cell occupancy fixed by a mask."""
     side = 128
-    m = side * side
-    fig, axes = plt.subplots(1, 3, figsize=(7.2, 2.6))
+    fig, axes = plt.subplots(1, 2, figsize=(4.8, 2.6))
 
-    # (a) free holes at fill 0.85
-    n = int(0.85 * m)
-    points = make_points("meander", n, seed=0)
-    _, assignment, _ = megalap.snap_to_grid(points, width=side, height=side)
-    axes[0].imshow(_grid_image(side, points, assignment), interpolation="nearest")
-    axes[0].set_title("free holes (fill 0.85):\nempty cells drift to sparse regions", fontsize=8)
-
-    # (b) circle mask
+    # (a) circle mask
     yy, xx = np.mgrid[0:side, 0:side]
     circle = (xx - (side - 1) / 2) ** 2 + (yy - (side - 1) / 2) ** 2 <= (side / 2 - 1) ** 2
     n = int(circle.sum())
     points = make_points("meander", n, seed=0)
-    _, assignment, _ = megalap.snap_to_grid(points, mask=circle)
-    axes[1].imshow(_grid_image(side, points, assignment, np.flatnonzero(circle.reshape(-1))),
+    _, assignment, _ = shufflesnap.snap_to_grid(points, mask=circle)
+    axes[0].imshow(_grid_image(side, points, assignment, np.flatnonzero(circle.reshape(-1))),
                    interpolation="nearest")
-    axes[1].set_title("circle mask:\nonly masked-in cells are used", fontsize=8)
+    axes[0].set_title("circle mask", fontsize=8)
 
-    # (c) cut corners
+    # (b) cut corners
     r = side // 3
     rounded = (np.minimum(xx, side - 1 - xx) + np.minimum(yy, side - 1 - yy)) >= r // 2
     n = int(rounded.sum())
     points = make_points("meander", n, seed=0)
-    _, assignment, _ = megalap.snap_to_grid(points, mask=rounded)
-    axes[2].imshow(_grid_image(side, points, assignment, np.flatnonzero(rounded.reshape(-1))),
+    _, assignment, _ = shufflesnap.snap_to_grid(points, mask=rounded)
+    axes[1].imshow(_grid_image(side, points, assignment, np.flatnonzero(rounded.reshape(-1))),
                    interpolation="nearest")
-    axes[2].set_title("cut-corner mask:\nany shape works", fontsize=8)
+    axes[1].set_title("cut-corner mask", fontsize=8)
 
     for ax in axes:
         ax.set_xticks([])

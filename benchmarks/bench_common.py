@@ -1,4 +1,4 @@
-"""Shared utilities for the MegaLAP paper benchmarks.
+"""Shared utilities for the ShuffleSnap paper benchmarks.
 
 All benchmarks write CSV files into benchmarks/results/. Exact reference costs
 are cached in benchmarks/results/exact_cache.json so repeated runs are cheap.
@@ -125,24 +125,9 @@ def seed_random_cells(n: int, total_cells: int, rng_seed: int = 0) -> np.ndarray
     return rng.permutation(total_cells)[:n].astype(np.int64)
 
 
-def seed_random_sorted(points: np.ndarray, total_cells: int,
-                       rng_seed: int = 0) -> np.ndarray:
-    """Random cell subset, points mapped to it in (y, x)-sorted order."""
-    n = len(points)
-    cells = np.sort(np.random.default_rng(rng_seed).permutation(total_cells)[:n])
-    order = np.lexsort((points[:, 0], points[:, 1]))
-    assignment = np.empty(n, dtype=np.int64)
-    assignment[order] = cells.astype(np.int64)
-    return assignment
-
-
 def seed_default(points: np.ndarray, total_cells: int) -> np.ndarray:
-    """megalap 0.3.0's default seed: a random permutation on full grids, a
-    random cell subset in sorted point order when there are holes."""
-    n = len(points)
-    if n == total_cells:
-        return seed_random(n)
-    return seed_random_sorted(points, total_cells)
+    """shufflesnap's default deterministic random assignment."""
+    return seed_random_cells(len(points), total_cells, 0)
 
 
 def rasterfairy_assignment(points: np.ndarray, width: int, height: int):
@@ -255,30 +240,10 @@ def exact_square_assignment(points: np.ndarray, width: int, height: int) -> np.n
     return assignment
 
 
-def exact_rect_cost(points: np.ndarray, width: int, height: int,
-                    key: str | None = None) -> float:
-    """Exact optimal cost of the rectangular (holes allowed) problem via a
-    dense scipy solve. Only usable at small scale."""
-    cache = _load_cache()
-    if key is not None and key in cache:
-        return float(cache[key])
-    from scipy.optimize import linear_sum_assignment as scipy_lsa
-
-    targets = build_target_grid(width, height)
-    cost = ((points[:, None, :] - targets[None, :, :]) ** 2).sum(-1)
-    ri, ci = scipy_lsa(cost)
-    value = float(cost[ri, ci].sum())
-    if key is not None:
-        cache = _load_cache()
-        cache[key] = value
-        _save_cache(cache)
-    return value
-
-
 # -------------------------------------------------------------- environment
 
 def write_environment() -> None:
-    import megalap  # noqa: F401
+    import shufflesnap  # noqa: F401
 
     info = {
         "platform": platform.platform(),

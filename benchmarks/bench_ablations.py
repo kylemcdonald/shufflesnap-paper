@@ -14,7 +14,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-import megalap
+import shufflesnap
 from bench_common import (
     exact_instance,
     gap_pct,
@@ -37,7 +37,7 @@ def write_csv(path: Path, rows: list[dict]) -> None:
 
 
 def run(points, seed_assignment, optimum, **kwargs):
-    result = megalap.window_cleanup(
+    result = shufflesnap.window_cleanup(
         points, seed_assignment, rows=SIDE, cols=SIDE,
         budget_seconds=BUDGET_S, trace_rounds=True, **kwargs,
     )
@@ -110,7 +110,7 @@ def thread_ablation() -> None:
     rows = []
     for threads in [1, 2, 4, 8, 16, 24]:
         t0 = time.time()
-        result = megalap.window_cleanup(
+        result = shufflesnap.window_cleanup(
             points, seed_assignment, rows=side, cols=side,
             budget_seconds=5.0, num_threads=threads,
         )

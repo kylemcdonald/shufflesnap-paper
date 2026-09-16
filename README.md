@@ -1,62 +1,85 @@
-# MegaLAP paper
+# ShuffleSnap paper
 
-Source, benchmarks, and figures for *MegaLAP: Multiscale Window Descent for Large Point-to-Grid Assignment*.
+Source, benchmark results, and figures for **ShuffleSnap: Multiscale Window Descent for Large Point-to-Grid Assignment**.
 
-The method itself ships as the [`megalap`](https://github.com/kylemcdonald/megalap) Python package (`pip install megalap`). This repository contains everything needed to regenerate the paper: benchmark scripts, exact-reference caching, figure builders, and the LaTeX source.
+The native library is in [kylemcdonald/shufflesnap](https://github.com/kylemcdonald/shufflesnap). The manuscript describes a heuristic with linear work per round and empirically small assignment gaps; it does not claim a worst-case approximation or convergence-rate bound.
 
-## Layout
+## Build the reviewer PDF and arXiv source
 
-- `paper/` — manuscript (`main.tex`, `references.bib`), generated `stats.tex`, and `figures/`
-- `benchmarks/` — all experiments; results are written to `benchmarks/results/`
-- `solvers/cpp/exact_grid_lap.cpp` — the on-demand exact auction/JV reference solver
-- `solvers/cpp/bspot_grid.cpp` — driver for the BSP-OT comparison (Genest et al. 2025)
+Install [Tectonic](https://tectonic-typesetting.github.io/), then run:
 
-## Reproduce
+```bash
+python3 scripts/build_submission.py
+```
 
-Environment (Python ≥ 3.10, a C++20 compiler):
+This compiles the manuscript, copies only the required sources and figures into a clean directory, compiles that copy, and writes:
+
+- `dist/shufflesnap-review.pdf`
+- `dist/shufflesnap-arxiv-source.zip` (including the generated bibliography)
+- `dist/manifest.json` (artifact checksums)
+
+No benchmark reruns or Python scientific dependencies are needed to build from the supplied figures and statistics. The source archive is intended for a later arXiv submission, after human review; it has not been submitted.
+
+## Reproduce figures and statistics
+
+Use the pinned library source: the old PyPI release is not the evaluated development version. From this repository, with Python 3.12 and a C++ compiler:
 
 ```bash
 python3 -m venv .venv
-./.venv/bin/pip install megalap numpy scipy pandas matplotlib scikit-learn
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python -m pip install "git+https://github.com/kylemcdonald/shufflesnap.git@59968704450dfcb6206cb3c835193e60c3605eff"
+.venv/bin/python benchmarks/export_stats.py
+.venv/bin/python benchmarks/build_figures.py
+.venv/bin/python benchmarks/build_diagrams.py
 ```
 
-To evaluate a local megalap checkout instead, `pip install -e path/to/megalap`.
+The numerical figures use stored CSV/JSON results and cached small assignments. Diagram generation executes small solver examples. The MNIST raster figures and billion-point image are supplied; rebuilding those images is separate from regenerating the numerical plots.
 
-Run the experiments (exact references are cached in `benchmarks/results/exact_cache.json`, so re-runs are fast; the first full run of `precompute_exact.py` takes ~30 minutes):
+## Re-run experiments
+
+These commands overwrite the corresponding stored results, including historical timings. Preserve a copy if comparing environments. Exact-reference costs are cached in `benchmarks/results/exact_cache.json`. Runtime depends on the machine and experiment; the large runs can take hours and tens of GiB of memory.
 
 ```bash
-./.venv/bin/python benchmarks/precompute_exact.py
-./.venv/bin/python benchmarks/bench_convergence.py
-./.venv/bin/python benchmarks/bench_distributions.py
-./.venv/bin/python benchmarks/bench_ablations.py
-./.venv/bin/python benchmarks/bench_init.py
-./.venv/bin/python benchmarks/bench_holes.py
-./.venv/bin/python benchmarks/bench_oracle_check.py
-./.venv/bin/python benchmarks/bench_scaling.py
-./.venv/bin/python benchmarks/bench_mnist.py
+.venv/bin/python benchmarks/precompute_exact.py
+.venv/bin/python benchmarks/bench_convergence.py
+.venv/bin/python benchmarks/bench_distributions.py
+.venv/bin/python benchmarks/bench_ablations.py
+.venv/bin/python benchmarks/bench_init.py
+.venv/bin/python benchmarks/bench_oracle_check.py
+.venv/bin/python benchmarks/bench_scaling.py
+.venv/bin/python benchmarks/bench_mnist.py
 ```
 
-Build figures and export the numbers quoted in the text:
+`bench_mnist.py --rebuild-embedding` additionally needs `umap-learn`. The stored embedding is the basis of the reported example; rebuilding a stochastic embedding under another dependency version need not reproduce it bit-for-bit.
+
+For the BSP-OT comparisons, build the driver with Eigen and the upstream header:
 
 ```bash
-./.venv/bin/python benchmarks/build_figures.py
-./.venv/bin/python benchmarks/build_diagrams.py
-./.venv/bin/python benchmarks/export_stats.py
+c++ -O3 -std=c++20 -fopenmp -I path/to/eigen -I path/to/BSP-OT \
+    solvers/cpp/bspot_grid.cpp -o solvers/cpp/bspot_grid
+.venv/bin/python benchmarks/bench_bspot.py --help
 ```
 
-Build the PDF (with [tectonic](https://tectonic-typesetting.github.io/)):
+The driver evaluates Gaussian bijective matching with explicitly chosen plan counts. Its timing excludes input file loading and target-grid construction. The paired ShuffleSnap budget comparison excludes seed construction and keeps only completed round checkpoints. Historical timings should not be interpreted as end-to-end latency.
+
+`bench_billion.py --help` describes the budgeted stress test. The custom single-plan BSP-OT memory experiment uses `solvers/cpp/bspot_grid_giga.cpp`, built with `c++ -O3 -std=c++20`; it is not the official multi-plan comparator used in the main table. Billion-point assignments and position buffers are intentionally excluded from Git.
+
+## Evidence and provenance
+
+- `benchmarks/results/environment_convergence.json` records the seed-corrected convergence rerun separately; other timings are retained.
+- `benchmarks/results/environment.json` records the original machine and basic software environment; `requirements.txt` pins the scientific packages retained in its local environment.
+- Original runs did not record a full dependency lock, compiler version, upstream BSP-OT commit, or source hashes. Those details cannot be reconstructed with certainty from the CSVs. The repository retains the drivers and data; new runs should record these missing fields.
+- Auction reference costs use a very small floating-point epsilon and agree with independent dense solvers on 12 small instances. Stored runs do not contain independently verified dual certificates. “Reference gap” therefore means a numerical comparison, not a certified error bound.
+- Headline statistics and the comparison table are generated by `export_stats.py`; some descriptive numbers and experiment settings are written directly in the manuscript.
+- See `PUBLICATION_REVIEW.md` for review changes, validation, and remaining handoff items.
+
+## Additional scripts
+
+- `benchmarks/refresh_bspot_references.py` updates stress-test comparisons against the stored descent summaries.
+- `benchmarks/render_billion_4x_box_area_tiled.py` and `benchmarks/render_billion_antialias.py` generate exploratory antialiased print renders, kept locally under the ignored render-variant paths.
+- `benchmarks/render_billion_test.py` renders interpolation views from the large local artifacts; see `--help`.
+- `scripts/check_results.py` reproduces all 18 distribution outcomes and checks cached assignments and time-matched checkpoints without changing recorded timings.
 
 ```bash
-cd paper && tectonic --outdir build main.tex
+.venv/bin/python scripts/check_results.py
 ```
-
-## Notes
-
-- Every number quoted in the manuscript is a LaTeX macro generated by `export_stats.py`, so the text cannot drift from the data.
-- The MNIST experiment uses a cached UMAP embedding (`paper/data/mnist_showcase/`). Regenerate it with `bench_mnist.py --rebuild-embedding` (requires `umap-learn`).
-- The BSP-OT comparison (`bench_bspot.py`) needs `solvers/cpp/bspot_grid` built against Eigen and the header-only release of [BSP-OT](https://github.com/baptiste-genest/BSP-OT):
-
-  ```bash
-  c++ -O3 -std=c++20 -fopenmp -I path/to/eigen -I path/to/BSP-OT \
-      solvers/cpp/bspot_grid.cpp -o solvers/cpp/bspot_grid
-  ```

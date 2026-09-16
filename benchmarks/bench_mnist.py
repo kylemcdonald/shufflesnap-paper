@@ -30,7 +30,7 @@ import numpy as np
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-import megalap
+import shufflesnap
 from bench_common import (
     assignment_cost,
     build_target_grid,
@@ -190,7 +190,7 @@ def main() -> None:
     seed_time = time.time() - t0
     seed_cost = assignment_cost(points, targets, seed)
 
-    result = megalap.window_cleanup(
+    result = shufflesnap.window_cleanup(
         points, seed, rows=GRID_H, cols=GRID_W, budget_seconds=60.0, trace_rounds=True,
     )
     assignment = result["assignment"]

@@ -9,7 +9,7 @@ Writes results/billion_{side}_seed{seed}.json, billion_traces_{side}_seed{seed}.
 and the final assignment as int32 into results/assignments/.
 
 Peak memory at side=31623 (1.00e9 points) is ~48 GiB, so this needs the
-memory-lean kernel (megalap >= 0.2.0 with axis-band window enumeration).
+memory-lean kernel (shufflesnap >= 0.2.0 with axis-band window enumeration).
 """
 
 from __future__ import annotations
@@ -27,7 +27,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-import megalap
+import shufflesnap
 from bench_common import MARGIN, results_dir
 
 CHUNK = 20_000_000
@@ -123,7 +123,7 @@ def main() -> None:
 
     hb = threading.Thread(target=heartbeat, daemon=True)
     hb.start()
-    result = megalap.window_cleanup(
+    result = shufflesnap.window_cleanup(
         pts, seed_assignment, rows=side, cols=side,
         budget_seconds=args.budget, trace_rounds=True,
     )
@@ -170,7 +170,11 @@ def main() -> None:
 
     trace_path = results_dir() / f"billion_traces_{tag}.csv"
     with trace_path.open("w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=["round", "stride_r", "stride_c", "elapsed_s", "cost"])
+        writer = csv.DictWriter(
+            f,
+            fieldnames=["round", "stride_r", "stride_c", "elapsed_s", "cost"],
+            lineterminator="\n",
+        )
         writer.writeheader()
         for i, (e, c) in enumerate(zip(elapsed, costs)):
             writer.writerow({

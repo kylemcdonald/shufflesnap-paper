@@ -17,7 +17,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-import megalap
+import shufflesnap
 from bench_common import (
     exact_instance,
     gap_pct,
@@ -50,7 +50,7 @@ def main() -> None:
             seed_time = time.time() - t0
 
             budget = STRESS_BUDGET_S if side > 800 else BUDGET_S
-            result = megalap.window_cleanup(
+            result = shufflesnap.window_cleanup(
                 points, seed_assignment, rows=side, cols=side,
                 budget_seconds=budget, trace_rounds=True,
             )

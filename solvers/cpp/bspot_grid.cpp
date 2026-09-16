@@ -3,7 +3,7 @@
 //   https://github.com/baptiste-genest/BSP-OT   (BSP-OT_header_only.h)
 //
 // Reads n 2D points (float64 binary), builds the same margin-inset grid as
-// megalap, computes a bijective matching with computeGaussianBSPOT (nb_plans
+// shufflesnap, computes a bijective matching with computeGaussianBSPOT (nb_plans
 // randomized BSP plans merged cost-decreasingly), and reports the assignment
 // cost and wall time. Requires n == rows * cols (bijective matching).
 //

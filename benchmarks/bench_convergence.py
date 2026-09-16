@@ -22,7 +22,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-import megalap
+import shufflesnap
 from bench_common import (
     assignment_cost,
     build_target_grid,
@@ -31,14 +31,14 @@ from bench_common import (
     make_points,
     results_dir,
     rasterfairy_assignment,
-    seed_random,
+    seed_default,
     seed_raster,
     write_environment,
 )
 
 SIDE = 200
 SEEDS = [0, 1, 2]
-BUDGET_S = 20.0
+BUDGET_S = 60.0
 
 
 def main() -> None:
@@ -57,7 +57,7 @@ def main() -> None:
         raster = seed_raster(points)
         raster_time = time.time() - t0
         t0 = time.time()
-        rand = seed_random(n, rng_seed=instance_seed)
+        rand = seed_default(points, n)
         random_time = time.time() - t0
         bisect, bisect_time = rasterfairy_assignment(points, SIDE, SIDE)
 
@@ -67,7 +67,7 @@ def main() -> None:
         methods["rasterfairy+local"] = (bisect, bisect_time, [1])
 
         for method, (seed_assignment, seed_time, strides) in methods.items():
-            result = megalap.window_cleanup(
+            result = shufflesnap.window_cleanup(
                 points,
                 seed_assignment,
                 rows=SIDE,
@@ -110,7 +110,7 @@ def main() -> None:
             )
 
     with out_path.open("w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
+        writer = csv.DictWriter(f, fieldnames=list(rows[0].keys()), lineterminator="\n")
         writer.writeheader()
         writer.writerows(rows)
     print(f"wrote {out_path}")

@@ -75,7 +75,10 @@ def fig_convergence() -> None:
         sub = df[df["method"] == method]
         if sub.empty:
             continue
-        by_round = sub.groupby("round")["gap_pct"].median()
+        # Carry converged runs forward so dropping finished seeds cannot
+        # create an apparent cost increase in the aggregate curve.
+        traces = sub.pivot(index="round", columns="instance_seed", values="gap_pct")
+        by_round = traces.sort_index().ffill().median(axis=1)
         axes[0].plot(by_round.index, np.maximum(by_round.values, 1e-4),
                      color=color, linestyle=ls, label=label)
         sub_t = sub.copy()
@@ -91,7 +94,7 @@ def fig_convergence() -> None:
         ax.text(0.98, 0.105, "0.1% gap", transform=ax.get_yaxis_transform(),
                 ha="right", va="bottom", fontsize=7.5, color=C["gray"])
     axes[0].set_xlabel("round")
-    axes[0].set_ylabel("gap above exact optimum (%)")
+    axes[0].set_ylabel("gap above auction reference (%)")
     axes[0].set_xlim(0, 40)
     axes[1].set_xlabel("wall time incl. initialization (s)")
     axes[1].set_xscale("log")
@@ -114,19 +117,19 @@ def fig_scaling() -> None:
     ax = axes[0]
     oracle = med.dropna(subset=["oracle_time_s"])
     ax.plot(oracle["n"], oracle["oracle_time_s"], "^--", color=C["vermillion"],
-            markersize=3.5, label="exact auction oracle", zorder=3)
+            markersize=3.5, label="auction reference", zorder=3)
     ax.plot(med["n"], med["elapsed_s"], "o-", color=C["blue"], markersize=3.5,
             label="time to converge", zorder=3)
     ax.plot(med["n"], med["time_within_0p1pct_of_final_s"], "s-", color=C["green"],
             markersize=3.5, label="within 0.1% of converged", zorder=3)
     exact = med.dropna(subset=["time_to_0p1pct_s"])
     ax.plot(exact["n"], exact["time_to_0p1pct_s"], "d-", color=C["orange"],
-            markersize=4.5, label="to 0.1% true gap", zorder=4)
+            markersize=4.5, label="to 0.1% reference gap", zorder=4)
     bspot_path = RESULTS / "bspot_scaling.csv"
     if bspot_path.exists():
         bspot = pd.read_csv(bspot_path)
         ax.plot(bspot["n"], bspot["time_s"], "v-", color=C["purple"],
-                markersize=3.5, label="BSP-OT construction (~2% gap)", zorder=3)
+                markersize=3.5, label="BSP-OT construction", zorder=3)
     ax.set_xscale("log")
     ax.set_yscale("log")
     ax.set_xlabel("points")
@@ -166,11 +169,13 @@ def fig_ablations() -> None:
     ax.set_title("window size: quality")
 
     ax = axes[1]
-    reached = med.dropna(subset=["time_to_0p1pct_s"])
+    reached_all = window.groupby("window_size")["time_to_0p1pct_s"].count().eq(
+        window.groupby("window_size").size())
+    reached = med.loc[reached_all[reached_all].index]
     ax.plot(reached.index, reached["time_to_0p1pct_s"], "o-", color=C["blue"], markersize=4)
     missing = med.index.difference(reached.index).tolist()
     if missing:
-        label = f"w = {', '.join(str(int(w)) for w in missing)}:\nnever reach 0.1%"
+        label = f"w = {', '.join(str(int(w)) for w in missing)}:\nnot all reach 0.1%"
         ax.text(0.05, 0.93, label, transform=ax.transAxes, fontsize=6.8,
                 color=C["gray"], ha="left", va="top")
     ax.set_xticks(med.index)
@@ -300,7 +305,7 @@ def _fmt_time(t: float) -> str:
 def fig_distributions() -> None:
     import time as time_mod
 
-    import megalap
+    import shufflesnap
     from bench_common import (
         assignment_cost,
         build_target_grid,
@@ -321,11 +326,11 @@ def fig_distributions() -> None:
         "ring": "ring", "spiral": "spiral", "mixture": "mixture",
     }
     row_labels = ["input cloud", "RasterFairy", "BSP-OT",
-                  "ours", "exact optimum"]
+                  "ShuffleSnap", "auction reference"]
 
-    def megalap_solution(pts, side):
+    def shufflesnap_solution(pts, side):
         seed = seed_default(pts, side * side)
-        result = megalap.window_cleanup(pts, seed, rows=side, cols=side)
+        result = shufflesnap.window_cleanup(pts, seed, rows=side, cols=side)
         return result["assignment"], float(result["elapsed_s"])
 
     def bspot_solution(pts, side):
@@ -353,8 +358,8 @@ def fig_distributions() -> None:
                 f"rasterfairy_{tag}", lambda: rasterfairy_assignment(pts, side, side)),
             "bspot": _cached_solution(
                 f"bspot_{tag}", lambda: bspot_solution(pts, side)),
-            "megalap": _cached_solution(
-                f"megalap_{tag}", lambda: megalap_solution(pts, side)),
+            "shufflesnap": _cached_solution(
+                f"shufflesnap_{tag}", lambda: shufflesnap_solution(pts, side)),
             "exact": _cached_solution(
                 f"exact_{tag}", lambda: exact_solution(pts, side, dist)),
         }
@@ -364,7 +369,7 @@ def fig_distributions() -> None:
         ax.invert_yaxis()
         ax.set_title(labels[dist], fontsize=8)
 
-        for row, method in enumerate(["rasterfairy", "bspot", "megalap", "exact"], start=1):
+        for row, method in enumerate(["rasterfairy", "bspot", "shufflesnap", "exact"], start=1):
             assignment, time_s = solutions[method]
             image = np.ones((side * side, 3))
             image[assignment] = colors
@@ -393,47 +398,6 @@ def fig_distributions() -> None:
     plt.close(fig)
 
 
-def fig_holes() -> None:
-    df = pd.read_csv(RESULTS / "holes.csv")
-    med = df.groupby("fill_ratio").median(numeric_only=True).reset_index()
-    fig, axes = plt.subplots(1, 2, figsize=(7.2, 2.7), width_ratios=[1.15, 1])
-
-    ax = axes[0]
-    ax.plot(med["fill_ratio"], np.maximum(med["pinned_gap_pct"], 1e-3), "s--",
-            color=C["vermillion"], markersize=4, label="holes fixed in advance (trailing cells)")
-    ax.plot(med["fill_ratio"], np.maximum(med["free_gap_pct"], 1e-3), "o-",
-            color=C["blue"], markersize=4, label="free holes (solver decides)")
-    ax.set_yscale("log")
-    ax.set_xlabel("fill ratio  n / (rows·cols)")
-    ax.set_ylabel("gap above exact optimum (%)")
-    ax.legend(fontsize=7)
-    ax.set_title("hole handling quality, 96×96 grid")
-
-    import megalap
-    from bench_common import seed_default
-    side = 96
-    n = int(0.7 * side * side)
-    pts = make_points("meander", n, seed=0)
-    seed = seed_default(pts, side * side)
-    res = megalap.window_cleanup(pts, seed, rows=side, cols=side)
-    occupied = np.zeros(side * side, dtype=bool)
-    occupied[res["assignment"]] = True
-    grid = occupied.reshape(side, side)
-    ax = axes[1]
-    ax.imshow(grid, cmap=matplotlib.colors.ListedColormap(["#ffffff", C["blue"]]),
-              interpolation="nearest")
-    ax.set_xticks([])
-    ax.set_yticks([])
-    ax.grid(False)
-    ax.set_title("occupied cells at fill 0.7 (holes drift\nto the cloud's sparse regions)", fontsize=8)
-    for spine in ax.spines.values():
-        spine.set_visible(True)
-        spine.set_color("#cccccc")
-    fig.tight_layout()
-    fig.savefig(FIGURES / "holes.png", bbox_inches="tight")
-    plt.close(fig)
-
-
 def fig_mnist_trace() -> None:
     trace = pd.read_csv(RESULTS / "mnist_trace.csv")
     summary = json.loads((RESULTS / "mnist_summary.json").read_text())
@@ -454,14 +418,13 @@ def fig_mnist_trace() -> None:
 
 def main() -> None:
     FIGURES.mkdir(parents=True, exist_ok=True)
-    which = sys.argv[1:] or ["convergence", "scaling", "ablations", "init", "distributions", "holes", "mnist"]
+    which = sys.argv[1:] or ["convergence", "scaling", "ablations", "init", "distributions", "mnist"]
     builders = {
         "convergence": fig_convergence,
         "scaling": fig_scaling,
         "ablations": fig_ablations,
         "init": fig_init,
         "distributions": fig_distributions,
-        "holes": fig_holes,
         "mnist": fig_mnist_trace,
     }
     for name in which:

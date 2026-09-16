@@ -42,3 +42,8 @@ solvers/cpp/bspot_grid_giga
 
 # Large benchmark artifacts (regenerable via bench_billion.py)
 benchmarks/results/assignments/billion_*.npy
+benchmarks/results/positions/billion_*
+
+# Exploratory print/render variants; published paper figures live in paper/figures.
+benchmarks/results/renders/*_test_*.png
+benchmarks/results/renders/*_interp75_aa_4800/

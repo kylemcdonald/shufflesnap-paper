@@ -12,7 +12,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-import megalap
+import shufflesnap
 import numpy as np
 from scipy.optimize import linear_sum_assignment as scipy_lsa
 
@@ -35,14 +35,14 @@ def main() -> None:
 
             ri, ci = scipy_lsa(cost)
             scipy_cost = float(cost[ri, ci].sum())
-            _, _, jv_cost = megalap.linear_sum_assignment(cost)
+            _, _, jv_cost = shufflesnap.linear_sum_assignment(cost)
             auction_cost = exact_square(points, side, side)["cost"]
 
             rows.append({
                 "side": side,
                 "seed": seed,
                 "scipy": scipy_cost,
-                "megalap_jv": jv_cost,
+                "shufflesnap_jv": jv_cost,
                 "auction_oracle": auction_cost,
                 "jv_vs_scipy_rel": abs(jv_cost - scipy_cost) / scipy_cost,
                 "auction_vs_scipy_rel": abs(auction_cost - scipy_cost) / scipy_cost,

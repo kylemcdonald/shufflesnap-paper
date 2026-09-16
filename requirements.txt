@@ -1,0 +1,8 @@
+# Versions in the retained benchmark environment (Python 3.12).
+# Install the sibling source checkout separately, as described in README.md.
+numpy==2.4.6
+scipy==1.18.0
+pandas==3.0.3
+matplotlib==3.11.0
+scikit-learn==1.9.0
+rasterfairy==1.0.6

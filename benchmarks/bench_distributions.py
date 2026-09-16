@@ -13,7 +13,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-import megalap
+import shufflesnap
 from bench_common import (
     DISTRIBUTIONS,
     assignment_cost,
@@ -40,7 +40,7 @@ def main() -> None:
             points = make_points(dist, SIDE * SIDE, seed=instance_seed)
             optimum = exact_instance(dist, SIDE, instance_seed)["cost"]
             seed_assignment = seed_default(points, SIDE * SIDE)
-            result = megalap.window_cleanup(
+            result = shufflesnap.window_cleanup(
                 points, seed_assignment, rows=SIDE, cols=SIDE,
                 budget_seconds=BUDGET_S, trace_rounds=True,
             )
