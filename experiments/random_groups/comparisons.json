@@ -1,0 +1,32 @@
+{
+  "linear1": {
+    "lower_gap_instances": 6,
+    "faster_instances": 0,
+    "median_time_ratio": 1.561050008886744,
+    "median_gap_ratio": 1.392029886909733
+  },
+  "geometric1": {
+    "lower_gap_instances": 3,
+    "faster_instances": 0,
+    "median_time_ratio": 5.125772832507841,
+    "median_gap_ratio": 4.491190847196798
+  },
+  "geometric4": {
+    "lower_gap_instances": 8,
+    "faster_instances": 0,
+    "median_time_ratio": 2.305754984856821,
+    "median_gap_ratio": 0.952588506030631
+  },
+  "shifted4": {
+    "lower_gap_instances": 13,
+    "faster_instances": 0,
+    "median_time_ratio": 1.2790472571924312,
+    "median_gap_ratio": 0.5464953029188645
+  },
+  "linear4": {
+    "lower_gap_instances": 15,
+    "faster_instances": 0,
+    "median_time_ratio": 4.06053082059357,
+    "median_gap_ratio": 0.5608294951759516
+  }
+}

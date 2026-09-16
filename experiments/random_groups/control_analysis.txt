@@ -1,0 +1,51 @@
+LARGE RUNS (no optimal reference at these sizes)
+ side  instance   method   elapsed         cost  grouping   solving  polishing  rounds  converged
+  400         0 baseline  1.032172  7253.156832  0.000000  0.000000   1.030114      16       True
+  400         0  linear1  2.188145  7254.155717  0.029767  1.224128   0.910447      13       True
+  400         0 shifted4  1.229160  7253.099594  0.019254  0.705672   0.488043       7       True
+  400         1 baseline  0.914035  3539.449614  0.000000  0.000000   0.912273      15       True
+  400         1 shifted4  1.193642  3539.322531  0.014136  0.573157   0.594502       8       True
+  400         2 baseline  0.932612  4864.578798  0.000000  0.000000   0.929940      15       True
+  400         2 shifted4  1.308950  4865.216600  0.014200  0.569111   0.713730      10       True
+  800         0 baseline  4.662855 21531.742898  0.000000  0.000000   4.651709      20       True
+  800         0  linear1 14.698272 21534.921803  0.230518  9.141127   5.143650      20       True
+  800         0 shifted4  8.794085 21535.015779  0.071599  2.416710   6.247580      24       True
+  800         1 baseline  4.841163 12994.640373  0.000000  0.000000   4.828869      21       True
+  800         1 shifted4  4.877025 12995.130956  0.063845  2.405665   2.354037       9       True
+  800         2 baseline  6.063654 40559.565897  0.000000  0.000000   6.052957      25       True
+  800         2 shifted4  5.597053 40560.333487  0.069485  2.513936   2.954208      11       True
+ 1131         0 baseline 19.096861 60847.252262  0.000000  0.000000  19.077104      39       True
+ 1131         0  linear1 79.013872 60854.842651  0.617304 25.669072  52.247062     101       True
+ 1131         0 shifted4  9.774634 60849.247175  0.128481  4.925962   4.616629       9       True
+ 1131         1 baseline 12.127492 55509.596942  0.000000  0.000000  12.104860      25       True
+ 1131         1 shifted4 12.773713 55525.383183  0.129673  4.867533   7.670016      15       True
+ 1131         2 baseline 12.009761 76910.416294  0.000000  0.000000  11.989224      25       True
+ 1131         2 shifted4 12.460149 76915.818106  0.126877  4.899769   7.329614      14       True
+
+Large-grid medians (3 instances for baseline/shifted4; only seed 0 for linear1)
+               instance       time  time_ratio  cost_difference_pct  grouping_share  baseline_target_time  target_time  converged
+side method
+400  baseline       1.0   0.932612    1.000000             0.000000        0.000000              0.344699     0.344699        1.0
+     linear1        0.0   2.188145    2.119941             0.013772        0.013604              0.372857     0.189592        1.0
+     shifted4       1.0   1.229160    1.305904            -0.000789        0.011843              0.344699     0.320290        1.0
+800  baseline       1.0   4.841163    1.000000             0.000000        0.000000              1.242471     1.242471        1.0
+     linear1        0.0  14.698272    3.152205             0.014764        0.015683              1.231801     0.865730        1.0
+     shifted4       1.0   5.597053    1.007408             0.003775        0.012415              1.242471     1.196212        1.0
+1131 baseline       1.0  12.127492    1.000000             0.000000        0.000000              2.048328     2.048328        1.0
+     linear1        0.0  79.013872    4.137532             0.012474        0.007813              2.048328     1.541680        1.0
+     shifted4       1.0  12.460149    1.037502             0.007024        0.010183              2.048328     2.118154        1.0
+
+Independent initial assignments: 45 pairs
+lower cost: 31 faster: 2 median time ratio: 1.283494212465646 median gap ratio: 0.6973180421937822
+
+Controls (local only capped at 30s)
+   family     method   elapsed      gap  rounds  converged
+  meander alloffsets  1.577111 0.003259      12       True
+  meander   baseline  0.265425 0.007536      15       True
+  meander      local 14.367245 0.493531     789       True
+     ring alloffsets  1.383909 0.007005      11       True
+     ring   baseline  0.235438 0.014475      14       True
+     ring      local  6.047836 0.396177     332       True
+two_blobs alloffsets  1.801470 0.020494      12       True
+two_blobs   baseline  0.238564 0.019020      13       True
+two_blobs      local 16.197609 0.338543     870       True

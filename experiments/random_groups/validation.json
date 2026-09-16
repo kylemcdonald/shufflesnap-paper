@@ -1,0 +1,11 @@
+[
+  "7x7 baseline: identical assignments with 1 and 24 threads",
+  "7x7: extracted baseline matches installed production assignment",
+  "7x7 shifted4: identical assignments with 1 and 24 threads",
+  "40x40 baseline: identical assignments with 1 and 24 threads",
+  "40x40: extracted baseline matches installed production assignment",
+  "40x40 shifted4: identical assignments with 1 and 24 threads",
+  "200x200 baseline: identical assignments with 1 and 24 threads",
+  "200x200: extracted baseline matches installed production assignment",
+  "200x200 shifted4: identical assignments with 1 and 24 threads"
+]

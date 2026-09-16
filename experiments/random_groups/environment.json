@@ -1,0 +1,13 @@
+{
+  "platform": "Linux-6.8.0-139-generic-x86_64-with-glibc2.39",
+  "cpu_count": 24,
+  "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+  "solver_commit": "3b5920f3aecb807bc1c8f2ef2530da241e52d105",
+  "paper_commit": "76b59825e897a1c00f70e30d278f5f7854f94413",
+  "flags": [
+    "-O3",
+    "-std=c++20",
+    "-pthread"
+  ],
+  "threads": 24
+}

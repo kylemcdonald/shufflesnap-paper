@@ -1,0 +1,83 @@
+Target hit counts (of 75 runs/method):
+             time_to_0.1  time_to_0.01
+method
+baseline             70            25
+geometric1           48            15
+geometric4           75            44
+linear1              75            22
+linear4              75            58
+shifted4             75            48
+            elapsed     gap  grouping  solving  polishing    passes   rounds  time_to_0.1  time_to_0.01
+method
+baseline    0.22299 0.01448   0.00000  0.00000    0.22230   0.00000 13.00000      0.10420       0.11194
+geometric1  1.27431 0.06197   0.00098  0.04185    1.23515   7.00000 67.00000      0.34103       0.26415
+geometric4  0.51570 0.00665   0.00381  0.16266    0.35596  28.00000 19.00000      0.21000       0.26917
+linear1     0.34848 0.02793   0.00442  0.19728    0.16194  34.00000  9.00000      0.07767       0.09612
+linear4     0.91351 0.00334   0.01687  0.76724    0.11240 136.00000  6.00000      0.15456       0.29205
+shifted4    0.28639 0.00847   0.00372  0.15902    0.11395  28.00000  6.00000      0.09996       0.13860
+
+                          gap  elapsed  time_to_0.1  time_to_0.01
+family    method
+meander   baseline   0.00562  0.24133      0.10188       0.11194
+          geometric1 0.06047  1.80082      0.52034           NaN
+          geometric4 0.00647  0.55644      0.22067       0.27908
+          linear1    0.02793  0.39741      0.06539           NaN
+          linear4    0.00282  0.88943      0.12421       0.27139
+          shifted4   0.00407  0.29145      0.09271       0.12491
+mixture   baseline   0.00822  0.22072      0.10977       0.10919
+          geometric1 0.03691  1.31651      0.26325           NaN
+          geometric4 0.00496  0.51570      0.20648       0.26917
+          linear1    0.01144  0.38328      0.07037       0.16385
+          linear4    0.00252  0.93364      0.15352       0.31227
+          shifted4   0.00449  0.27314      0.10104       0.13235
+ring      baseline   0.01448  0.22821      0.10125           NaN
+          geometric1 0.19811  1.28244          NaN           NaN
+          geometric4 0.01404  0.39846      0.21000           NaN
+          linear1    0.06057  0.41837      0.11092           NaN
+          linear4    0.00812  0.89173      0.19811       0.70108
+          shifted4   0.00723  0.28304      0.10063       0.16646
+spiral    baseline   0.02965  0.22254      0.11429           NaN
+          geometric1 0.11274  0.77385      0.64095           NaN
+          geometric4 0.04125  0.61786      0.23725           NaN
+          linear1    0.02866  0.32889      0.11780           NaN
+          linear4    0.02629  0.93005      0.28859           NaN
+          shifted4   0.02421  0.28639      0.12473           NaN
+two_blobs baseline   0.01902  0.23702      0.09510           NaN
+          geometric1 0.00649  0.78236      0.15748       0.26415
+          geometric4 0.00138  0.48001      0.18774       0.22316
+          linear1    0.00153  0.34810      0.04456       0.09155
+          linear4    0.00090  0.91351      0.09652       0.21317
+          shifted4   0.00886  0.36427      0.08201       0.14113
+
+ {
+  "linear1": {
+    "lower_gap_instances": 6,
+    "faster_instances": 0,
+    "median_time_ratio": 1.561050008886744,
+    "median_gap_ratio": 1.392029886909733
+  },
+  "geometric1": {
+    "lower_gap_instances": 3,
+    "faster_instances": 0,
+    "median_time_ratio": 5.125772832507841,
+    "median_gap_ratio": 4.491190847196798
+  },
+  "geometric4": {
+    "lower_gap_instances": 8,
+    "faster_instances": 0,
+    "median_time_ratio": 2.305754984856821,
+    "median_gap_ratio": 0.952588506030631
+  },
+  "shifted4": {
+    "lower_gap_instances": 13,
+    "faster_instances": 0,
+    "median_time_ratio": 1.2790472571924312,
+    "median_gap_ratio": 0.5464953029188645
+  },
+  "linear4": {
+    "lower_gap_instances": 15,
+    "faster_instances": 0,
+    "median_time_ratio": 4.06053082059357,
+    "median_gap_ratio": 0.5608294951759516
+  }
+}
