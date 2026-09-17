@@ -1,6 +1,7 @@
 # Paper outline
 
 **Status: approved by the author and implemented in the September 16 rewrite.**
+Numerical examples were refreshed on September 17 after removing the coordinate margin.
 This document sets the story, space budget, evidence, and appendix destinations.
 Feedback can change a section's purpose, move a topic, or change a visual without
 needing to edit manuscript sentences.
@@ -139,9 +140,10 @@ accuracy costs.
   three instances per family, one desktop. Define “reference gap” in a phrase.
 - Present the five-family table of BSP-OT and ShuffleSnap final gaps and times.
   ShuffleSnap has lower family-median final costs in these tests, at roughly
-  0.21–0.32 s versus 0.04–0.05 s.
+  0.21–0.24 s versus 0.04–0.08 s.
 - State the other side immediately: BSP-OT has lower median gaps at its measured
-  short runtimes. The endpoint table is not an equal-budget comparison.
+  short runtimes on four of five families; the ring is the exception. The endpoint
+  table is not an equal-budget comparison.
 - Give the mechanism its own short paragraph: adjacent-window refinement stalls
   at a higher gap on the tested meander inputs. Keep the configurations and
   curves in Appendix C; do not imply a pure schedule ablation when starts differ.

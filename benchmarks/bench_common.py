@@ -7,6 +7,7 @@ are cached in benchmarks/results/exact_cache.json so repeated runs are cheap.
 from __future__ import annotations
 
 import json
+import hashlib
 import platform
 import subprocess
 import sys
@@ -22,7 +23,6 @@ SOLVER_SOURCE = REPO / "solvers" / "cpp" / "exact_grid_lap.cpp"
 SOLVER_BINARY = REPO / "solvers" / "cpp" / "exact_grid_lap"
 EXACT_CACHE = RESULTS / "exact_cache.json"
 
-MARGIN = 0.03
 
 
 def results_dir() -> Path:
@@ -41,15 +41,15 @@ def ensure_exact_solver() -> Path:
 
 # ---------------------------------------------------------------- point sets
 
-def normalize(points: np.ndarray, margin: float = MARGIN) -> np.ndarray:
+def normalize(points: np.ndarray) -> np.ndarray:
     points = np.asarray(points, dtype=np.float64)
     mins, maxs = points.min(axis=0), points.max(axis=0)
     span = np.maximum(maxs - mins, np.finfo(np.float64).eps)
-    return margin + (1.0 - 2.0 * margin) * ((points - mins) / span)
+    return (points - mins) / span
 
 
 def make_points(name: str, n: int, seed: int = 0) -> np.ndarray:
-    """Synthetic point families. All normalized into the grid's margin box."""
+    """Synthetic point families. All normalized into the unit square."""
     rng = np.random.default_rng(seed)
     if name == "meander":
         steps = rng.normal(size=(n, 2))
@@ -89,9 +89,9 @@ DISTRIBUTIONS = ["meander", "two_blobs", "ring", "spiral", "mixture"]
 
 # ------------------------------------------------------------------- targets
 
-def build_target_grid(width: int, height: int, margin: float = MARGIN) -> np.ndarray:
-    xs = np.linspace(margin, 1.0 - margin, width) if width > 1 else np.array([0.5])
-    ys = np.linspace(margin, 1.0 - margin, height) if height > 1 else np.array([0.5])
+def build_target_grid(width: int, height: int) -> np.ndarray:
+    xs = np.linspace(0.0, 1.0, width) if width > 1 else np.array([0.5])
+    ys = np.linspace(0.0, 1.0, height) if height > 1 else np.array([0.5])
     gy, gx = np.meshgrid(ys, xs, indexing="ij")
     return np.column_stack((gx.ravel(), gy.ravel()))
 
@@ -175,25 +175,29 @@ def exact_square(points: np.ndarray, width: int, height: int,
 
     Returns {"cost": float, "solve_time_s": float}. Cached by key.
     """
+    fingerprint = hashlib.sha256(np.asarray(points, dtype="<f8").tobytes()).hexdigest()
     cache = _load_cache()
     if key is not None and key in cache:
         entry = cache[key]
-        if isinstance(entry, dict):
+        if (isinstance(entry, dict) and entry.get("points_sha256") == fingerprint
+                and entry.get("grid") == [width, height, "unit-square"]):
             return entry
-        return {"cost": float(entry), "solve_time_s": float("nan")}
     binary = ensure_exact_solver()
     with tempfile.NamedTemporaryFile(suffix=".bin", delete=False) as f:
         path = Path(f.name)
         f.write(np.asarray(points, dtype=np.float64).tobytes(order="C"))
+    assignment_path = path.with_suffix(".assignment")
     try:
         out = subprocess.run(
             [str(binary), "--points", str(path), "--width", str(width),
              "--height", str(height), "--solver", "auction", "--cost-mode", "jit",
-             "--margin", str(MARGIN)],
+             "--assignment-out", str(assignment_path)],
             check=True, capture_output=True, text=True,
         ).stdout
+        assignment = np.fromfile(assignment_path, dtype=np.int64)
     finally:
         path.unlink()
+        assignment_path.unlink(missing_ok=True)
     cost = None
     solve_time = None
     for line in out.splitlines():
@@ -201,9 +205,15 @@ def exact_square(points: np.ndarray, width: int, height: int,
             cost = float(line.split("=", 1)[1])
         elif line.startswith("solve_time_s="):
             solve_time = float(line.split("=", 1)[1])
-    if cost is None:
-        raise RuntimeError(f"oracle produced no cost:\n{out}")
-    entry = {"cost": cost, "solve_time_s": solve_time}
+    if cost is None or solve_time is None:
+        raise RuntimeError(f"oracle omitted cost or solve time:\n{out}")
+    entry = {"cost": cost, "solve_time_s": solve_time,
+             "points_sha256": fingerprint, "grid": [width, height, "unit-square"]}
+    # The distribution gallery uses the 200x200 seed-0 cases and solver-only timing.
+    if key is not None and width == height == 200 and key.endswith(":seed0"):
+        figure_cache = results_dir() / "assignments" / f"exact_{key.split(':')[0]}_200_seed0.npz"
+        figure_cache.parent.mkdir(exist_ok=True)
+        np.savez(figure_cache, assignment=assignment, time_s=solve_time)
     if key is not None:
         cache = _load_cache()
         cache[key] = entry
@@ -228,7 +238,7 @@ def exact_square_assignment(points: np.ndarray, width: int, height: int) -> np.n
         subprocess.run(
             [str(binary), "--points", str(pts_path), "--width", str(width),
              "--height", str(height), "--solver", "auction", "--cost-mode", "jit",
-             "--margin", str(MARGIN), "--assignment-out", str(out_path)],
+             "--assignment-out", str(out_path)],
             check=True, capture_output=True, text=True,
         )
         assignment = np.fromfile(out_path, dtype=np.int64)

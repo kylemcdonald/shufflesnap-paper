@@ -1,0 +1,5 @@
+n=100000000
+plans=16
+solve_time_s=248.387999701
+assignment_cost=2069637.6067400174
+bijective=1

@@ -2,7 +2,7 @@
 // point-to-grid assignment problem. Uses the official header-only release:
 //   https://github.com/baptiste-genest/BSP-OT   (BSP-OT_header_only.h)
 //
-// Reads n 2D points (float64 binary), builds the same margin-inset grid as
+// Reads n 2D points (float64 binary), builds the same unit-square grid as
 // shufflesnap, computes a bijective matching with computeGaussianBSPOT (nb_plans
 // randomized BSP plans merged cost-decreasingly), and reports the assignment
 // cost and wall time. Requires n == rows * cols (bijective matching).
@@ -28,7 +28,6 @@ int main(int argc, char** argv) {
     std::string points_path;
     std::string out_path;
     int rows = 0, cols = 0, nb_plans = 16;
-    double margin = 0.03;
     unsigned seed = 0;
 
     for (int i = 1; i < argc; ++i) {
@@ -38,7 +37,6 @@ int main(int argc, char** argv) {
         else if (arg == "--rows") rows = std::stoi(next());
         else if (arg == "--cols") cols = std::stoi(next());
         else if (arg == "--plans") nb_plans = std::stoi(next());
-        else if (arg == "--margin") margin = std::stod(next());
         else if (arg == "--seed") seed = std::stoul(next());
         else if (arg == "--assignment-out") out_path = next();
         else { std::cerr << "unknown arg " << arg << "\n"; return 1; }
@@ -59,12 +57,12 @@ int main(int argc, char** argv) {
         A(0, i) = buffer[2 * i];
         A(1, i) = buffer[2 * i + 1];
     }
-    const double step_x = cols > 1 ? (1.0 - 2 * margin) / (cols - 1) : 0.0;
-    const double step_y = rows > 1 ? (1.0 - 2 * margin) / (rows - 1) : 0.0;
+    const double step_x = cols > 1 ? 1.0 / (cols - 1) : 0.0;
+    const double step_y = rows > 1 ? 1.0 / (rows - 1) : 0.0;
     for (long r = 0; r < rows; ++r)
         for (long c = 0; c < cols; ++c) {
-            B(0, r * cols + c) = cols > 1 ? margin + c * step_x : 0.5;
-            B(1, r * cols + c) = rows > 1 ? margin + r * step_y : 0.5;
+            B(0, r * cols + c) = cols > 1 ? c * step_x : 0.5;
+            B(1, r * cols + c) = rows > 1 ? r * step_y : 0.5;
         }
 
     cost_function cost = [&](size_t i, size_t j) {

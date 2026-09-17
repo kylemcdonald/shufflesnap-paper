@@ -40,7 +40,6 @@ from bench_common import (
 )
 
 GRID_W, GRID_H = 250, 280
-MARGIN = 0.03
 CROP_CELLS = 24
 TILE = 28
 DOWNSCALE = 4  # full-atlas print figure is reduced by this factor
@@ -183,7 +182,7 @@ def main() -> None:
 
     from bench_common import normalize
     points = normalize(embedding)
-    targets = build_target_grid(GRID_W, GRID_H, MARGIN)
+    targets = build_target_grid(GRID_W, GRID_H)
 
     t0 = time.time()
     seed = seed_default(points, GRID_W * GRID_H)

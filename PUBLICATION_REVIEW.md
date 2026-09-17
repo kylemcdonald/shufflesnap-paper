@@ -1,11 +1,69 @@
 # Publication review and handoff
 
-Updated 2026-09-16 for author and human review. The paper has not been submitted to arXiv.
+Updated 2026-09-17 for author and human review. The paper has not been submitted to arXiv.
 
-## Rewrite from the approved outline
+## Coordinate-margin removal
 
-The main paper is three pages, with five appendices and references bringing the
-complete PDF to 18 pages. Fable led the prose rewrite; Codex integrated the text,
+The solver now places grid centers across `[0,1]` on each axis; a singleton
+axis uses `0.5`. The `margin` parameter is removed throughout the Python API,
+native kernel, examples, and benchmark drivers. Input coordinates remain the
+caller's responsibility: the API does not normalize them. The paper's benchmark
+harness normalizes every method's inputs identically.
+
+Three further simplifications preserve behavior: the public API returns its
+freshly owned assignment without another copy; the showcase renderer uses the
+returned positions instead of rebuilding the grid; and the paper renderer no
+longer supports an obsolete reference-assignment cache format. Reference costs
+and gallery assignments now come from the same solve. Cache entries fingerprint
+both input coordinates and target geometry, preventing reuse across conventions.
+
+Fable reviewed these changes and the ownership of returned buffers. All 52
+library tests pass, including endpoint, singleton-axis, cost-consistency, and
+buffer-lifetime checks. The stopping tolerance, clipped trailing windows, masks,
+and fixed occupied-cell controls remain: each affects meaningful behavior.
+Physical print margins and figure spacing are unrelated and unchanged.
+
+All 39 auction references were recomputed from unit-square inputs. Their costs
+agree with the old costs divided by `0.94²` to within `1.3e-14` relative error.
+All 15 headline distribution runs converged; their reference gaps changed by at
+most `2.4e-12` percentage points. Family median gaps remain 0.006–0.030%, with
+median runtimes of 0.21–0.24 seconds in this rerun. Timing differences between
+runs should not be attributed to margin removal alone. In the refreshed
+time-matched comparison, BSP-OT wins four of five families, with ShuffleSnap
+ahead on the ring. The manuscript now states that exception.
+
+The convergence, schedule/window ablations, initialization, scaling through
+4.2 million points, MNIST, and BSP-OT experiments were regenerated, along with
+their figures. All 27 scaling runs, 33 schedule/window runs, and 264
+initialization runs converged. The machine environment, dependencies, source
+hashes, and upstream comparator revision are recorded with the results.
+
+Fable checked the refreshed tables and manuscript claims. Its review led to a
+clearer explanation of the ring's sensitivity to completed-round timing, a more
+careful abstract, and simpler coordinate/provenance text. Detailed collaboration
+and comparison reports are retained in `publication-review/remove-margin/` in
+the parent workspace.
+
+The 100-million-point comparison was also rerun with raw driver logs: ShuffleSnap
+completed 14 rounds in 536 seconds under a requested 500-second budget; official
+16-plan BSP-OT took 248 seconds and used 29.3 GiB. Only the billion-point solver
+measurements remain historical. Its saved assignment is rendered in unit-square
+coordinates, with the distinction stated in Appendix D. Fable verified that the
+comparison ratios never mix coordinate conventions.
+
+The updated paper retains a three-page main section; appendices and references
+bring the complete draft to 19 pages. The manuscript and a clean copy of the
+source archive both compile without undefined references or overfull boxes.
+Evidence checks reproduced all 15 final gaps, verified 20 bijective figure
+assignments, and checked all 75 matched-time checkpoints.
+
+The implementation is pinned to `afd6626` (full hash in the manuscript), version
+`0.4.0.dev0`. This is an unreleased source revision; PyPI remains at `0.3.0`.
+
+## Earlier rewrite from the approved outline
+
+The approved-outline draft had three main pages, with five appendices and
+references bringing that PDF to 18 pages. Fable led the prose rewrite; Codex integrated the text,
 checked claims against code and stored results, built the new method diagram,
 and checked the typeset pages. The main explanation follows four steps: a small
 reassignment, longer reach through strides, coverage through shifted phases,

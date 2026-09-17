@@ -1,5 +1,11 @@
 """Render deterministic antialiasing comparisons for the billion-point image.
 
+Rendering uses unit-square coordinates. The stored 31623² assignment predates
+this convention and was solved with a 0.03 inset. Applying the same affine
+transform to points and targets preserves that matching; rendering it here
+does not rerun the solver or update its historical measurements.
+
+
 The saved ShuffleSnap assignment is reused directly. The deterministic source
 point stream is cached once as float32 coordinates so subsequent rendering
 runs never regenerate it. All rasterizers use integer GPU accumulation, which
@@ -47,7 +53,7 @@ from PIL import Image, ImageFilter
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from bench_billion import CHUNK as GENERATION_CHUNK, generate_meander
-from bench_common import MARGIN, results_dir
+from bench_common import results_dir
 
 
 DEFAULT_SIDE = 31_623
@@ -175,7 +181,7 @@ def assignment_path(side: int, seed: int) -> Path:
 
 
 def position_cache_path(side: int, seed: int) -> Path:
-    return results_dir() / "positions" / f"billion_meander_{side}_seed{seed}_float32.npy"
+    return results_dir() / "positions" / f"billion_meander_{side}_seed{seed}_unit_square_float32.npy"
 
 
 def validate_assignment(path: Path, n: int) -> np.memmap:
@@ -309,9 +315,9 @@ def _render_xy(px: float, py: float, cell: int, side: int,
                interpolation: float) -> tuple[float, float]:
     row = cell // side
     col = cell - row * side
-    grid_scale = (1.0 - 2.0 * MARGIN) / (side - 1)
-    target_x = MARGIN + col * grid_scale
-    target_y = MARGIN + row * grid_scale
+    grid_scale = 1.0 / (side - 1)
+    target_x = col * grid_scale
+    target_y = row * grid_scale
     source_weight = 1.0 - interpolation
     return (
         source_weight * px + interpolation * target_x,
@@ -860,7 +866,7 @@ def main() -> int:
             "pointCount": n,
             "seed": args.seed,
             "interpolation": args.interp,
-            "margin": MARGIN,
+            "coordinate_system": "unit-square",
         },
         "output": {
             "directory": str(output_dir),

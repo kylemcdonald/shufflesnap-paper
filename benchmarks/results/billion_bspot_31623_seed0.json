@@ -13,24 +13,29 @@
  "peak_rss_gib": 48.4317626953125,
  "ref_1e8": {
   "side": 10000,
-  "shufflesnap_final_cost_500s_run": 1623978.1510936052,
-  "stock_16plan_cost": 1822313.5705966533,
-  "stock_16plan_time_s": 252.865331362,
-  "stock_16plan_peak_rss_gib_omp4": 29.270183563232422,
-  "stock_1plan_cost": 2013782.5281215522,
-  "stock_1plan_time_s": 42.757535084,
-  "stock_1plan_peak_rss_gib": 8.9443359375,
-  "giga_1plan_cost": 2075342.1561105824,
-  "giga_1plan_time_s": 35.85123036,
-  "giga_1plan_peak_rss_gib": 4.84552001953125,
+  "coordinate_system": "unit-square",
+  "shufflesnap_final_cost_500s_run": 1837910.9903731905,
+  "BSP-OT_revision": "7aa1c013931cc1718a34cebcb121944c13f136e7",
+  "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+  "timestamp_utc": "2026-09-17T10:50:14Z",
+  "raw_logs": "hundred_m_logs/",
+  "stock_16plan_cost": 2069637.6067400174,
+  "stock_16plan_time_s": 248.387999701,
+  "stock_16plan_peak_rss_gib_omp4": 29.271453857421875,
+  "stock_1plan_cost": 2383729.3646998284,
+  "stock_1plan_time_s": 44.1702998,
+  "stock_1plan_peak_rss_gib": 8.944385528564453,
+  "giga_1plan_cost": 2348735.433070673,
+  "giga_1plan_time_s": 36.66213793,
+  "giga_1plan_peak_rss_gib": 4.84588623046875,
   "shufflesnap_reference": {
    "source": "billion_10000_seed0.json",
    "initializer": "deterministic random permutation",
    "budget_s": 500.0,
-   "elapsed_s": 520.474384707,
+   "elapsed_s": 536.026233528,
    "rounds": 14,
    "converged": false,
-   "final_cost": 1623978.1510936052
+   "final_cost": 1837910.9903731905
   }
  },
  "shufflesnap_6h_reference": {
@@ -41,5 +46,6 @@
   "rounds": 53,
   "converged": false,
   "final_cost": 42216054.14781454
- }
+ },
+ "coordinate_system": "legacy-inset-0.03"
 }

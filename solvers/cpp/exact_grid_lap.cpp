@@ -29,7 +29,6 @@ struct Options {
     std::string cost_mode = "jit";
     int width = 0;
     int height = 0;
-    double margin = 0.03;
     int threads = 0;
     int repeat = 1;
     int warmup = 0;
@@ -110,8 +109,6 @@ Options parse_args(int argc, char** argv) {
             options.solver = require_value("--solver");
         } else if (arg == "--cost-mode") {
             options.cost_mode = require_value("--cost-mode");
-        } else if (arg == "--margin") {
-            options.margin = std::stod(require_value("--margin"));
         } else if (arg == "--threads") {
             options.threads = std::stoi(require_value("--threads"));
         } else if (arg == "--repeat") {
@@ -126,7 +123,7 @@ Options parse_args(int argc, char** argv) {
             std::cout
                 << "Usage: exact_grid_lap --points PATH --width W --height H "
                 << "--solver jv|auction --cost-mode dense|jit "
-                << "[--margin 0.03] [--threads N] [--repeat N] [--warmup N] "
+                << "[--threads N] [--repeat N] [--warmup N] "
                 << "[--debug-auction] [--debug-round-every N] "
                 << "[--assignment-out PATH]\n";
             std::exit(0);
@@ -197,14 +194,14 @@ struct GridGeometry {
     std::vector<double> xs;
     std::vector<double> ys;
 
-    explicit GridGeometry(int grid_width, int grid_height, double margin)
+    explicit GridGeometry(int grid_width, int grid_height)
         : width(grid_width), height(grid_height), xs(static_cast<std::size_t>(grid_width)), ys(static_cast<std::size_t>(grid_height)) {
         if (width == 1) {
             xs[0] = 0.5;
         } else {
             for (int col = 0; col < width; ++col) {
                 xs[static_cast<std::size_t>(col)] =
-                    margin + (1.0 - (2.0 * margin)) * static_cast<double>(col) / static_cast<double>(width - 1);
+                    static_cast<double>(col) / static_cast<double>(width - 1);
             }
         }
         if (height == 1) {
@@ -212,7 +209,7 @@ struct GridGeometry {
         } else {
             for (int row = 0; row < height; ++row) {
                 ys[static_cast<std::size_t>(row)] =
-                    margin + (1.0 - (2.0 * margin)) * static_cast<double>(row) / static_cast<double>(height - 1);
+                    static_cast<double>(row) / static_cast<double>(height - 1);
             }
         }
     }
@@ -735,7 +732,7 @@ int main(int argc, char** argv) {
         const Options options = parse_args(argc, argv);
         const std::size_t n = static_cast<std::size_t>(options.width) * static_cast<std::size_t>(options.height);
         const std::vector<Point> points = load_points(options.points_path, n);
-        const GridGeometry grid(options.width, options.height, options.margin);
+        const GridGeometry grid(options.width, options.height);
         std::vector<double> build_times;
         std::vector<double> solve_times;
         std::vector<double> total_times;

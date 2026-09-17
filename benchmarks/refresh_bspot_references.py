@@ -70,6 +70,13 @@ def main() -> None:
     if not isinstance(ref, dict) or ref.get("side") != hundred_m["side"]:
         raise ValueError(f"{args.bspot} has no matching 100M reference")
 
+    # Archived summaries predate the explicit coordinate field. Never mix their
+    # inset costs with a fresh unit-square run.
+    if any(summary.get("coordinate_system", "legacy-inset-0.03") !=
+           comparator.get("coordinate_system", "legacy-inset-0.03")
+           for summary, comparator in ((giga, bspot), (hundred_m, ref))):
+        raise ValueError("Coordinate conventions differ; rerun the comparator before refreshing costs")
+
     giga_final = float(giga["final_cost"])
     bspot_cost = float(bspot["assignment_cost"])
     hundred_m_final = float(hundred_m["final_cost"])

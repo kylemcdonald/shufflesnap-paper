@@ -65,6 +65,14 @@ The same-initialization control varies initial permutations independently of the
 random grouping seed. Every saved result checks bijectivity, independently
 recomputes its cost, and verifies non-increasing trace costs.
 
+## Coordinate update
+
+The recorded experiment predates margin removal and uses the inset coordinates
+of ShuffleSnap 0.3.0. Its measurements are retained unchanged and are not part
+of the paper. The driver now follows the unit-square API for future runs; use
+the revisions in `environment.json` to reproduce the historical measurements.
+Do not compare old absolute costs directly with new unit-square costs.
+
 ## Reproduction
 
 From the paper repository, after installing the scientific requirements:

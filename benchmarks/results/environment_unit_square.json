@@ -1,0 +1,295 @@
+{
+  "coordinate_system": "unit-square",
+  "start_utc": "2026-09-17T10:24:48Z",
+  "reference_policy": "All 39 reference instances freshly solved; no analytically rescaled cached costs.",
+  "threads": {
+    "shufflesnap": "hardware default (24)",
+    "BSP-OT_OpenMP": 24,
+    "OpenBLAS": 1
+  },
+  "BSP-OT_revision": "7aa1c013931cc1718a34cebcb121944c13f136e7",
+  "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+  "packages": [
+    "build==1.6.1",
+    "certifi==2026.7.22",
+    "cffi==2.1.1",
+    "charset-normalizer==3.5.1",
+    "contourpy==1.3.3",
+    "cryptography==50.0.1",
+    "cycler==0.12.1",
+    "decorator==5.3.1",
+    "docutils==0.23",
+    "fonttools==4.63.0",
+    "id==1.6.1",
+    "idna==3.19",
+    "ImageIO==2.37.3",
+    "imageio-ffmpeg==0.6.0",
+    "iniconfig==2.3.0",
+    "jaraco.classes==3.4.0",
+    "jaraco.context==6.1.2",
+    "jaraco.functools==4.6.0",
+    "jeepney==0.9.0",
+    "joblib==1.5.3",
+    "keyring==25.7.0",
+    "kiwisolver==1.5.0",
+    "llvmlite==0.48.0",
+    "markdown-it-py==4.2.0",
+    "matplotlib==3.11.0",
+    "mdurl==0.1.2",
+    "more-itertools==11.1.0",
+    "moviepy==2.2.1",
+    "nanobind==3.0.1",
+    "narwhals==2.23.0",
+    "nh3==0.3.7",
+    "numba==0.66.0",
+    "numpy==2.4.6",
+    "packaging==26.2",
+    "pandas==3.0.3",
+    "pathspec==1.1.1",
+    "pillow==11.3.0",
+    "pluggy==1.6.0",
+    "proglog==0.1.12",
+    "pycparser==3.0",
+    "Pygments==2.20.0",
+    "pymupdf==1.28.2",
+    "pyparsing==3.3.2",
+    "pyproject_hooks==1.3.0",
+    "pytest==9.1.1",
+    "python-dateutil==2.9.0.post0",
+    "python-dotenv==1.2.2",
+    "rasterfairy==1.0.6",
+    "readme_renderer==46.0",
+    "requests==2.34.2",
+    "requests-toolbelt==1.0.0",
+    "rfc3986==2.0.0",
+    "rich==15.0.0",
+    "scikit-learn==1.9.0",
+    "scikit_build_core==1.0.3",
+    "scipy==1.18.0",
+    "SecretStorage==3.5.0",
+    "-e git+https://github.com/kylemcdonald/shufflesnap.git@afd6626c3353b41c0931a7e5111b31c4b2c3e8f2#egg=shufflesnap",
+    "six==1.17.0",
+    "threadpoolctl==3.6.0",
+    "tqdm==4.68.4",
+    "twine==7.0.0",
+    "urllib3==2.8.0"
+  ],
+  "source_sha256": {
+    "shufflesnap/python/shufflesnap/__init__.py": "733ff09169c487977e0cc984e5080c644e3f979113fcf3bfc3a4f54a7f2c1e9a",
+    "shufflesnap/src/core.cpp": "49b4d62856b06686f9faafdfd1855640b7788bc4f9b71068011a23a475bd3754",
+    "shufflesnap-paper/benchmarks/bench_ablations.py": "d081a97b0bcc9339761274a52749859274ff8776ab9f6c0a6a55efac26700684",
+    "shufflesnap-paper/benchmarks/bench_billion.py": "997fe0fcf8cec3ec9431ed35fbec717a396dbe76f077bc47ada737e3b806c8d7",
+    "shufflesnap-paper/benchmarks/bench_bspot.py": "1be57d261682bd452c24d8208c17f71433f170c8c8d0c73e16d9e0e7edb90c71",
+    "shufflesnap-paper/benchmarks/bench_common.py": "96964f034b673de418c904e8afdf1ab86bc9c1157421f645a24c033fdca60c2d",
+    "shufflesnap-paper/benchmarks/bench_convergence.py": "ec4d88af753556cf63ada3840d638cce5434aad8f34da7cfbcd7eec328762e99",
+    "shufflesnap-paper/benchmarks/bench_distributions.py": "9762e469be523efb295b7e9c09f05a2d681bb2666f418e4020481fe18053a19e",
+    "shufflesnap-paper/benchmarks/bench_hundred_m.py": "fbf75cc45be9817138d64b0d3b3e614912dbb05b7b75fc79112fdaf31f76efa4",
+    "shufflesnap-paper/benchmarks/bench_init.py": "a5e292ccc785131fa9e83719332e8471edfe99ebf5662c394d476ddffca4dab1",
+    "shufflesnap-paper/benchmarks/bench_mnist.py": "c6ab82f9815e9a7a9b01e1010f4061339aab13e61199c8ba8a3171af4d8e128d",
+    "shufflesnap-paper/benchmarks/bench_oracle_check.py": "100a5e4d35af754e5e59ca1f2927ba6c081bd720db1cb9609812d2abeb970f4f",
+    "shufflesnap-paper/benchmarks/bench_scaling.py": "3f775d063411a3aaca3ba66a38e69f08f1a1e4f4697e8416bc0994a0dc3f84c8",
+    "shufflesnap-paper/benchmarks/build_diagrams.py": "c034534fab995e2ab6c5b751acc759a7ce3033e87934350ac1bebc136b0e78a4",
+    "shufflesnap-paper/benchmarks/build_figures.py": "34663fff3875e3bfdeeddcc9f406c834c59ebb0334b7c416932611d4b3498b3b",
+    "shufflesnap-paper/benchmarks/build_method_figure.py": "b0d1ef4f974ca836423e5bb8cd01c442f0aa0dfc1e3dbcb27eb0dbaba18a0a0b",
+    "shufflesnap-paper/benchmarks/build_overview.py": "1801e1aa4fcd96d23269362c858a5af7a2d25c3ed856ae852e64d23ac9e80e52",
+    "shufflesnap-paper/benchmarks/export_stats.py": "df8a49da1fef0427da31fe15e130381468dc2f3f403ae5883b519bc2d8db5a57",
+    "shufflesnap-paper/benchmarks/precompute_exact.py": "d0d3bb6466e481eb87b1d829ee5232ca0155e8d087f565ec7414526153f65dd5",
+    "shufflesnap-paper/benchmarks/refresh_bspot_references.py": "ece56f439fe6cabfbaa4fa0c6e7bc45483253d7390b63221d33808c4a0c1d55e",
+    "shufflesnap-paper/benchmarks/render_billion.py": "d6ec8ba6813b22020d640501861c44ec3a76a70cfa816a6b02b8d6773f49332e",
+    "shufflesnap-paper/benchmarks/render_billion_4x_box_area_tiled.py": "8b92d3500f186d9ea05f54829626ff9fed66e4657fb593ed4f3f8d764a7137bf",
+    "shufflesnap-paper/benchmarks/render_billion_antialias.py": "89167262c5cb1b254a79576c7540564b79fddc41f030d2ffca5bbbe03256cfba",
+    "shufflesnap-paper/benchmarks/render_billion_test.py": "70630ea38d0eb138f4266fe7f89a145aefe5e254794aa0cdf3a02441d22e3524",
+    "shufflesnap-paper/solvers/cpp/bspot_grid.cpp": "850caadf3b530ffe18c061dc94266c47392e664951d16f78401a30330d338eb9",
+    "shufflesnap-paper/solvers/cpp/bspot_grid_giga.cpp": "da3d070c927e2105f1ee2fd08bde6feeff8f03818e98e13220319a1754378d8e",
+    "shufflesnap-paper/solvers/cpp/exact_grid_lap.cpp": "f4d4caf6c47e9fabfc8d250b6e2a74aced4012f05dd7513b688d0863c13e7448"
+  },
+  "steps": [
+    {
+      "script": "bench_oracle_check.py",
+      "elapsed_s": 116.90936708450317,
+      "exit_code": 0
+    },
+    {
+      "script": "bench_distributions.py",
+      "elapsed_s": 3.5274734497070312,
+      "exit_code": 0
+    },
+    {
+      "script": "bench_convergence.py",
+      "elapsed_s": 114.29396629333496,
+      "exit_code": 0
+    },
+    {
+      "script": "bench_ablations.py",
+      "elapsed_s": 142.69715023040771,
+      "exit_code": 0
+    },
+    {
+      "script": "bench_init.py",
+      "elapsed_s": 371.3708052635193,
+      "exit_code": 0
+    },
+    {
+      "script": "bench_scaling.py",
+      "elapsed_s": 176.6546938419342,
+      "exit_code": 0
+    },
+    {
+      "script": "bench_mnist.py",
+      "elapsed_s": 4.966428995132446,
+      "exit_code": 0
+    },
+    {
+      "script": "bench_bspot.py",
+      "elapsed_s": 28.198873043060303,
+      "exit_code": 0
+    },
+    {
+      "script": "build_figures.py",
+      "elapsed_s": 4.626884698867798,
+      "exit_code": 0
+    },
+    {
+      "script": "build_diagrams.py",
+      "elapsed_s": 2.8457322120666504,
+      "exit_code": 0
+    },
+    {
+      "script": "build_method_figure.py",
+      "elapsed_s": 0.8441755771636963,
+      "exit_code": 0
+    },
+    {
+      "script": "build_overview.py",
+      "elapsed_s": 0.5409948825836182,
+      "exit_code": 0
+    },
+    {
+      "script": "export_stats.py",
+      "elapsed_s": 0.20324254035949707,
+      "exit_code": 0
+    },
+    {
+      "script": [
+        "benchmarks/bench_billion.py",
+        "--side",
+        "10000",
+        "--seed",
+        "0",
+        "--budget",
+        "500",
+        "--no-save-assignment"
+      ],
+      "elapsed_s": 545.8604185581207,
+      "exit_code": 0
+    },
+    {
+      "script": [
+        "benchmarks/bench_hundred_m.py"
+      ],
+      "elapsed_s": 342.3464357852936,
+      "exit_code": 0
+    },
+    {
+      "script": [
+        "benchmarks/render_billion_test.py",
+        "--side",
+        "31623",
+        "--interp",
+        "0.75"
+      ],
+      "elapsed_s": 397.91291332244873,
+      "exit_code": 0
+    },
+    {
+      "script": [
+        "benchmarks/export_stats.py"
+      ],
+      "elapsed_s": 0.20645928382873535,
+      "exit_code": 0
+    },
+    {
+      "script": [
+        "scripts/check_results.py"
+      ],
+      "elapsed_s": 3.4320013523101807,
+      "exit_code": 0
+    },
+    {
+      "script": [
+        "experiments/random_groups/build.py"
+      ],
+      "elapsed_s": 1.3114120960235596,
+      "exit_code": 0
+    }
+  ],
+  "retained_historical": [
+    "Billion-point solver measurements only; saved assignment rendered in unit-square coordinates without rerunning solve."
+  ],
+  "build": {
+    "library_revision": "afd6626c3353b41c0931a7e5111b31c4b2c3e8f2",
+    "eigen_version": "3.4.0",
+    "BSP-OT_header_sha256": "c73c09562134cbdbe766fa20067cab3d59103b773ac69582c250abc71ec24fe7",
+    "driver_sha256": {
+      "exact_grid_lap": "ee9f90bf3ceb26da9537a9e07ba0e189ac6c2db37d0196c91f0c199ad9be5470",
+      "bspot_grid": "12a73f0c1a76e6dd4efa8b6d41dad67518bc7e32e75e3db770b06186f46934d4",
+      "bspot_grid_giga": "0b6655728902d6ff278e32c09ab3967b0cf732cbea9ba3d1933c2979213e4e6d"
+    },
+    "build_flags": {
+      "exact_grid_lap": [
+        "-O3",
+        "-std=c++20",
+        "-pthread"
+      ],
+      "bspot_grid": [
+        "-O3",
+        "-std=c++20",
+        "-fopenmp"
+      ],
+      "bspot_grid_giga": [
+        "-O3",
+        "-std=c++20"
+      ]
+    }
+  },
+  "final_source_sha256": {
+    "shufflesnap/python/shufflesnap/__init__.py": "733ff09169c487977e0cc984e5080c644e3f979113fcf3bfc3a4f54a7f2c1e9a",
+    "shufflesnap/src/core.cpp": "49b4d62856b06686f9faafdfd1855640b7788bc4f9b71068011a23a475bd3754",
+    "shufflesnap-paper/benchmarks/bench_ablations.py": "d081a97b0bcc9339761274a52749859274ff8776ab9f6c0a6a55efac26700684",
+    "shufflesnap-paper/benchmarks/bench_billion.py": "997fe0fcf8cec3ec9431ed35fbec717a396dbe76f077bc47ada737e3b806c8d7",
+    "shufflesnap-paper/benchmarks/bench_bspot.py": "1be57d261682bd452c24d8208c17f71433f170c8c8d0c73e16d9e0e7edb90c71",
+    "shufflesnap-paper/benchmarks/bench_common.py": "96964f034b673de418c904e8afdf1ab86bc9c1157421f645a24c033fdca60c2d",
+    "shufflesnap-paper/benchmarks/bench_convergence.py": "ec4d88af753556cf63ada3840d638cce5434aad8f34da7cfbcd7eec328762e99",
+    "shufflesnap-paper/benchmarks/bench_distributions.py": "9762e469be523efb295b7e9c09f05a2d681bb2666f418e4020481fe18053a19e",
+    "shufflesnap-paper/benchmarks/bench_hundred_m.py": "fbf75cc45be9817138d64b0d3b3e614912dbb05b7b75fc79112fdaf31f76efa4",
+    "shufflesnap-paper/benchmarks/bench_init.py": "a5e292ccc785131fa9e83719332e8471edfe99ebf5662c394d476ddffca4dab1",
+    "shufflesnap-paper/benchmarks/bench_mnist.py": "c6ab82f9815e9a7a9b01e1010f4061339aab13e61199c8ba8a3171af4d8e128d",
+    "shufflesnap-paper/benchmarks/bench_oracle_check.py": "100a5e4d35af754e5e59ca1f2927ba6c081bd720db1cb9609812d2abeb970f4f",
+    "shufflesnap-paper/benchmarks/bench_scaling.py": "3f775d063411a3aaca3ba66a38e69f08f1a1e4f4697e8416bc0994a0dc3f84c8",
+    "shufflesnap-paper/benchmarks/build_diagrams.py": "c034534fab995e2ab6c5b751acc759a7ce3033e87934350ac1bebc136b0e78a4",
+    "shufflesnap-paper/benchmarks/build_figures.py": "34663fff3875e3bfdeeddcc9f406c834c59ebb0334b7c416932611d4b3498b3b",
+    "shufflesnap-paper/benchmarks/build_method_figure.py": "b0d1ef4f974ca836423e5bb8cd01c442f0aa0dfc1e3dbcb27eb0dbaba18a0a0b",
+    "shufflesnap-paper/benchmarks/build_overview.py": "1801e1aa4fcd96d23269362c858a5af7a2d25c3ed856ae852e64d23ac9e80e52",
+    "shufflesnap-paper/benchmarks/export_stats.py": "be06869014070af894716c2d9c0bdf8b4535909fbceb5fc7615eb6750baa9052",
+    "shufflesnap-paper/benchmarks/precompute_exact.py": "d0d3bb6466e481eb87b1d829ee5232ca0155e8d087f565ec7414526153f65dd5",
+    "shufflesnap-paper/benchmarks/refresh_bspot_references.py": "ece56f439fe6cabfbaa4fa0c6e7bc45483253d7390b63221d33808c4a0c1d55e",
+    "shufflesnap-paper/benchmarks/render_billion.py": "d6ec8ba6813b22020d640501861c44ec3a76a70cfa816a6b02b8d6773f49332e",
+    "shufflesnap-paper/benchmarks/render_billion_4x_box_area_tiled.py": "8b92d3500f186d9ea05f54829626ff9fed66e4657fb593ed4f3f8d764a7137bf",
+    "shufflesnap-paper/benchmarks/render_billion_antialias.py": "89167262c5cb1b254a79576c7540564b79fddc41f030d2ffca5bbbe03256cfba",
+    "shufflesnap-paper/benchmarks/render_billion_test.py": "70630ea38d0eb138f4266fe7f89a145aefe5e254794aa0cdf3a02441d22e3524",
+    "shufflesnap-paper/solvers/cpp/bspot_grid.cpp": "850caadf3b530ffe18c061dc94266c47392e664951d16f78401a30330d338eb9",
+    "shufflesnap-paper/solvers/cpp/bspot_grid_giga.cpp": "da3d070c927e2105f1ee2fd08bde6feeff8f03818e98e13220319a1754378d8e",
+    "shufflesnap-paper/solvers/cpp/exact_grid_lap.cpp": "f4d4caf6c47e9fabfc8d250b6e2a74aced4012f05dd7513b688d0863c13e7448"
+  },
+  "source_changes_after_experiment_runs": [
+    "shufflesnap-paper/benchmarks/export_stats.py"
+  ],
+  "artifact_note": "Generated CSV line endings normalized to LF; numeric values unchanged. Final statistics export includes signed port-comparison wording.",
+  "validation": {
+    "library_tests_passed": 52,
+    "references_fresh": 39,
+    "reproduced_distribution_outcomes": 15,
+    "bijective_gallery_assignments": 20,
+    "valid_time_matched_checkpoints": 75
+  }
+}

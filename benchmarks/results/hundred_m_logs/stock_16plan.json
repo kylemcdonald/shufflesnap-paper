@@ -1,0 +1,18 @@
+{
+  "command": [
+    "solvers/cpp/bspot_grid",
+    "--points",
+    "<unit-square meander input>",
+    "--rows",
+    "10000",
+    "--cols",
+    "10000",
+    "--seed",
+    "0",
+    "--plans",
+    "16"
+  ],
+  "OMP_NUM_THREADS": 4,
+  "coordinate_system": "unit-square",
+  "instance_seed": 0
+}

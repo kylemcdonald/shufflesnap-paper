@@ -22,7 +22,7 @@ int main(int argc,char** argv) {
  auto assignment=initial;
  if(mode!="baseline" && mode!="local" && mode!="alloffsets" && mode!="cycles") {
   std::vector<int> owner(n);for(int i=0;i<n;++i)owner[assignment[i]]=i;
-  const auto xs=build_axis_coords(side,.03);
+  const auto xs=build_axis_coords(side);
   std::mt19937 rng(seed);
   std::vector<int> ks;
   int last=(side+5)/6;
@@ -72,7 +72,7 @@ int main(int argc,char** argv) {
  if(mode=="baseline" || mode=="alloffsets" || mode=="cycles"){int s=1;while(6*s<side)s*=2;for(;s>=1;s/=2){schedule.push_back(s);schedule.push_back(s);}}
  else schedule={1,1};
  if(mode=="cycles"){auto again=schedule;schedule.insert(schedule.end(),again.begin(),again.end());}
- auto result=run_cleanup(pts.data(),n,assignment.data(),side,side,(mode=="local" || mode=="noshuffle") ? 30 : 120,6,.03,0,threads,schedule,true,mode=="alloffsets",{});
+ auto result=run_cleanup(pts.data(),n,assignment.data(),side,side,(mode=="local" || mode=="noshuffle") ? 30 : 120,6,0,threads,schedule,true,mode=="alloffsets",{});
  for(size_t i=0;i<result.round_costs.size();++i)std::cout<<"trace,"<<prep+result.round_elapsed_s[i]<<","<<result.round_costs[i]<<",polish,"<<result.round_strides_row[i]<<"\n";
  std::cout<<"summary,"<<seconds(start)<<","<<result.final_cost<<","<<grouping<<","<<solving<<","<<result.elapsed_s<<","<<random_passes<<","<<result.rounds_completed<<","<<result.converged<<"\n";
  std::ofstream output(path+".assignment",std::ios::binary);output.write((char*)result.assignment.data(),n*sizeof(int64_t));

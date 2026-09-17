@@ -1,5 +1,11 @@
 """Render a billion-point assignment for the appendix and exploratory views.
 
+Rendering uses unit-square coordinates. The stored 31623² assignment predates
+this convention and was solved with a 0.03 inset. Applying the same affine
+transform to points and targets preserves that matching; rendering it here
+does not rerun the solver or update its historical measurements.
+
+
 Renders two views of a saved assignment (shufflesnap or BSP-OT) of the
 bench_billion meander instance:
 
@@ -35,7 +41,7 @@ from PIL import Image
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from bench_billion import CHUNK, generate_meander
-from bench_common import MARGIN, results_dir
+from bench_common import results_dir
 from build_diagrams import lab_to_srgb
 
 
@@ -78,7 +84,7 @@ def main() -> None:
     assignment = np.load(results_dir() / "assignments" / asn_name)
     assert assignment.shape[0] == n
 
-    axis = np.linspace(MARGIN, 1.0 - MARGIN, side)
+    axis = np.linspace(0.0, 1.0, side)
 
     def accumulate(flat_fn, color_fn):
         acc = np.zeros((3, out * out), dtype=np.float64)

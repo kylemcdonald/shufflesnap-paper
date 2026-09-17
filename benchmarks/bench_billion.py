@@ -28,7 +28,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import shufflesnap
-from bench_common import MARGIN, results_dir
+from bench_common import results_dir
 
 CHUNK = 20_000_000
 
@@ -58,8 +58,6 @@ def generate_meander(n: int, seed: int = 0, chunk: int = CHUNK) -> np.ndarray:
         block = pts[i0:i1]
         block -= mins
         block /= span
-        block *= 1.0 - 2.0 * MARGIN
-        block += MARGIN
     return pts
 
 
@@ -147,6 +145,7 @@ def main() -> None:
     rounds = int(result["rounds_completed"])
     peak_gib = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 2**20
     summary = {
+        "coordinate_system": "unit-square",
         "side": side,
         "n": n,
         "instance_seed": args.seed,

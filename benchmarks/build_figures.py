@@ -338,13 +338,8 @@ def fig_distributions() -> None:
         return r["assignment"], r["time_s"]
 
     def exact_solution(pts, side, dist):
-        # reuse a previously cached assignment (from the .npy era) if present
-        legacy = RESULTS / "assignments" / f"exact_{dist}_{side}_seed0.npy"
-        if legacy.exists():
-            return np.load(legacy), float(exact_instance(dist, side, 0)["solve_time_s"])
-        t0 = time_mod.time()
         assignment = exact_square_assignment(pts, side, side)
-        return assignment, time_mod.time() - t0
+        return assignment, float(exact_instance(dist, side, 0)["solve_time_s"])
 
     fig, axes = plt.subplots(5, len(dists), figsize=(7.2, 7.5))
     for col, dist in enumerate(dists):

@@ -1,182 +1,392 @@
 {
  "meander:100x100:seed0": {
-  "cost": 312.5038598130775,
-  "solve_time_s": 18.595033674995648
+  "cost": 353.67118584549576,
+  "grid": [
+   100,
+   100,
+   "unit-square"
+  ],
+  "points_sha256": "268d0b573d4461bbaf28d1b9c404960b13d0fd243b507625f9581ab0acf57935",
+  "solve_time_s": 28.06456332997186
  },
  "meander:100x100:seed1": {
-  "cost": 313.630666262053,
-  "solve_time_s": 16.63848957799928
+  "cost": 354.9464308081194,
+  "grid": [
+   100,
+   100,
+   "unit-square"
+  ],
+  "points_sha256": "652d4a6c35c251246d2297e8d7da9e5d38719d45bad1e8eaa9de3c87596b5ad7",
+  "solve_time_s": 24.192209481960163
  },
  "meander:100x100:seed2": {
-  "cost": 387.3808334497172,
-  "solve_time_s": 15.8420456620006
+  "cost": 438.41198896527624,
+  "grid": [
+   100,
+   100,
+   "unit-square"
+  ],
+  "points_sha256": "50b7e3c87d757cc3f346f5357ad16da5246f906f5889bb544ef6d74ba643a17e",
+  "solve_time_s": 19.036005727015436
  },
  "meander:141x141:seed0": {
-  "cost": 781.0468090644857,
-  "solve_time_s": 66.44262250900647
+  "cost": 883.9370858584003,
+  "grid": [
+   141,
+   141,
+   "unit-square"
+  ],
+  "points_sha256": "5a5c3b778ce7e2c96e13445c269b0c86717c66fc2b39e6cb57cb6fc949af6f1c",
+  "solve_time_s": 79.45774877798976
  },
  "meander:141x141:seed1": {
-  "cost": 639.281597545863,
-  "solve_time_s": 66.39969202900102
+  "cost": 723.4966020211183,
+  "grid": [
+   141,
+   141,
+   "unit-square"
+  ],
+  "points_sha256": "0fe229cbec09cb7b77e8e4006cae83432305be01564b7936380521a8a5596c35",
+  "solve_time_s": 83.71718867000891
  },
  "meander:141x141:seed2": {
-  "cost": 1144.8258720499434,
-  "solve_time_s": 65.01384572299867
+  "cost": 1295.638153066944,
+  "grid": [
+   141,
+   141,
+   "unit-square"
+  ],
+  "points_sha256": "f13465485e9e785a76174cbc0158d246de06964045a8b2580e5a5efd9d8b6a5f",
+  "solve_time_s": 85.43017398699885
  },
  "meander:200x200:seed0": {
-  "cost": 2218.9808071638204,
-  "solve_time_s": 355.8959933139995
+  "cost": 2511.295616980329,
+  "grid": [
+   200,
+   200,
+   "unit-square"
+  ],
+  "points_sha256": "3e8cdb84175b162b97b6e16c20f54136942a68108de86becf37e51dc89132eb4",
+  "solve_time_s": 396.6754405540414
  },
  "meander:200x200:seed1": {
-  "cost": 1901.9585210066,
-  "solve_time_s": 337.7964000389984
+  "cost": 2152.5107752451277,
+  "grid": [
+   200,
+   200,
+   "unit-square"
+  ],
+  "points_sha256": "afea2574ecc44a80fe0970ec09b46e297b6899075b08bc2904186a101b3066da",
+  "solve_time_s": 365.4633567589917
  },
  "meander:200x200:seed2": {
-  "cost": 1557.0928774764573,
-  "solve_time_s": 292.8518175620047
+  "cost": 1762.214664414273,
+  "grid": [
+   200,
+   200,
+   "unit-square"
+  ],
+  "points_sha256": "c7a63036739d91be2cb99f9c187afa44fafb788e77967c6d5915ee0ea91bdcec",
+  "solve_time_s": 340.4989687350462
  },
  "meander:71x71:seed0": {
-  "cost": 375.92650755699435,
-  "solve_time_s": 5.193260421001469
+  "cost": 425.4487410106332,
+  "grid": [
+   71,
+   71,
+   "unit-square"
+  ],
+  "points_sha256": "a4f3b485a1a0b428c2fbade6a45426d5ce99f50c42189c31a91d469a975217e0",
+  "solve_time_s": 5.981404452002607
  },
  "meander:71x71:seed1": {
-  "cost": 78.0106838870266,
-  "solve_time_s": 5.527052309997089
+  "cost": 88.28732898033797,
+  "grid": [
+   71,
+   71,
+   "unit-square"
+  ],
+  "points_sha256": "699636d55381ccf58eb04973092d8ef14530ff831acdfb814fc9dc7322fbed4d",
+  "solve_time_s": 4.9522396009997465
  },
  "meander:71x71:seed2": {
-  "cost": 204.78071555789282,
-  "solve_time_s": 4.231802634996711
+  "cost": 231.7572607038168,
+  "grid": [
+   71,
+   71,
+   "unit-square"
+  ],
+  "points_sha256": "2c68c87530506561dc0ba101d4e792e08a635febfcb14dec669852ab178e0518",
+  "solve_time_s": 4.976273099950049
  },
  "meander:96x96:seed0": {
-  "cost": 342.3717176884969,
-  "solve_time_s": 17.601978863000113
+  "cost": 387.47365062075215,
+  "grid": [
+   96,
+   96,
+   "unit-square"
+  ],
+  "points_sha256": "d8d0e3c50421295a815a4663cf396c56d3ab4b492dc73f92450bdae6ebeb3cdd",
+  "solve_time_s": 18.959454372990876
  },
  "meander:96x96:seed1": {
-  "cost": 254.9421344895496,
-  "solve_time_s": 12.255114227999002
+  "cost": 288.5266347776716,
+  "grid": [
+   96,
+   96,
+   "unit-square"
+  ],
+  "points_sha256": "454dd3230cccca76aee8842857fb5d7bf22a8afbc1e07a2929f00171bfea7b65",
+  "solve_time_s": 18.245717652025633
  },
  "meander:96x96:seed2": {
-  "cost": 392.2561964128173,
-  "solve_time_s": 16.430826815005275
+  "cost": 443.929602096897,
+  "grid": [
+   96,
+   96,
+   "unit-square"
+  ],
+  "points_sha256": "24447415f838608bd39aa97dc3cb2e84cf124f713d6f863c1f87e087cf450805",
+  "solve_time_s": 22.563012275029905
  },
  "mixture:200x200:seed0": {
-  "cost": 2245.1110301978374,
-  "solve_time_s": 339.1406207199907
+  "cost": 2540.8680740129644,
+  "grid": [
+   200,
+   200,
+   "unit-square"
+  ],
+  "points_sha256": "9f8cf4139816dc82dfdfeb036104e58656618537b90a6b3ed09d26f49a93c003",
+  "solve_time_s": 407.4898201000178
  },
  "mixture:200x200:seed1": {
-  "cost": 1086.3979806086031,
-  "solve_time_s": 270.36468216399953
+  "cost": 1229.513332513133,
+  "grid": [
+   200,
+   200,
+   "unit-square"
+  ],
+  "points_sha256": "9a7a31735e5f0b9ababb51ebe1cf91fa6e4fae9d0e8e1a35bf6ec5e6ac78348b",
+  "solve_time_s": 305.54705009801546
  },
  "mixture:200x200:seed2": {
-  "cost": 2167.060976736833,
-  "solve_time_s": 393.874656658998
+  "cost": 2452.5361891543757,
+  "grid": [
+   200,
+   200,
+   "unit-square"
+  ],
+  "points_sha256": "d69ba5baf21e08dd115ff82c296965a19780a091c5b83056b13dce102d064914",
+  "solve_time_s": 403.12502212496474
  },
  "mixture:96x96:seed0": {
-  "cost": 779.5980218316425,
-  "solve_time_s": 18.62832436699682
+  "cost": 882.2974443545086,
+  "grid": [
+   96,
+   96,
+   "unit-square"
+  ],
+  "points_sha256": "3e56f1bf5a0916e52ed26384f9b3a2b02570e8c39ccd487619deed6fb50e3722",
+  "solve_time_s": 24.88726972002769
  },
  "mixture:96x96:seed1": {
-  "cost": 223.70331012658104,
-  "solve_time_s": 20.680642811996222
+  "cost": 253.17260086756448,
+  "grid": [
+   96,
+   96,
+   "unit-square"
+  ],
+  "points_sha256": "f3a1c5e7e2a8a47960a67cb16a547099aa1862018660bcbeb8cb4a4e13c75b3d",
+  "solve_time_s": 20.621998296002857
  },
  "mixture:96x96:seed2": {
-  "cost": 307.0468283399399,
-  "solve_time_s": 16.062621088000014
+  "cost": 347.4952787912433,
+  "grid": [
+   96,
+   96,
+   "unit-square"
+  ],
+  "points_sha256": "2e7b28c9bc4a9aaa9a74cca5678edba2dcd7ac9a08870f237ff04b78d94ebb23",
+  "solve_time_s": 31.040366786997765
  },
  "ring:200x200:seed0": {
-  "cost": 577.5659945998274,
-  "solve_time_s": 249.39099909600918
+  "cost": 653.6509671795197,
+  "grid": [
+   200,
+   200,
+   "unit-square"
+  ],
+  "points_sha256": "29d135384122219282a26b7b43abfc59fbf67a9e4355bc2ee46ba4fa506c99e5",
+  "solve_time_s": 274.51265844202135
  },
  "ring:200x200:seed1": {
-  "cost": 575.5193568919198,
-  "solve_time_s": 190.27143384100054
+  "cost": 651.3347180759666,
+  "grid": [
+   200,
+   200,
+   "unit-square"
+  ],
+  "points_sha256": "c988930468851ea1e5ba54eef5c4004e0558ca4db9c0e78474af164a217b562d",
+  "solve_time_s": 213.24467088800156
  },
  "ring:200x200:seed2": {
-  "cost": 587.1467976294176,
-  "solve_time_s": 260.0302086909942
+  "cost": 664.4938859545242,
+  "grid": [
+   200,
+   200,
+   "unit-square"
+  ],
+  "points_sha256": "4ccc13c45d8a3b03fa4d45d527cff5e0d34afdc47cb48befbf912c56b079ce6b",
+  "solve_time_s": 425.18505822797306
  },
  "ring:96x96:seed0": {
-  "cost": 135.50223987537635,
-  "solve_time_s": 10.365303084006882
+  "cost": 153.35246703867807,
+  "grid": [
+   96,
+   96,
+   "unit-square"
+  ],
+  "points_sha256": "021003f60ef94f29d3074b88ad7fa41a05d2527fe3fa65858956ea561691ab4a",
+  "solve_time_s": 16.667774652014486
  },
  "ring:96x96:seed1": {
-  "cost": 139.28831042883812,
-  "solve_time_s": 10.357553098001517
+  "cost": 157.6372911145756,
+  "grid": [
+   96,
+   96,
+   "unit-square"
+  ],
+  "points_sha256": "3f52f1b184f1648c3d790a023bcc3365936173ade847e1bba769b3e6fcf9b278",
+  "solve_time_s": 12.093869028962217
  },
  "ring:96x96:seed2": {
-  "cost": 141.26157363032866,
-  "solve_time_s": 14.122424467997917
+  "cost": 159.87049980797752,
+  "grid": [
+   96,
+   96,
+   "unit-square"
+  ],
+  "points_sha256": "3eefb4415ea6534813dab6e4ee7c24101aa67900aeb454debdac38cb6072a729",
+  "solve_time_s": 17.79629039799329
  },
  "spiral:200x200:seed0": {
-  "cost": 259.56329118029305,
-  "solve_time_s": 365.11026767599105
+  "cost": 293.75655407457344,
+  "grid": [
+   200,
+   200,
+   "unit-square"
+  ],
+  "points_sha256": "822c9c29b850c33713c1047183ea135406f03734bcdc5a88300680825e774438",
+  "solve_time_s": 822.9123154240078
  },
  "spiral:200x200:seed1": {
-  "cost": 248.5178548077879,
-  "solve_time_s": 330.857257280004
+  "cost": 281.25606021705374,
+  "grid": [
+   200,
+   200,
+   "unit-square"
+  ],
+  "points_sha256": "fb4c76140abd52aa51dd8b63aea4cee94a8b8ea7220e3ed90cc1543758ac3b00",
+  "solve_time_s": 437.3846986099961
  },
  "spiral:200x200:seed2": {
-  "cost": 260.87982571610695,
-  "solve_time_s": 341.3632819640043
+  "cost": 295.24652072895697,
+  "grid": [
+   200,
+   200,
+   "unit-square"
+  ],
+  "points_sha256": "df8a9cc6717768210122b7fedcc39946f861d4a9ec6c02bb9b94183d87e09d52",
+  "solve_time_s": 397.8659711799701
  },
  "spiral:96x96:seed0": {
-  "cost": 58.92453752654903,
-  "solve_time_s": 12.957328872005746
+  "cost": 66.68689172312028,
+  "grid": [
+   96,
+   96,
+   "unit-square"
+  ],
+  "points_sha256": "5585e606de840f8c559c36fef1afe5c56e5d1179013a71a7e35c76e89bb522fe",
+  "solve_time_s": 17.72883766598534
  },
  "spiral:96x96:seed1": {
-  "cost": 56.72348158783829,
-  "solve_time_s": 12.934133308001037
+  "cost": 64.19588228591948,
+  "grid": [
+   96,
+   96,
+   "unit-square"
+  ],
+  "points_sha256": "5ceff6f76fafd54e4085686f79ecc71649d715887aabf1812078d338ed272386",
+  "solve_time_s": 24.90113700396614
  },
  "spiral:96x96:seed2": {
-  "cost": 53.83837077862122,
-  "solve_time_s": 13.066129503997217
+  "cost": 60.93070481962565,
+  "grid": [
+   96,
+   96,
+   "unit-square"
+  ],
+  "points_sha256": "8c7d5dcf52fd6189f22029a3677e6afbbdc141ef63a5d9fc86a64f30dec53830",
+  "solve_time_s": 20.98715198400896
  },
  "two_blobs:200x200:seed0": {
-  "cost": 3840.289409315768,
-  "solve_time_s": 453.1798430909985
+  "cost": 4346.18538854203,
+  "grid": [
+   200,
+   200,
+   "unit-square"
+  ],
+  "points_sha256": "8835dab8c80f60496eb94fa7f01122cd692deaf418b3a25300f8e5fa6459cd85",
+  "solve_time_s": 479.7529850420542
  },
  "two_blobs:200x200:seed1": {
-  "cost": 3858.9558411114613,
-  "solve_time_s": 524.4451691959985
+  "cost": 4367.310820633182,
+  "grid": [
+   200,
+   200,
+   "unit-square"
+  ],
+  "points_sha256": "a4225b7642edb27977529c7e3ab6edf94b9306f782d2331a2a3eeefed08a131a",
+  "solve_time_s": 455.37469835503725
  },
  "two_blobs:200x200:seed2": {
-  "cost": 3740.2006721860557,
-  "solve_time_s": 493.18095289799385
+  "cost": 4232.9115801109865,
+  "grid": [
+   200,
+   200,
+   "unit-square"
+  ],
+  "points_sha256": "5ea9653d467a99d84ec6f43d9c29064b606c4018fff94c98dd36e848545d2e2f",
+  "solve_time_s": 551.4450007659616
  },
  "two_blobs:96x96:seed0": {
-  "cost": 912.8263047009415,
-  "solve_time_s": 21.295643548000953
+  "cost": 1033.0763973528112,
+  "grid": [
+   96,
+   96,
+   "unit-square"
+  ],
+  "points_sha256": "fe50cc9568a270c54bc124b3b37eb98923f8ddc4187210dc2ef8317a93d23b33",
+  "solve_time_s": 27.939649149018805
  },
  "two_blobs:96x96:seed1": {
-  "cost": 933.2827777313711,
-  "solve_time_s": 18.22881701199367
+  "cost": 1056.227679641661,
+  "grid": [
+   96,
+   96,
+   "unit-square"
+  ],
+  "points_sha256": "6a132856d02ffa6bee16e406c64341d6dad51f9cc6f11789f8fb8aa0075b35dd",
+  "solve_time_s": 20.28969575202791
  },
  "two_blobs:96x96:seed2": {
-  "cost": 913.3701702062311,
-  "solve_time_s": 17.972968364003464
- },
- "uniform:200x200:seed0": {
-  "cost": 1.3165325968044905,
-  "solve_time_s": 201.4085308079957
- },
- "uniform:200x200:seed1": {
-  "cost": 1.1178029403069425,
-  "solve_time_s": 212.5838532600028
- },
- "uniform:200x200:seed2": {
-  "cost": 1.1587709515242175,
-  "solve_time_s": 231.9966580409964
- },
- "uniform:96x96:seed0": {
-  "cost": 1.4402894536790105,
-  "solve_time_s": 9.243538221002382
- },
- "uniform:96x96:seed1": {
-  "cost": 0.9691802101422592,
-  "solve_time_s": 9.877477123998688
- },
- "uniform:96x96:seed2": {
-  "cost": 1.0261633498258056,
-  "solve_time_s": 10.333416023997415
+  "cost": 1033.6919083366163,
+  "grid": [
+   96,
+   96,
+   "unit-square"
+  ],
+  "points_sha256": "7c2fe901a6d166bcd96a9104703304103f83bd15a048a578f3b5f10470418506",
+  "solve_time_s": 24.073320947994944
  }
 }

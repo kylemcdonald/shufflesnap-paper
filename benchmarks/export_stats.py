@@ -1,7 +1,6 @@
 """Export headline numbers from benchmark CSVs as LaTeX macros (paper/stats.tex).
 
-Every number quoted in the manuscript comes from this file, so text and
-figures cannot diverge.
+Export shared statistics and tables from the stored measurements.
 """
 
 from __future__ import annotations
@@ -51,6 +50,9 @@ def main() -> None:
         return float(np.median(times))
 
     macros["StatConvRandomFinal"] = fmt(method_final("random+multiscale"), 3)
+    macros["StatConvRandomElapsed"] = fmt(
+        (finals.loc["random+multiscale"]["elapsed_s"] +
+         finals.loc["random+multiscale"]["seed_time_s"]).median(), 2)
     macros["StatConvLocalFinal"] = fmt(method_final("raster+local"), 2)
     macros["StatConvRasterFairyLocalFinal"] = fmt(method_final("rasterfairy+local"), 2)
     seed_rows = conv[conv["round"] == 0]
@@ -65,6 +67,12 @@ def main() -> None:
         hit = group[(group["round"] > 0) & (group["gap_pct"] <= 0.1)]
         rounds_needed.append(int(hit["round"].min()) if not hit.empty else 999)
     macros["StatConvRoundsToTenth"] = str(int(np.median(rounds_needed)))
+    local = conv[conv["method"] == "raster+local"]
+    local_hits = local[(local["round"] > 0) & (local["gap_pct"] <= 1)].groupby("instance_seed").first()
+    macros["StatConvLocalRoundsToOne"] = fmt(local_hits["round"].median(), 0)
+    macros["StatConvLocalTimeToOne"] = fmt(
+        (local_hits["elapsed_s"] + local_hits["seed_time_s"]).median(), 1)
+    macros["StatConvLocalRoundsFinal"] = fmt(finals.loc["raster+local"]["round"].median(), 0)
 
     dist = pd.read_csv(RESULTS / "distributions.csv")
     dist = dist[dist["distribution"].isin(PAPER_FAMILIES)]
@@ -111,6 +119,8 @@ def main() -> None:
 
     # gigascale BSP-OT reference run (bspot_grid_giga, single plan)
     bspot_giga = json.loads((RESULTS / "billion_bspot_31623_seed0.json").read_text())
+    if giga.get("coordinate_system", "legacy-inset-0.03") != bspot_giga.get("coordinate_system", "legacy-inset-0.03"):
+        raise ValueError("Cannot compare billion-point costs from different coordinate conventions")
     macros["StatGigaBspotTimeMin"] = fmt(bspot_giga["solve_time_s"] / 60.0, 1)
     # recompute against the current shufflesnap run rather than the stored field
     macros["StatGigaBspotExcessPct"] = fmt(
@@ -120,6 +130,10 @@ def main() -> None:
     macros["StatGigaBspotStockOnePlanGiB"] = fmt(ref["stock_1plan_peak_rss_gib"] * 10.0, 0)
     macros["StatGigaBspotStockDefaultGiB"] = fmt(ref["stock_16plan_peak_rss_gib_omp4"] * 10.0, 0)
     macros["StatHundredMBspotDefaultGiB"] = fmt(ref["stock_16plan_peak_rss_gib_omp4"], 0)
+    macros["StatHundredMElapsedS"] = fmt(ref["shufflesnap_reference"]["elapsed_s"], 0)
+    port_difference = 100 * (ref["giga_1plan_cost"] / ref["stock_1plan_cost"] - 1)
+    macros["StatHundredMPortDifferencePct"] = fmt(abs(port_difference), 1)
+    macros["StatHundredMPortDirection"] = "below" if port_difference < 0 else "above"
     ref_base = ref["shufflesnap_final_cost_500s_run"]
     macros["StatHundredMBspotSixteenExcessPct"] = fmt(
         100 * (ref["stock_16plan_cost"] / ref_base - 1), 1)
@@ -138,6 +152,8 @@ def main() -> None:
         window.groupby("window_size").size()
     macros["StatWindowBest"] = str(int(
         w.loc[reached_all[reached_all].index, "time_to_0p1pct_s"].idxmin()))
+    macros["StatWindowTimeLo"] = fmt(w.loc[[4, 5, 6], "time_to_0p1pct_s"].min(), 2)
+    macros["StatWindowTimeHi"] = fmt(w.loc[[4, 5, 6], "time_to_0p1pct_s"].max(), 2)
 
     # initialization ablation (bench_init.py)
     init_fam = pd.read_csv(RESULTS / "init_families.csv")
@@ -176,8 +192,8 @@ def main() -> None:
 
     threads = pd.read_csv(RESULTS / "ablation_threads.csv")
     t1 = threads[threads["threads"] == 1]["rounds_per_s"].iloc[0]
-    tbest = threads["rounds_per_s"].max()
-    macros["StatThreadSpeedup"] = fmt(tbest / t1, 1)
+    t24 = threads.loc[threads["threads"] == 24, "rounds_per_s"].iloc[0]
+    macros["StatThreadSpeedup"] = fmt(t24 / t1, 1)
 
     oracle = pd.read_csv(RESULTS / "oracle_check.csv")
     macros["StatOracleMaxRelErr"] = f"{oracle[['jv_vs_scipy_rel','auction_vs_scipy_rel']].max().max():.1e}"
@@ -204,6 +220,10 @@ def main() -> None:
     meander16 = b16[b16["distribution"] == "meander"]
     macros["StatBspotMeanderGap"] = fmt(meander16["gap_pct"].median(), 1)
     macros["StatBspotMeanderTime"] = fmt(meander16["time_s"].median(), 2)
+    meander64 = bspot_q[(bspot_q["plans"] == 64) & (bspot_q["distribution"] == "meander")]
+    macros["StatBspotSixtyFourGap"] = fmt(meander64["gap_pct"].median(), 1)
+    macros["StatBspotSixtyFourTimeRatio"] = fmt(
+        meander64["time_s"].median() / meander16["time_s"].median(), 1)
     bspot_s = pd.read_csv(RESULTS / "bspot_scaling.csv")
     macros["StatBspotLargestTime"] = fmt(bspot_s["time_s"].max(), 1)
     bspot_seed = pd.read_csv(RESULTS / "bspot_seed.csv")
@@ -223,6 +243,15 @@ def main() -> None:
     # the family median so every instance has equal weight.
     dist_med = dist.groupby("distribution")[["final_gap_pct", "elapsed_s"]].median()
     b16_med = b16.groupby("distribution")[["gap_pct", "time_s"]].median()
+    # Shared prose ranges come from the same medians as the headline table.
+    for prefix, frame, gap_col, time_col, digits in [
+        ("StatHeadline", dist_med, "final_gap_pct", "elapsed_s", 3),
+        ("StatHeadlineBspot", b16_med, "gap_pct", "time_s", 2),
+    ]:
+        macros[prefix + "GapLo"] = fmt(frame[gap_col].min(), digits)
+        macros[prefix + "GapHi"] = fmt(frame[gap_col].max(), digits)
+        macros[prefix + "TimeLo"] = fmt(frame[time_col].min(), 2)
+        macros[prefix + "TimeHi"] = fmt(frame[time_col].max(), 2)
     time_matched = pd.read_csv(RESULTS / "bspot_time_matched.csv")
     time_matched = time_matched[time_matched["distribution"].isin(PAPER_FAMILIES)]
     time_matched_by_instance = time_matched.groupby(

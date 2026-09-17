@@ -288,7 +288,6 @@ int main(int argc, char** argv) {
     std::string points_path;
     std::string out_path;
     std::int64_t rows = 0, cols = 0;
-    double margin = 0.03;
     unsigned seed = 0;
 
     for (int i = 1; i < argc; ++i) {
@@ -297,7 +296,6 @@ int main(int argc, char** argv) {
         if (arg == "--points") points_path = next();
         else if (arg == "--rows") rows = std::stoll(next());
         else if (arg == "--cols") cols = std::stoll(next());
-        else if (arg == "--margin") margin = std::stod(next());
         else if (arg == "--seed") seed = std::stoul(next());
         else if (arg == "--assignment-out") out_path = next();
         else { std::cerr << "unknown arg " << arg << "\n"; return 1; }
@@ -305,7 +303,7 @@ int main(int argc, char** argv) {
     const std::int64_t n = rows * cols;
     if (points_path.empty() || n <= 0 || n > INT32_MAX) {
         std::cerr << "usage: bspot_grid_giga --points FILE --rows R --cols C"
-                  << " [--margin M] [--seed S] [--assignment-out FILE]\n"
+                  << " [--seed S] [--assignment-out FILE]\n"
                   << "(rows * cols must be positive and fit in int32)\n";
         return 1;
     }
@@ -317,13 +315,13 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    const double step_x = cols > 1 ? (1.0 - 2 * margin) / static_cast<double>(cols - 1) : 0.0;
-    const double step_y = rows > 1 ? (1.0 - 2 * margin) / static_cast<double>(rows - 1) : 0.0;
+    const double step_x = cols > 1 ? 1.0 / static_cast<double>(cols - 1) : 0.0;
+    const double step_y = rows > 1 ? 1.0 / static_cast<double>(rows - 1) : 0.0;
     const auto target_x = [&](std::int64_t j) {
-        return cols > 1 ? margin + static_cast<double>(j % cols) * step_x : 0.5;
+        return cols > 1 ? static_cast<double>(j % cols) * step_x : 0.5;
     };
     const auto target_y = [&](std::int64_t j) {
-        return rows > 1 ? margin + static_cast<double>(j / cols) * step_y : 0.5;
+        return rows > 1 ? static_cast<double>(j / cols) * step_y : 0.5;
     };
 
     std::vector<std::int32_t> plan;
