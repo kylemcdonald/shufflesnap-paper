@@ -1,6 +1,6 @@
-# Proposed paper outline
+# Paper outline
 
-**Status: for author review, not an instruction to rewrite the manuscript yet.**
+**Status: approved by the author and implemented in the September 16 rewrite.**
 This document sets the story, space budget, evidence, and appendix destinations.
 Feedback can change a section's purpose, move a topic, or change a visual without
 needing to edit manuscript sentences.
@@ -11,7 +11,7 @@ then reduces that reach to refine the layout.
 
 ## Structural choices to steer
 
-These are the proposed choices for the next rewrite, not settled manuscript text.
+These choices guide the current manuscript and future outline-level feedback.
 
 | Choice | Proposed direction |
 |---|---|
@@ -271,10 +271,9 @@ not a missing novelty argument. Use one bibliography for main text and appendice
 
 ---
 
-## Figure and table inventory for the eventual rewrite
+## Figure and table inventory
 
-Each current figure has one destination or is explicitly superseded. This is a
-routing plan; no figure or manuscript is changed by editing this outline.
+Each current figure has one destination or is explicitly superseded. This inventory records the routing used in the rewrite.
 
 | Existing asset | Proposed destination or action |
 |---|---|
@@ -295,6 +294,5 @@ coordinated Figure 1, its caption, and the shorter main explanation/positioning.
 This is not a request for new experimental evidence.
 
 **Review this outline by changing the choices at the top, section purposes,
-content destinations, or visual budget.** Sentence wording, figure styling, and
-LaTeX layout come after those choices are settled. This outline does not authorize
+content destinations, or visual budget.** The manuscript follows these choices; future revisions can begin here. This outline does not authorize
 new experiments or import the random-cell-group investigation into the paper.

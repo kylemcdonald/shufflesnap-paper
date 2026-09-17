@@ -32,6 +32,7 @@ python3 -m venv .venv
 .venv/bin/python benchmarks/build_figures.py
 .venv/bin/python benchmarks/build_diagrams.py
 .venv/bin/python benchmarks/build_overview.py
+.venv/bin/python benchmarks/build_method_figure.py
 ```
 
 The numerical figures use stored CSV/JSON results and cached small assignments. Diagram generation executes small solver examples. The MNIST raster figures and billion-point image are supplied; rebuilding those images is separate from regenerating the numerical plots.

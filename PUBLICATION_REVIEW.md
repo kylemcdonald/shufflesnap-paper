@@ -2,7 +2,38 @@
 
 Updated 2026-09-16 for author and human review. The paper has not been submitted to arXiv.
 
-## Compact-paper revision
+## Rewrite from the approved outline
+
+The main paper is three pages, with five appendices and references bringing the
+complete PDF to 18 pages. Fable led the prose rewrite; Codex integrated the text,
+checked claims against code and stored results, built the new method diagram,
+and checked the typeset pages. The main explanation follows four steps: a small
+reassignment, longer reach through strides, coverage through shifted phases,
+and coarse-to-fine refinement. One table preserves the quality/runtime tradeoff.
+
+The appendices now have one home each for algorithm details, evaluation and
+MNIST, convergence and ablations, scaling, and related work. Uniform benchmarks
+and the separate random-cell-group experiment remain outside the manuscript.
+The outline is marked approved and implemented.
+
+The new vector diagram shows an actual cost-lowering reassignment before/after,
+then adjacent versus strided cells and overlapping phases. The descent-strip
+renderer now finishes its recorded schedule with local rounds, matching the
+production default assignment exactly; it previously restarted a full schedule
+for the final frame. No solver or benchmark results changed.
+
+Validation reproduced 15 distribution outcomes, checked 20 cached bijections and
+reference costs, and checked 75 time-matched checkpoints. Both the manuscript and
+the self-contained source archive compile without undefined references or
+overfull boxes. Collaboration drafts and review responses are retained under
+`publication-review/outline-rewrite/` in the parent workspace.
+
+Fable’s final review found no major factual error. Its requests to define
+“embedding,” clarify the family introduction and schematic window sizes, and
+state the schedule-ablation range more precisely were incorporated. Its layout
+concern (an almost empty fourth page) was resolved; the main paper is three pages.
+
+## Earlier compact-paper revision
 
 The main paper is now three pages: motivation, the window/stride technique, two
 explanatory figures, and one headline comparison table. Detailed algorithms,

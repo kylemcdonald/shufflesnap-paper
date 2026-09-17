@@ -206,7 +206,8 @@ def fig_multiscale_action() -> None:
         if i in capture_after:
             snapshots.append((f"after stride-{sr} round", assignment.copy(), sr))
 
-    result = shufflesnap.window_cleanup(points, assignment, rows=side, cols=side)
+    # The coarse-to-fine schedule above is complete; only local rounds remain.
+    result = shufflesnap.window_cleanup(points, assignment, rows=side, cols=side, strides=1)
     snapshots.append(("converged", result["assignment"], None))
 
     fig, axes = plt.subplots(1, len(snapshots), figsize=(7.2, 1.45))

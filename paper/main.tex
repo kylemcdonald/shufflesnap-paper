@@ -3,6 +3,7 @@
 \usepackage[margin=1in]{geometry}
 \usepackage{microtype}
 \usepackage{graphicx}
+\usepackage[font=small,labelfont=bf]{caption}
 \usepackage{booktabs}
 \usepackage{amsmath}
 \usepackage{amssymb}
@@ -36,97 +37,137 @@
 
 \begin{document}
 \maketitle
+\vspace{-1em}
 
 \begin{abstract}
-ShuffleSnap assigns every point in a planar cloud to a distinct grid cell, seeking low total squared displacement. It repeatedly solves small exact assignments within grid windows. Striding those windows permits long-range exchanges; reducing the stride refines the layout. The result is a simple parallel method with linear memory. On five synthetic distribution families at $40{,}000$ points, median gaps to high-accuracy assignment references are $0.006$--$0.030\%$. Fast construction methods give better answers at very short budgets; further descent gives lower final costs. We release the implementation and evaluation data.
+An image atlas gives every item its own grid cell, near where an embedding placed it. Rounding coordinates causes collisions and holes; exact assignment solvers are expensive at scale. ShuffleSnap repeatedly re-matches a few dozen points to a few dozen cells, solving each small problem exactly. At first those cells are far apart, so points can cross the grid; later they are adjacent, refining the layout. On five synthetic families at $40{,}000$ points, median gaps to high-accuracy references are $0.006$--$0.030\%$ in $0.21$--$0.32$~s, versus $0.04$--$0.05$~s for BSP-OT, which stays ahead at short budgets.
 \end{abstract}
 
-\section{Why point-to-grid assignment?}
+\section{From a point cloud to a grid}
 \label{sec:intro}
-An image atlas gives every item in a collection its own grid cell. A two-dimensional embedding supplies the desired positions, but simply rounding those positions creates collisions and leaves holes. We need a \emph{bijection}: every point gets one cell and every cell gets one point, while moving the points as little as possible.
+A two-dimensional embedding gives every image in a collection a position, with similar images near each other. To show the collection as an atlas, we want a regular grid with one image per cell. Which image goes where?
 
-For planar points $p_1,\ldots,p_n$ and grid centers $g_1,\ldots,g_n$, we seek a permutation $a$ with low total squared displacement,
+Rounding each position to its nearest cell fails: crowded regions collide and sparse regions leave holes. We need a one-to-one matching that moves each point as little as possible (Figure~\ref{fig:method}(a)).
+
+We score a matching by total squared displacement. For points $p_1,\ldots,p_n$, cell centers $g_1,\ldots,g_n$, and an assignment $a$ sending point $i$ to cell $a(i)$,
 \begin{equation}
   \cost(a)=\sum_{i=1}^{n}\|p_i-g_{a(i)}\|^2.
   \label{eq:objective}
 \end{equation}
-Squared distance discourages large displacements. This is a linear assignment problem, but its dense cost matrix alone needs $32$~GiB at $65{,}536$ points. Exact solvers that compute costs on demand save memory but can still be slow.
+Points and cell centers stay fixed; only the matching changes. Squaring penalizes large displacements heavily.
 
-Existing approaches make different compromises. RasterFairy \cite{klingemann2016} recursively partitions points into grid regions. BSP-OT \cite{genest2025} builds and merges randomized spatial partitions. Both quickly construct assignments. Local assignment methods such as LAS/FLAS \cite{barthel2023} improve neighborhoods, although they optimize a different, feature-space layout objective. For our fixed planar objective, adjacent-cell refinement alone can leave long-range errors unresolved. ShuffleSnap combines small exact solves with neighborhoods that reach across the grid (Figure~\ref{fig:overview}). Related work is discussed in Appendix~\ref{sec:related}.
+Minimizing \eqref{eq:objective} exactly is a linear assignment problem; general-purpose exact solvers grow expensive at hundreds of thousands of points. RasterFairy \cite{klingemann2016} instead recursively splits the points into balanced groups and gives each a block of the grid; BSP-OT \cite{genest2025} merges randomized spatial partitions, keeping cost-lowering swaps. Both are fast, and leave displacement to refine. Linear assignment sorting (LAS/FLAS) \cite{barthel2023} likewise refines grids by re-solving small neighborhoods, but for a feature-space objective rather than a fixed planar target (Appendix~\ref{sec:related}).
+
+ShuffleSnap's contribution is not the small exact solve but how the solves are organized: coarse to fine, with the cells inside one solve first spread widely across the grid and then brought together.
 
 \begin{figure}[tbp]
 \centering
-\includegraphics[width=\linewidth]{method_overview.pdf}
-\caption{Three ways to organize an assignment. Recursive construction divides the target into progressively smaller regions. Our local-only variant refines adjacent cells (Appendix~\ref{sec:convergence}). ShuffleSnap also refines interleaved cells far apart: each solve remains small, while the stride controls its reach. The diagrams show neighborhood structure, not measured outputs.}
-\label{fig:overview}
+\includegraphics[width=0.90\linewidth]{method_explained.pdf}
+\caption{(a) Re-matching the same four points to the same four cells lowers squared displacement. (b) Sixteen cells, adjacent or at stride $3$: the same-size solve reaches farther. (c) Half-window shifts cross earlier boundaries. Windows are drawn small ($2{\times}2$ in (a), $4{\times}4$ in (b--c)); the default is $6{\times}6$.}
+\label{fig:method}
 \end{figure}
 
-\newpage
-\section{Small solves, large moves}
+\section{Small assignments at several scales}
 \label{sec:method}
-\textbf{Shuffle within a window.} Start with any bijection; by default we use a seeded random permutation. Select at most $6\times6$ grid cells, gather the points currently assigned to them, and solve the assignment between those points and those same cells exactly. The points can lie anywhere in the input plane. Accept the new matching only if it lowers their total squared displacement. Every move preserves the bijection and lowers the global objective.
+\textbf{Step 1: improve a small group of cells.} Start with any valid assignment, by default a seeded random shuffle. Pick a window of grid cells---by default $6{\times}6$, at most $36$ cells---and collect the points \emph{currently assigned} to those cells, not those lying nearby in the input plane. Re-match those points to those same cells exactly, and accept the result only if it lowers their total squared displacement (Figure~\ref{fig:method}(a)). Points only trade cells inside the window, so the assignment stays one-to-one, and every accepted move lowers the global cost \eqref{eq:objective}.
 
-\textbf{Shift to cross boundaries.} Tile the grid with disjoint windows and solve them in parallel. Then shift the tiling by half a window horizontally, vertically, and in both directions. These four phases make one round. Overlap between phases lets points cross the boundaries of the previous tiling; disjointness within each phase makes parallel updates safe. Edge windows can be smaller (Appendix~\ref{sec:boundaries}).
+\textbf{Step 2: make the same solve reach farther.} Adjacent cells can only shuffle points among neighbors; a point belonging on the far side of the grid needs a long, easily blocked chain of local moves. Choose a stride $s$ instead and take every $s$-th row and every $s$-th column: still at most $36$ cells and a solve of the same size, but spanning $5s+1$ cells in each direction (Figure~\ref{fig:method}(b)). Only the spacing changes; the assignment stays at full resolution.
 
-\textbf{Stride to reach farther.} Adjacent windows only exchange nearby cells. Instead, select every $s$-th row and column: a $6\times6$ window still holds at most $36$ cells, but now spans $5s+1$ cells along each axis. Apply the same four phases to every interleaved subgrid. Together these subgrids cover the entire grid. The assignment always remains at full resolution; only the distance between cells in a window changes.
+\textbf{Step 3: cover the grid.} At stride $s$ the cells fall into $s^2$ interleaved subgrids, and we tile every subgrid with windows. Windows in one tiling share no cells, so their solves run in parallel. To let points cross tiling boundaries, we repeat with the tiling shifted by half a window horizontally, vertically, and diagonally (Figure~\ref{fig:method}(c)). These four tilings make one \emph{round}. Edge windows are clipped (Appendix~\ref{app:method}).
 
+\textbf{Step 4: reduce the stride, then finish locally.} Run one round at a stride large enough for a window to reach across the grid, halve the stride, and repeat down to stride $1$; then keep running stride-$1$ rounds until a full round accepts no move. Coarse rounds settle which region each point belongs in, fine rounds correct the details, and both matter. Appendix~\ref{app:method} gives the exact starting stride, rectangular-grid rule, and stopping tolerance.
 
-
-\textbf{Go from coarse to fine.} Start at the smallest power-of-two stride $s$ with $6s$ at least the grid extent. Run one round, halve the stride, and repeat down to one. Finally repeat stride-$1$ rounds until none accepts an improvement. Rectangular grids use independent row and column strides. Figure~\ref{fig:main-action} shows the resulting progression.
-
-The crucial economy is that a long-range move costs no more than a local one: each exact solve has at most $36$ points, and each cell participates at most once per phase. For fixed window size, a round takes $O(n)$ work and the solver uses $O(n)$ memory. The initial scale sequence has logarithmically many rounds. Additional polishing has no proven iteration bound, and the final assignment need not be globally optimal. Appendix~\ref{app:method} gives pseudocode, stopping rules, and implementation details.
+For a fully occupied grid and fixed window size, each cell is in at most one window per tiling, so a round takes linear time and memory is linear. The scheduled descent has logarithmically many rounds; we have no practical bound on the number of finishing stride-$1$ rounds, and nothing guarantees a globally optimal result. Each small solve is exact, but the whole algorithm is a heuristic.
 
 \begin{figure}[tbp]
 \centering
 \includegraphics[width=\linewidth]{multiscale_action.png}
-\caption{From a random assignment to an ordered grid: coarse strides establish broad placement, then smaller strides refine it. Each cell is colored by its occupant's input position ($262$k points). This is a qualitative view of the assignment.}
+\caption{From a shuffle to a layout; cells colored by occupant's input position ($262$k points, $512{\times}512$ grid). One coarse round already sets the broad layout; smaller strides refine it. A qualitative view of one run.}
 \label{fig:main-action}
 \end{figure}
 
-\FloatBarrier
-\section{What does the extra refinement buy?}
+\section{What the refinement buys}
 \label{sec:results}
-Table~\ref{tab:headline} summarizes five synthetic geometries at $40{,}000$ points. ShuffleSnap reaches lower final displacement than the tested BSP-OT construction on every family, with median gaps of $0.006$--$0.030\%$ above high-accuracy auction references. These gains cost time: BSP-OT finishes in $0.04$--$0.05$~s, while ShuffleSnap converges in $0.21$--$0.32$~s. At those same short BSP-OT budgets, BSP-OT has the lower median gap on all five families, often by a wide margin (Appendix~\ref{sec:bspot}). ShuffleSnap is useful when a few additional rounds are worth a more accurate assignment.
+We compare five synthetic distributions at $40{,}000$ points, three instances each, on one desktop (Appendix~\ref{sec:protocol}). Table~\ref{tab:headline} lists the families; ``meander'' is a Gaussian random walk. At this size an auction solver gives a high-accuracy reference; a method's \emph{reference gap} is how far its cost sits above that reference, in percent.
 
 \begin{table}[htbp]
 \centering
-\caption{Final quality and runtime at $40$k points (medians of three instances on one desktop). Gap is excess squared displacement relative to a high-accuracy auction reference; lower is better. BSP-OT uses $16$ merged plans, ShuffleSnap runs to convergence. These are different runtime budgets. Appendix~\ref{sec:bspot} gives the time-matched comparison and Appendix~\ref{sec:protocol} the full protocol.}
+\caption{Final quality and runtime at $40$k points, medians of three instances. Gap is excess cost over the auction reference. BSP-OT builds $16$ merged plans; ShuffleSnap runs to a zero-change round. Budgets differ; Appendix~\ref{sec:bspot} compares matched times.}
 \label{tab:headline}
 \input{headline_table.tex}
 \end{table}
 
-Strides are essential to the observed improvement: on the meander instances, adjacent-window refinement from a raster-sorted start stops at a median $\StatConvLocalFinal\%$ gap, compared with $\StatConvRandomFinal\%$ for multiscale descent from a random start. Detailed convergence traces, scaling measurements, initialization and schedule ablations, and an MNIST atlas are in Appendix~\ref{sec:eval}.
+On every family ShuffleSnap's median final gap is lower than BSP-OT's, $0.006$--$0.030\%$ against $0.07$--$13\%$, but BSP-OT finishes in $0.04$--$0.05$~s while ShuffleSnap converges in $0.21$--$0.32$~s. Stopped at BSP-OT's runtime instead, ShuffleSnap has the higher median gap on all five families, often by a wide margin (Appendix~\ref{sec:bspot}).
 
-ShuffleSnap optimizes displacement to a regular grid; it does not directly optimize semantic neighborhoods or repair an embedding. The reported accuracy is empirical, based on a limited set of distributions and one real embedding. The method is a practical option when low displacement matters more than an optimality certificate, and the grid structure permits simple, parallel refinement.
+The schedule matters, not just the round count: with the same solver, windows, and random start, on the tested meander inputs a stride-$1$-only schedule stalls near a $0.5\%$ gap after hundreds of rounds, while the default finishes below $0.01\%$ in about fifteen (Appendix~\ref{sec:ablations}). Figure~\ref{fig:main-action} shows the progression qualitatively. Scaling to millions of points is in Appendix~\ref{sec:scaling}; an MNIST atlas in Appendix~\ref{sec:mnist}.
 
-\smallskip
-\noindent\textbf{Availability.} Python package: \texttt{pip install shufflesnap}. Solver: \url{https://github.com/kylemcdonald/shufflesnap}. Paper, data, and reproduction scripts: \url{https://github.com/kylemcdonald/shufflesnap-paper}.
+ShuffleSnap suits cases where extra refinement time is worth a lower-displacement atlas. It does not repair the embedding or directly optimize semantic neighborhoods. Its accuracy is empirical: five synthetic families and one real embedding, without a global optimality guarantee.
+
+\noindent\textbf{Availability.} Python package: \texttt{pip install shufflesnap}. \href{https://github.com/kylemcdonald/shufflesnap}{Solver source}; \href{https://github.com/kylemcdonald/shufflesnap-paper}{paper, data, and reproduction scripts}.
 
 \clearpage
 \appendix
-\section{Algorithm and implementation details}
+
+\FloatBarrier
+\section{Algorithm, implementation, and scope}
 \label{app:method}
 
-\subsection{Setting}
-In the benchmarks, each coordinate axis is independently rescaled to the grid's coordinate range; this preprocessing can change aspect ratio and therefore defines the geometry being optimized. The API accepts coordinates without applying this normalization. Grid cells are laid out on a regular lattice, inset from the square's edge by a small margin ($0.03$ in all experiments). The assignment is stored both ways: $a(i)$ gives point $i$'s cell, and an owner array gives each cell's point ($-1$ for empty). The objective is \eqref{eq:objective}. Squared distance penalizes large displacements: it charges a few long teleports far more than many one-cell nudges, and long teleports are what visibly tear a layout. For reference cost $C_{\mathrm{ref}}$, we report the \emph{relative gap} $100\,(\cost(a)/C_{\mathrm{ref}}-1)$, in percent. At reference sizes $C_{\mathrm{ref}}$ is the validated auction cost (Section~\ref{sec:protocol}); large-scale comparisons explicitly use a run's final cost instead.
+\subsection{Specification}
+\label{sec:spec}
+The inputs are $n$ planar points $p_1,\ldots,p_n$ and $m\ge n$ grid cell centers $g_1,\ldots,g_m$ on a regular lattice. The assignment is stored both ways: $a(i)$ is the cell of point $i$, and an \emph{owner} array gives the point in each cell ($-1$ when empty). Points and cell centers never move; only the matching changes. The objective is \eqref{eq:objective}. In the benchmarks the grid is inset from the unit square by a margin of $0.03$; the API takes whatever coordinates the caller supplies (Section~\ref{sec:protocol}).
 
-\subsection{Window moves}
-A \emph{window} is a small block of grid cells, at most $6\times6$. The \emph{window move} collects the points currently assigned to a window's cells and re-matches them optimally to those same cells with a dense Jonker--Volgenant solve of size at most $36$ (Figure~\ref{fig:windows}, left). The current matching is one candidate the solver can return, and we apply the result only when it is \emph{strictly} cheaper, so every applied move lowers the global cost; because a move only shuffles points within its own window, the assignment stays legal. Strict decrease over a finite set of assignments guarantees termination in exact arithmetic. In the implementation a move must reduce its computed window cost by more than $10^{-12}$ times the incumbent window cost; this rejects numerical ties. Reported fixed points are relative to this acceptance tolerance and the scheduled windows.
+\textbf{Windows.} A window is a block of at most $w\times w$ grid cells, $w=6$ by default. A \emph{window move} collects the points currently assigned to those cells, wherever they lie in the input plane, and re-matches them to the same cells with an exact dense assignment solve on at most $36$ items. The current matching is one candidate, so the solve cannot make things worse; its result is applied only if strictly better.
 
-Windows that share no cells touch disjoint points, so a whole \emph{tiling} of side-by-side windows can be solved concurrently and applied without conflict (Figure~\ref{fig:windows}, center). We call one such tiling a \emph{phase}. Together with the unshifted tiling, shifts by half a window horizontally, vertically, and in both directions give four phases that overlap one another; Figure~\ref{fig:windows}, right shows the phase shifted in both directions. Its complete windows cross the previous boundaries, so improvements propagate between neighboring windows. At the far grid edges, a shifted tiling is clipped into smaller disjoint windows (for example, $6{\times}3$, $3{\times}6$, and $3{\times}3$); cells in the omitted leading half-window still participate in the unshifted phases. Four phases make one \emph{round}. One round solves ${\sim}\,4n/36$ windows and costs $O(n\,w^4)$ arithmetic at window size $w$ ($O(w^6)$ per window over $n/w^2$ windows, four times), with independent window solves inside each phase.
+\textbf{Strides and subgrids.} For a stride $s\ge1$ and offset $(o_r,o_c)$ with $0\le o_r,o_c<s$, the cells at rows $o_r,o_r+s,\ldots$ and columns $o_c,o_c+s,\ldots$ form one \emph{subgrid}. The $s^2$ offsets give $s^2$ interleaved subgrids that cover every cell exactly once. A window at stride $s$ is $w\times w$ subgrid cells, spanning $(w-1)s+1$ rows and columns of the real grid: at $w=6$, one solve can move a point $5s$ cells.
 
-\begin{figure}[tbp]
-  \centering
-  \includegraphics[width=\linewidth]{windows_and_phases.png}
-  \caption{The building blocks. Left: a dense window contains all $6{\times}6$ cells (squares); the points currently assigned to those cells (dots) may lie spatially inside or outside it. Center: all nine disjoint windows in one unshifted phase, solved in parallel. Right: the actual half-window-offset phase on this $18{\times}18$ grid---four $6{\times}6$ windows, two $6{\times}3$, two $3{\times}6$, and one $3{\times}3$. The blank leading half-window remains covered by the unshifted phases.}
-  \label{fig:windows}
-\end{figure}
+\textbf{Phases and rounds.} A \emph{phase} tiles every subgrid with side-by-side windows starting at a phase offset $\phi\in\{0,3\}$ per axis (in subgrid cells, i.e.\ $3s$ grid cells). Windows in a phase share no cells. On each axis, the first window of a shifted tiling begins at $\min(\phi,\,\ell-1)$ where $\ell$ is the subgrid length, so short subgrids still get one window; no window is created before the axis start, and the last window is clipped to the cells that remain (Section~\ref{sec:boundaries}). The four offset combinations $\{(0,0),(0,3),(3,0),(3,3)\}$ make one \emph{round} at stride $s$.
 
-\subsection{Why keep the trailing partial window?}
+\textbf{Schedule.} For an axis of $L$ cells the starting stride is the smallest power of two $s_{\max}$ with $w\,s_{\max}\ge L$; this sets a coarse scale and need not produce a window spanning the whole axis. The solver runs one round, halves the stride, and repeats down to $1$, then repeats stride-$1$ rounds until a full round applies no move. Rectangular grids use independent strides per axis (a $50{\times}1000$ grid starts at $(16,256)$), each halving on its own and staying at $1$ once there. Algorithm~\ref{alg:descent} gives the square case.
+
+\textbf{Acceptance and stopping.} A window's result is applied when $\mathrm{old}-\mathrm{new}>10^{-12}\cdot\mathrm{old}$ for that window's cost, which rejects numerical ties. The run stops when a stride-$1$ round applies nothing, or when an optional wall-clock budget expires. The default start is a seeded random permutation (Section~\ref{sec:ablations}).
+
+\begin{algorithm}[t]
+\caption{Multiscale window descent (square grid; rectangular grids use one stride per axis)}
+\label{alg:descent}
+\begin{algorithmic}[1]
+\State $a \gets$ any legal assignment \Comment{default: a seeded random permutation}
+\State $s \gets$ smallest power of $2$ with $w\,s \ge L$ \Comment{$w=6$; $L$ = grid side}
+\Loop
+  \State $\mathit{changed} \gets \textbf{false}$
+  \For{phase offset $\phi \in \{(0,0), (0,3), (3,0), (3,3)\}$} \Comment{half-window shifts, in subgrid cells}
+    \State $W \gets$ all windows of the offset-$\phi$ tilings of all $s^2$ stride-$s$ subgrids \Comment{pairwise disjoint}
+    \ForAll{$\omega \in W$ \textbf{in parallel}}
+      \State $\mathit{changed}_\omega \gets \textbf{false}$
+      \State collect the points assigned to $\omega$'s cells; solve their exact assignment to those cells
+      \If{$\mathrm{old} - \mathrm{new} > 10^{-12}\cdot\mathrm{old}$} apply the new matching; $\mathit{changed}_\omega \gets \textbf{true}$
+      \EndIf
+    \EndFor
+    \State $\mathit{changed} \gets \mathit{changed} \lor \bigvee_{\omega} \mathit{changed}_\omega$ \Comment{OR-reduction over workers}
+  \EndFor
+  \If{$s = 1$ \textbf{and not} $\mathit{changed}$} \Return $a$ \Comment{scheduled-window fixed point}
+  \EndIf
+  \If{optional time budget exhausted} \Return $a$
+  \EndIf
+  \State $s \gets \max(1, s/2)$
+\EndLoop
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Properties}
+\label{sec:properties}
+Four facts follow directly. \emph{Every intermediate assignment is legal}: a move only permutes points among its own cells. \emph{The global cost strictly decreases} with every applied move: the window's cost is a summand of \eqref{eq:objective} and nothing else changes. \emph{In exact arithmetic the solver terminates}: finitely many assignments, none revisited. \emph{Windows in a phase never conflict}: they touch disjoint cells and hence disjoint points, so they can be solved and applied in parallel and the result does not depend on scheduling.
+
+A converged run is a \emph{scheduled-window fixed point}: none of the four stride-$1$ tilings improves it beyond the tolerance. Other placements, larger windows, or coarse windows might still help. The final gap is measured, not bounded.
+
+Work per round: a window on $k\le w^2$ occupied cells costs $O(k^3)\le O(w^4k)$, and a phase's windows are disjoint so their $k$ sum to at most $n$, giving $O(n\,w^4)$ per phase and per round on a fully occupied grid, at any stride. (Window counts vary with stride and clipping; the bound does not rely on a fixed count.) The initial descent has $O(\log L)$ rounds; $T$ extra stride-$1$ rounds cost $O(T\,n\,w^4)$, and we give no practical bound on $T$. Shell sort and multigrid \cite{shell1959,brandt1977} are analogies for why coarse corrections come first; their analyses do not transfer to this permutation search.
+
+\textbf{Limited reach of adjacent windows.} In one stride-$1$ phase a point moves at most $w-1$ cells per axis, so moving $k$ cells takes at least $\lceil k/[4(w-1)]\rceil$ rounds. This is a lower bound on transport, not an upper bound on convergence: a local fixed point can block the needed exchange entirely. Section~\ref{sec:convergence} measures what happens. Strides address reach; they do not guarantee that the optimum is reachable.
+
+\subsection{Boundaries: keep the clipped trailing window}
 \label{sec:boundaries}
-The leading and trailing edges have different roles. On an axis of seven cells, an unshifted phase creates windows $[0,6)$ and $[6,7)$. The half-offset phase creates $[3,7)$, clipped at the edge (Figure~\ref{fig:boundary}). This is the only shifted window joining the last cell to the first six. Removing it disconnects those groups: even swapping the points at cells $5$ and $6$ cannot be repaired by any number of stride-$1$ rounds. In contrast, the omitted leading half-window $[0,3)$ lies wholly inside $[0,6)$; it adds no connection between unshifted windows.
+Figure~\ref{fig:boundary} shows a seven-cell axis. The unshifted phase creates windows $[0,6)$ and $[6,7)$; the shifted phase creates $[3,7)$, clipped at the edge. That clipped window is the only one joining cell $6$ to cells $0$--$5$. Without it, even a swap between cells $5$ and $6$ could never be repaired by stride-$1$ rounds. The omitted leading half-window $[0,3)$ lies inside $[0,6)$ and would not add a connection across that boundary.
 
-More generally, a final unshifted band of one or two cells needs a clipped shifted window to connect it to its neighbor when $w=6$. This occurs on the $200$-cell benchmark axes and can occur independently in any strided subgrid. Keeping the tail therefore supports arbitrary grid sizes. Adding leading partial windows is possible, but is not necessary for this connectivity property. Connectivity itself does not guarantee an improving path or global optimality.
+The same situation arises whenever an axis ends in a band of one or two cells after a multiple of $6$ (the $200$-cell benchmark axes: $200=33\cdot6+2$), and independently on any strided subgrid. Keeping the trailing window makes the four-phase round connected on every size of full, unmasked grid; masks can break this (Section~\ref{sec:masks}). Connectivity means improvements \emph{can} propagate, not that a cost-decreasing path to the optimum exists.
 
 \begin{figure}[tbp]
 \centering
@@ -135,44 +176,9 @@ More generally, a final unshifted band of one or two cells needs a clipped shift
 \label{fig:boundary}
 \end{figure}
 
-\subsection{The locality bottleneck}
-A point can move at most $w-1$ cells per axis in one adjacent-cell window phase. With four phases per round, traveling $k$ cells requires at least $\lceil k/[4(w-1)]\rceil$ rounds, if the descent can reach that destination at all. This is a lower bound on transport through local moves, not an upper bound on convergence: a local fixed point may prevent the necessary exchanges altogether. On the $200{\times}200$ meander experiments, local-only refinement from the raster start stops at a median gap of $\StatConvLocalFinal\%$ (Figure~\ref{fig:convergence}). Strided windows address this limited reach by permitting exchanges between distant cells.
-
-\begin{figure}[tbp]
-  \centering
-  \includegraphics[width=0.85\linewidth]{strided_windows.png}
-  \caption{A $6{\times}6$ window at stride $4$ (left) covers every fourth cell and spans a $21{\times}21$ block of the grid; at stride $1$ (right) the same window covers adjacent cells. The stride-$s$ cells split into $s^2$ interleaved subgrids (a second one shown in gray), each tiled by disjoint windows, so each round has linear work for fixed window size, regardless of stride.}
-  \label{fig:strided}
-\end{figure}
-
-\subsection{Strided windows}
-The repair is to let windows act at every length scale. Fix a stride $s \ge 1$ and stripe the grid: take every $s$-th row and every $s$-th column, starting from some offset. The cells where they intersect form a regular subgrid, and the $s^2$ possible offsets give $s^2$ interleaved subgrids that together cover every cell exactly once. Now tile each subgrid with the same $6{\times}6$ windows, shifted through the same four phases (Figure~\ref{fig:strided}). A window at stride $s$ still contains at most $36$ cells, but they span $5s{+}1$ rows and columns of the full grid: one exact solve can move a point $5s$ cells at once. Crucially, the accounting does not change---each cell belongs to at most one window per phase, and the unshifted phase covers the grid. Boundary clipping changes the number and sizes of windows, but a round still has $O(n w^4)$ work on a fully occupied grid and retains the same parallelism and descent property. A stride-$s$ round \emph{is} a stride-$1$ round applied simultaneously to $s^2$ interleaved subproblems.
-
-\begin{algorithm}[t]
-\caption{Multiscale window descent}
-\label{alg:descent}
-\begin{algorithmic}[1]
-\State $a \gets$ any legal assignment \Comment{default: a seeded random permutation (Section~\ref{sec:ablations})}
-\State $S \gets (s_{\max}, s_{\max}/2, \ldots, 2, 1)$ \Comment{$s_{\max}$: smallest power of 2 with $6\,s_{\max} \ge$ grid extent}
-\For{$s \in S$, then $s = 1$ repeatedly}
-  \For{phase offset $\phi \in \{(0,0), (0,3), (3,0), (3,3)\}$}
-    \State solve all windows of the stride-$s$, offset-$\phi$ tiling exactly, in parallel
-  \EndFor
-  \If{$s = 1$ and no assignment changed} \Return $a$ \Comment{converged}
-  \EndIf
-  \If{optional time budget exhausted} \Return $a$
-  \EndIf
-\EndFor
-\end{algorithmic}
-\end{algorithm}
-
-The schedule (Algorithm~\ref{alg:descent}) chooses the smallest power-of-two stride satisfying $w s\geq L$ for each axis of length $L$, then halves each stride until one. This criterion sets a coarse scale; it need not produce a complete window spanning the entire axis. On rectangular grids the strides are independent: a $50{\times}1000$ grid starts at $(16,256)$. After the descent, stride-$1$ rounds repeat until a full round accepts no move. We call this a \emph{scheduled-window fixed point}: none of the four scheduled tilings improves the assignment beyond the numerical acceptance tolerance. The initial descent contains $O(\log L)$ rounds and costs $O(n w^4\log L)$, with $L$ the larger grid dimension; $T$ additional polishing rounds cost $O(T n w^4)$. We do not bound $T$ or the final optimality gap. Shell sort and multigrid provide useful analogies for long-range corrections, but their analyses do not transfer to this nonconvex permutation search.
-
-Figure~\ref{fig:main-action} illustrates the descent on a $512{\times}512$ grid.
-
-\subsection{Predetermined occupied cells}
+\subsection{Rectangular grids, spare cells, and masks}
 \label{sec:masks}
-When $m>n$, the occupied cell subset is fixed before optimization. Every window considers only cells occupied in the initial assignment and re-matches their points to those same cells, so its LAP remains square and no point can enter an unused cell. The high-level API chooses a deterministic subset once when a grid has spare cells; a boolean mask can instead prescribe the usable region explicitly, including circular or cut-corner atlases (Figure~\ref{fig:masks}).
+When $m>n$, the occupied cells are fixed before optimization. Each window uses only the occupied cells among its own and re-matches their points to those cells, so solves stay square and no point enters an unused cell. The high-level API picks a deterministic occupied subset once; a boolean mask can prescribe the region instead, as in the circular and cut-corner atlases of Figure~\ref{fig:masks}. Which cells to occupy is not optimized. A mask also changes which windows exist and how they connect, so it can affect connectivity, iteration counts, and runtime.
 
 \begin{figure}[tbp]
   \centering
@@ -183,107 +189,59 @@ When $m>n$, the occupied cell subset is fixed before optimization. Every window 
 
 \subsection{Implementation}
 \label{sec:impl}
-\shufflesnap{}'s kernel is implemented in C++ behind a small Python API. Per phase, windows are enumerated on the fly from two per-axis band tables ($O(n)$ index arithmetic, trivial next to the solves) and chunked across hardware threads; each worker applies its own results in place, which is safe because a phase's windows are disjoint. The window solver is a fixed-size square JV specialized to $\le 36$ cells with stack-allocated state. Costs are computed from coordinates on demand; storage includes the points, assignment and owner arrays, and grid axes. It is $O(n+m)$ for $n$ points and $m$ available grid cells, hence linear in $n$ when $m=O(n)$; phase enumeration also depends on $m$ for sparse masks. Thread scheduling never affects results (phases apply disjoint window results), so run-to-convergence output is deterministic given inputs and parameters.
+\shufflesnap{}'s kernel is C++ behind a small Python API. Each phase enumerates its windows from two per-axis band tables and chunks them across hardware threads; workers write results into the shared assignment and owner arrays directly, which is safe because a phase's windows are disjoint. The window solver is a fixed-size Jonker--Volgenant routine for at most $36$ items; its local cost matrix and state live on the stack. There is no global cost matrix: window costs are computed from coordinates on demand, so memory is the points, the two index arrays, and the grid axes, $O(n+m)$. Window enumeration for sparse masks depends on $m$. Since scheduling cannot change which moves are applied, a run to convergence is deterministic given inputs and parameters.
 
-The default window size and schedule are fixed: by default the solver runs until a full stride-$1$ round finds nothing to improve, yielding a fixed point under the implemented tolerance. The ordinary convergence experiments reached this condition; the billion-point stress run was stopped by its budget. An optional wall-clock budget stops early for interactive use; because the process is front-loaded (Section~\ref{sec:scaling}), early stops cost little quality. The default four tilings are deliberately sparse; an optional \texttt{polish\_all\_offsets} sweep tests every complete $6{\times}6$ window placement once at additional cost. The high-level \texttt{snap\_to\_grid(points)} picks a near-square grid when none is given (or takes a mask), seeds it with a deterministic random assignment (supported by the tested ablations---Section~\ref{sec:ablations}), runs Algorithm~\ref{alg:descent} to convergence, optionally performs that dense local polish, and returns grid positions, the assignment, and the grid shape.
+By default the solver runs to a scheduled-window fixed point; every ordinary experiment reached one, while the billion-point run (Section~\ref{app:billion}) stopped at its budget. An optional wall-clock budget supports interactive use, and since progress is front-loaded (Section~\ref{sec:scaling}) an early stop usually costs little. An optional \texttt{polish\_all\_offsets} sweep tries every complete $6{\times}6$ placement once. The high-level \texttt{snap\_to\_grid(points)} chooses a near-square grid when none is given (or takes a mask), seeds a deterministic random permutation, runs Algorithm~\ref{alg:descent}, optionally polishes, and returns grid positions, the assignment, and the grid shape. The version used here is ShuffleSnap~0.3.0, commit \href{https://github.com/kylemcdonald/shufflesnap/tree/59968704450dfcb6206cb3c835193e60c3605eff}{\texttt{5996870}}.
 
-
-\section{Evaluation}
+\FloatBarrier
+\section{Evaluation protocol and comparative results}
 \label{sec:eval}
 
 \subsection{Protocol}
 \label{sec:protocol}
-Experiments run on a desktop with a \StatMachine{} ($\StatThreads$ hardware threads, $\StatMemory$~GB RAM), Linux, and a C++ compiler using \texttt{-O3}; descent uses all threads unless stated. Synthetic instances come from five families: normalized Gaussian random walks (\emph{meander}, the default), two blobs, a ring, a spiral, and a mixture of five unequal Gaussians. Unless explicitly ablated, initialization is a deterministic random permutation. Ordinary synthetic comparisons use instance seeds $\{0,1,2\}$ and report medians, with min--max bands where visible. Large stress runs and the MNIST example use a single instance; initialization uses five random permutations per instance. Timings are machine- and implementation-specific. The convergence/scaling traces include initialization where stated; distribution and ablation tables report the solver's measured cleanup time. The BSP-OT time-matched experiment excludes input construction and ShuffleSnap initialization and retains only completed round checkpoints, as detailed in Section~\ref{sec:bspot}.
+\textbf{Machine.} One desktop: \StatMachine{}, $\StatThreads$ hardware threads, $\StatMemory$~GB RAM, Linux, C++ at \texttt{-O3}. Descent uses all threads unless stated. Timings are specific to this machine and implementation.
 
-Reference costs are computed with an on-demand, epsilon-scaled floating-point auction solver. Its final epsilon is $\max(10^{-12}/n,\operatorname{ulp}(C_{\mathrm{scale}}))$, where $C_{\mathrm{scale}}=\max(1,\max_{ij}|c_{ij}|)$. In exact arithmetic epsilon-complementary slackness would bound the additive error by $n\varepsilon$; the stored runs do not include an independently verified dual certificate, so we do not claim certified optimality. On $12$ meander instances of $400$--$4{,}096$ points where dense JV, SciPy, and auction all finish, their relative cost differences are below $\StatOracleMaxRelErr$. We therefore use the auction values as high-accuracy numerical references. Cached references cover all five families at $96{\times}96$ and $200{\times}200$, and smaller meander instances used in scaling. Above $40$k points we report progress relative to each run's own final cost, distinguishing converged from budget-limited runs.
+\textbf{Inputs.} Five synthetic families: normalized Gaussian random walks (\emph{meander}, the default), two separated blobs, a ring, a spiral, and a mixture of five unequal Gaussians. Reference-size experiments use $96{\times}96$ ($9{,}216$ points) and $200{\times}200$ ($40{,}000$), instance seeds $\{0,1,2\}$, medians with min--max bands where visible. Stress runs and MNIST are single instances. The initialization ablation uses five random permutations per instance; otherwise initialization is the package's deterministic random permutation unless ablated.
 
+\textbf{Benchmark normalization versus the API.} The benchmark harness rescales each coordinate axis independently to the grid's coordinate range before calling any solver. This can change the input's aspect ratio and defines the geometry all methods optimize. The API applies no normalization.
 
-Code, stored benchmark results, and figure-generation scripts are available at \url{https://github.com/kylemcdonald/shufflesnap-paper}; the native solver is at \url{https://github.com/kylemcdonald/shufflesnap}. Headline statistics and the comparison table are generated from the stored results. The accompanying solver source is ShuffleSnap~0.3.0, commit \href{https://github.com/kylemcdonald/shufflesnap/tree/59968704450dfcb6206cb3c835193e60c3605eff}{\texttt{5996870}}. The $15$ distribution outcomes were reproduced with this source; most timing measurements predate the rename. The convergence experiment was rerun with the package-default permutation for consistency. The paper repository records that rerun separately and documents the environment, build commands, and remaining historical provenance limitations.
+\textbf{Metric.} For an assignment $a$ and reference cost $C_{\mathrm{ref}}$, the \emph{reference gap} is $100\,(\cost(a)/C_{\mathrm{ref}}-1)$ percent.
 
-\subsection{Convergence, and the role of initialization}
-\label{sec:convergence}
+\textbf{References.} Reference costs come from an on-demand, epsilon-scaled floating-point auction solver with final epsilon $\max(10^{-12}/n,\operatorname{ulp}(C_{\mathrm{scale}}))$, $C_{\mathrm{scale}}=\max(1,\max_{ij}|c_{ij}|)$. In exact arithmetic epsilon-complementary slackness would bound the additive error by $n\varepsilon$; the stored runs have no independently verified dual certificate, so we claim no certified optimality. On $12$ meander instances of $400$--$4{,}096$ points where dense Jonker--Volgenant, SciPy, and the auction all finish, their costs agree within a relative $\StatOracleMaxRelErr$. Cached references cover all five families at $96{\times}96$ and $200{\times}200$ and smaller meander instances used in scaling. Above $40$k points there are no references: those runs report progress relative to their own final cost, and we say whether that cost came from convergence or a budget.
 
-\begin{figure}[tbp]
-  \centering
-  \includegraphics[width=\linewidth]{convergence.png}
-  \caption{Gap to the auction reference on $200{\times}200$ meander instances (median of $3$; right panel adds initialization time and a min--max band). Multiscale descent converges to approximately $0.003$--$0.021\%$ in a fraction of a second from either start; the same windows without strides (``local only'') terminate near $0.5$--$0.6\%$ for the two local-only starts, even from RasterFairy's construction.}
-  \label{fig:convergence}
-\end{figure}
+\textbf{Timing rules.} Convergence and scaling traces include initialization where stated. Distribution and ablation tables report the solver's measured descent time, excluding input generation. The BSP-OT driver's time excludes input loading and target-grid construction. The time-matched comparison (Section~\ref{sec:bspot}) excludes input construction and ShuffleSnap's seed and keeps only fully completed round checkpoints, using medians of $3$ instances and $5$ timing repeats (repeats re-time the same input; seeds are independent inputs).
 
-Figure~\ref{fig:convergence} separates the two ingredients of Section~\ref{sec:method}. From a random permutation---median starting gap around $500\%$---multiscale descent crosses $1\%$ in five rounds, $0.1\%$ in $\StatConvRoundsToTenth$, and converges at $\StatConvRandomFinal\%$ within a quarter of a second. The raster start follows the same trajectory---one coarse round erases most of the difference between a random and a sorted start---but has a higher median final cost in this experiment; across the initialization ablation, the raster-to-random median gap ratio is $\StatInitMedianRatio$ (the initialization ablation of Section~\ref{sec:ablations} quantifies both). These tests support using a random shuffle as the default initialization.
+\textbf{Provenance.} Code, stored results, and figure scripts: \url{https://github.com/kylemcdonald/shufflesnap-paper}; solver: \url{https://github.com/kylemcdonald/shufflesnap}. Headline statistics and Table~\ref{tab:bspot} are generated from stored results. The $15$ distribution outcomes were reproduced with the cited solver source; most timings predate the package rename and are retained as recorded. The convergence experiment was rerun with the package-default permutation and stored separately. The $10^8$-point BSP-OT comparison retains summary measurements but not raw upstream logs or a pinned upstream revision; the $10^9$-point comparison uses a custom single-plan port with unequal settings (Section~\ref{app:billion}).
 
-Removing the strides---the same solver, windows of adjacent cells only---tells the opposite story and illustrates the locality limitation of Section~\ref{sec:method}: from the raster start, local-only refinement needs ${\sim}660$ rounds and $14$~s just to cross $1\%$, and reaches a scheduled-window fixed point after ${\sim}1{,}000$ rounds at $\StatConvLocalFinal\%$. Nor can a better start rescue it. RasterFairy \cite{klingemann2016} itself\footnote{We run the released \texttt{rasterfairy} package. Its splits sort integer-cast coordinates---it expects pixel-scale input such as t-SNE screen positions---so point clouds are scaled up before the call; its output is unaffected.} is a far stronger construction---it starts at $\StatConvRasterFairySeedGap\%$ where the raster sort starts at ${\sim}210\%$---yet local windows from that start terminate at $\StatConvRasterFairyLocalFinal\%$, indistinguishable from the raster start, because the misplacements that remain are precisely the long-range ones local windows cannot execute. On these meander instances, better initial cost does not translate into a better final cost under the tested local schedule. (Section~\ref{sec:bspot} reports a related observation: on three meander instances, BSP-OT initialization converges to a higher final cost than random initialization.)
-
-\subsection{Scaling}
-\label{sec:scaling}
-
-\begin{figure}[tbp]
-  \centering
-  \includegraphics[width=\linewidth]{scaling.png}
-  \caption{Left: wall time versus problem size on meander instances from the default random permutation (median of $3$ up to $640$k points; single stress runs above). Where auction references exist ($n \le 40$k), time to $0.1\%$ reference gap; everywhere, time to full convergence and time to reach within $0.1\%$ of the converged cost. BSP-OT's construction time is shown for context; quality at reference sizes is evaluated in Section~\ref{sec:bspot}. Right: per-round time is linear in $n$.}
-  \label{fig:scaling}
-\end{figure}
-
-Figure~\ref{fig:scaling} sweeps meander instances from $5$k to $4.2$M points. Three observations stand out. Against the auction reference solver, the crossover is immediate: at $5$k points the oracle takes ${\sim}5$~s while descent converges in well under a second; at $40$k the oracle needs $\StatFortyKOracleS$~s versus $\StatFortyKConvergeS$~s to \emph{converge} (final gap $\StatFortyKGap\%$) and $\StatFortyKToTenthS$~s to $0.1\%$. Second, per-round cost is linear in $n$ across three orders of magnitude (right panel)---there is no $n^2$ anywhere in the pipeline---and memory follows suit: the largest sweep run ($\StatLargestN$ points) peaks at $\StatLargestPeakRssGiB$~GiB of process memory, benchmark harness included, where its dense cost matrix alone would occupy $\StatLargestDenseGiB$~TiB. Third, every run reaches a scheduled-window fixed point, before its configured time budget: $\StatSixHundredKConvergeS$~s at $640$k points, $\StatMillionConvergeS$~s at $1.3$M, $\StatLargestConvergeMin$ minutes at $4.2$M. The anytime profile is heavily front-loaded, so an early stop costs little: the $1.3$M-point assignment is within $0.1\%$ of its converged cost after $\StatMillionWithinTenthS$~s, and the $4.2$M-point assignment after $\StatLargestWithinTenthS$~s---the long tail to full convergence buys only the final tenth of a percent (cf.\ Figure~\ref{fig:main-action}).
-
-The largest problem we have attempted is a single billion-point instance: a $\StatGigaSide{\times}\StatGigaSide$ grid holding $\StatGigaNBillion$~billion meander points (seed $0$), on the same desktop. At this scale we cap the run at $\StatGigaBudgetH$~hours rather than wait for a zero-change round, so quality is measured against the run's own final cost. The behavior extrapolates cleanly from Figure~\ref{fig:scaling}: the random-permutation seed takes $\StatGigaSeedS$~s, rounds stay linear in $n$ ($\StatGigaPerRoundMin$~minutes each), and the anytime profile keeps its front-loaded shape---the assignment is within $1\%$ of its final cost after $\StatGigaWithinOneMin$~minutes, $0.1\%$ after $\StatGigaWithinTenthMin$~minutes, $0.01\%$ after $\StatGigaWithinHundredthMin$~minutes, and $0.001\%$ after $\StatGigaWithinThousandthH$~hours, with the rest of the $\StatGigaRounds$-round run polishing below that. Peak process memory is $\StatGigaPeakRssGiB$~GiB, including coordinates, index arrays, and benchmark overhead, where the dense cost matrix would occupy $\StatGigaDenseMTiB$~million~TiB.
-
-\subsection{Robustness across distributions}
+\subsection{Five families, four solutions}
 \label{sec:distributions}
 
 \begin{figure}[tbp]
-  \centering
-  \includegraphics[width=\linewidth]{distributions.png}
-  \caption{The five instance families at $40$k points ($200{\times}200$, seed $0$), solved four ways. Each cell takes its occupant's color, multiplied by a graph-paper grid in input space (spacing $0.1$, thickness $0.02$, half brightness), so the wavy lines trace each solution's distortion; the annotation under each grid is that solution's gap above the auction reference and its solve time. The line patterns expose differences in displacement and spatial coherence. At this rendering resolution, descent closely resembles the auction reference; this visual comparison is qualitative.}
-  \label{fig:distributions}
+\centering
+\includegraphics[width=\linewidth]{distributions.png}
+\caption{The five families at $40$k points ($200{\times}200$, seed $0$), solved four ways. Each cell takes its occupant's color, multiplied by a graph-paper grid in input space (spacing $0.1$, thickness $0.02$, half brightness), so the lines trace each solution's deformation; the annotation under each grid is the gap above the auction reference and the solve time. The visual comparison is qualitative.}
+\label{fig:distributions}
 \end{figure}
 
-The five families show consistently small median gaps (Figure~\ref{fig:distributions}). At $40$k points, family medians land between $0.006\%$ and $0.03\%$, and every run converges in at most $\StatDistMaxTime$~s. Rings and spirals, which defeat axis-aligned recursive splitting, sit at $0.01$--$0.03\%$; two separated blobs, the classic failure case for local search (points trapped on the wrong side of the gap), converge to $0.02\%$ because coarse strides move points between blobs as easily as within them; starting gaps up to $\StatDistMaxSeedGap{\times}$ the optimum are erased along the way. The worst run (one two-blobs instance) converges at $0.13\%$.
+Figure~\ref{fig:distributions} shows the seed-$0$ instance of each family solved by RasterFairy, BSP-OT, ShuffleSnap, and the auction reference. The graph-paper overlay shows deformation qualitatively: wobbles and breaks mark where the map bends or tears, though straight lines alone do not prove low displacement (a translation keeps lines straight). The numbers under each panel are the evidence. Across the $15$ instances, ShuffleSnap's family medians land between $0.006\%$ and $0.03\%$ above the reference and every run converges within $\StatDistMaxTime$~s. Ring and spiral sit at $0.01$--$0.03\%$; two blobs converges to $0.02\%$ on median, with its worst instance, $0.13\%$, the worst run overall. Initial excess costs of up to $\StatDistMaxSeedGap\times$ the reference cost are removed along the way.
 
 \subsection{Comparison with BSP-OT}
 \label{sec:bspot}
 
 \begin{table}[tbp]
   \centering
-  \caption{BSP-OT (the tested setting of $16$ merged plans) versus ShuffleSnap from its default random permutation on the five $40$k-point ($200{\times}200$) families, on the same machine. Both optimize the same objective; gaps are against the same auction references. The time-matched ShuffleSnap column comes from fresh runs: for each instance it retains the last fully completed checkpoint at or before that instance's measured BSP-OT solve time $t_{\mathrm{BSP}}$ (medians of $3$ instances and $5$ timing repeats). The final two ShuffleSnap columns are independent runs to scheduled-window convergence.}
+  \caption{BSP-OT ($16$ merged plans) versus ShuffleSnap from its default random permutation on the five $40$k-point families, same machine, same auction references. The time-matched column retains, per instance, the last fully completed checkpoint at or before that instance's measured BSP-OT time $t_{\mathrm{BSP}}$ (medians of $3$ instances and $5$ timing repeats). The last two columns are independent runs to scheduled-window convergence.}
   \label{tab:bspot}
   \input{bspot_table.tex}
 \end{table}
 
-Our principal scalable comparison is BSP-OT \cite{genest2025}, which builds a bijection between two point sets in loglinear time: recursively split both sets into halves of matched size along data-adapted directions until singletons pair up, then merge several randomized constructions, keeping cost-decreasing swaps. It seeks to reduce the same squared-distance objective, and its official implementation is parallel C++,\footnote{\url{https://github.com/baptiste-genest/BSP-OT}, evaluated at the Gaussian bijective-matching mode with $16$ merged plans via the header-only release; our driver is \texttt{solvers/cpp/bspot\_grid.cpp}.} so it makes a useful baseline. Both implementations use multiple threads on the same $24$-thread machine: BSP-OT parallelizes across its $16$ plans through OpenMP, while ShuffleSnap parallelizes across windows. The original table runs do not record the OpenMP thread limit separately. Table~\ref{tab:bspot} compares the two on the five families at $40$k points.
+\textbf{The comparator.} BSP-OT \cite{genest2025} builds a bijection between two point sets in loglinear time: it recursively splits both sets into halves of matched size along data-adapted directions until single points pair up, then merges several randomized constructions, keeping cost-decreasing swaps. It targets the same squared-distance objective and the official implementation is parallel C++,\footnote{\url{https://github.com/baptiste-genest/BSP-OT}, header-only release, Gaussian bijective-matching mode; driver \texttt{solvers/cpp/bspot\_grid.cpp}.} tested here with $16$ plans. Both methods use multiple threads on the $24$-thread machine, BSP-OT across plans via OpenMP and ShuffleSnap across windows; the table runs did not record BSP-OT's OpenMP thread limit.
 
-The two methods sit at different points on the quality--time curve. BSP-OT delivers its answer in $0.04$--$0.05$~s---several times faster than full convergence of descent---at gaps of $1.5$--$2.3\%$ on typical families, $100$--$400\times$ the converged descent gaps. Its spread across geometry is also much wider: $0.07\%$ on two separated blobs, whose isotropic clusters are ideal for its splits, but $13\%$ on the spiral, whose thin curved structure crosses every splitting plane. The time-matched column makes the sub-$0.1$-second tradeoff explicit: on meander, ShuffleSnap reaches \StatBspotTimeMatchedMeanderGap\% versus BSP-OT's \StatBspotMeanderGap\%. The result is sensitive to round granularity at these budgets: completing one additional round can substantially change the reported gap. BSP-OT has the lower family-median gap at the measured short budgets on all five families; further rounds are what carry ShuffleSnap to its much lower converged floor. Extra randomized plans saturate quickly ($64$ plans: $1.6\%$ on meander at ${\sim}2.5\times$ the time). In the scaling experiment, BSP-OT takes $\StatBspotLargestTime$~s for $4.2$ million points; descent reaches within $0.1\%$ of its own converged cost in $\StatLargestWithinTenthS$~s. These large runs lack optimal reference costs, so the latter threshold is not an optimality-gap comparison.
+\textbf{Results.} The two methods sit at different points on the quality--time curve. BSP-OT returns in $0.04$--$0.05$~s at $1.5$--$2.3\%$ on three families, $0.07\%$ on two blobs, and $13\%$ on the spiral. ShuffleSnap's converged gaps are $100$--$400\times$ smaller on the typical families but take $0.21$--$0.32$~s. The time-matched column is the short-budget comparison: at each instance's BSP-OT time ShuffleSnap has completed only a few coarse rounds, and BSP-OT has the lower median gap on all five families (meander: $\StatBspotTimeMatchedMeanderGap\%$ versus $\StatBspotMeanderGap\%$; ring and spiral by a wide margin). This column is sensitive to round granularity: one more completed round can change the reported gap substantially. More plans help BSP-OT only a little ($64$ plans: $1.6\%$ on meander at about $2.5\times$ the time). In the scaling sweep, BSP-OT takes $\StatBspotLargestTime$~s at $4.2$ million points while descent reaches within $0.1\%$ of its own converged cost in $\StatLargestWithinTenthS$~s; without references there, this is not a gap comparison.
 
-We also tested BSP-OT as an initializer on three $200{\times}200$ meander instances. The resulting median final gap is $\StatBspotSeedFinal\%$, versus $\StatConvRandomFinal\%$ for random initialization in the convergence experiment. This does not establish a general ordering of constructors and random starts: the tested sample is small and the result depends on the descent schedule. One possible explanation is that a structured seed places the search in a different basin before the coarse scales have been visited.
+\textbf{Scope.} BSP-OT handles arbitrary dimensions, partial matchings, and sparse couplings, none of which ShuffleSnap attempts; its short-budget advantage is clear in the tested setting. ShuffleSnap specializes to grid targets, whose regularity is what makes strided tilings cheap.
 
-The comparison cuts both ways. BSP-OT handles arbitrary dimensions, partial matchings, and sparse couplings---none of which we attempt---and when a percent-level map in milliseconds is the goal, it is the right tool. ShuffleSnap specializes to grid targets, which permit inexpensive strided tilings; BSP-OT supports a broader class of targets and transport problems.
-
-\subsection{Ablations}
-\label{sec:ablations}
-
-\begin{figure}[tbp]
-  \centering
-  \includegraphics[width=\linewidth]{ablations.png}
-  \caption{Left: window size trades per-round cost against reach; $w{\le}3$ does not reach $0.1\%$ on all instances, and $w \in \{4,5,6\}$ are all reasonable. Right: schedule variants run to convergence ($200{\times}200$, median of $3$). The default and cycled coarse-to-fine schedules give similar, low median gaps; the ablation is empirical, not a necessity result.}
-  \label{fig:ablations}
-\end{figure}
-
-\textbf{Window size} (Figure~\ref{fig:ablations}, left). Per-window work grows as $O(w^6)$, but larger windows buy proportionally more reach and better local optima: $w{=}2$ converges near $0.3\%$ and $w{=}3$ near $0.1\%$, while $w \in \{4,5,6\}$ all reach $0.1\%$ in $0.07$--$0.11$~s at this scale (differences within noise) and the converged gap keeps improving with $w$ ($0.02\%$ at $w{=}4$, $0.006\%$ at $w{=}6$). We ship $w=6$, the largest our fixed-size kernel supports.
-
-\textbf{Schedule} (Figure~\ref{fig:ablations}, right). Cycling the full descent four times reduces the gap by less than $0.00002$ percentage points on each of the three meander instances, while adding rounds. One descent captures almost all of this improvement in these tests. The ratio-$4$ variant skips intermediate scales and finishes around $0.08\%$; half-depth, fine-to-coarse, and local-only schedules finish near $0.5\%$. These observations motivate the chosen schedule, but neither prove that a single descent is sufficient on all inputs nor show that a stride-$1$ fixed point is stable under every possible coarse move.
-
-\begin{figure}[tbp]
-  \centering
-  \includegraphics[width=\linewidth]{init.png}
-  \caption{Initialization ablation. Left: converged gap from the raster-sorted seed versus a random permutation on the five families ($200{\times}200$; $3$ instances each, $5$ permutations per instance). Right: rounds to strict convergence on meander instances as the grid grows (median of $3$); the sorted seed's convergence tail stretches with scale while the random seed's does not.}
-  \label{fig:init}
-\end{figure}
-
-\textbf{Initialization} (Figure~\ref{fig:init}). Random initialization is inexpensive; it also gives lower final costs than the raster start in this ablation. Pairing each raster-sorted run against five random permutations of the same instance, the random seed converges strictly lower on $\StatInitWins$ of $\StatInitInstances$ family--size--instance pairings (the five families at $96{\times}96$ and $200{\times}200$), with a median $\StatInitMedianRatio\times$ lower converged gap ($\StatInitRatioTwoHundred\times$ at $200{\times}200$). The advantage grows with scale and shows up in time as well as quality: at $\StatInitLargestSide^2$ ($640$k points) the raster seed needs $\StatInitRoundsLargestRaster$ rounds ($\StatInitTimeLargestRasterS$~s) to reach a scheduled-window fixed point where the random seed needs $\StatInitRoundsLargestRandom$ ($\StatInitTimeLargestRandomS$~s), and the random seed still reaches a lower final cost on $\StatInitScaleWins$ of $\StatInitScaleTotal$ instance--size pairs (paired comparison of converged costs; no exact references above $40$k). These paired results motivate the deterministic random default; they do not imply that random initialization is best for every instance or schedule.
-
-\textbf{Threads.} Measured round throughput is $\StatThreadSpeedup{\times}$ higher on $24$ threads than on one ($512{\times}512$; budgeted runs, so the thread counts complete different mixes of coarse and fine rounds). Thread count does not change run-to-convergence results.
-
-\subsection{End-to-end example: an atlas of all of MNIST}
+\subsection{An atlas of all of MNIST}
 \label{sec:mnist}
 
 \begin{figure}[tbp]
@@ -305,81 +263,110 @@ The comparison cuts both ways. BSP-OT handles arbitrary dimensions, partial matc
   \label{fig:mnist-detail}
 \end{figure}
 
-As an end-to-end demonstration we embed all $70{,}000$ MNIST digits \cite{lecun1998} with UMAP ($15$ neighbors, min-dist $0.05$, seed $0$) and assign them to a $250{\times}280$ grid---which is exact, since $70{,}000 = 250 \times 280$. From the package's default random seed, descent \StatMnistConverged{} after $\StatMnistRounds$ rounds in $\StatMnistElapsed$~s (Figure~\ref{fig:mnist-detail}, right; no high-accuracy reference was computed at this size).
+We embed all $70{,}000$ MNIST digits \cite{lecun1998} with UMAP \cite{mcinnes2018} ($15$ neighbors, min-dist $0.05$, seed $0$) and assign them to a $250{\times}280$ grid, exactly $70{,}000$ cells. From the default random seed, descent \StatMnistConverged{} after $\StatMnistRounds$ rounds in $\StatMnistElapsed$~s (Figure~\ref{fig:mnist-detail}, right). No reference was computed at this size.
 
-Because a cost number is not per se evidence of a good \emph{picture}, we also measure structure directly, and compare against two constructions on the same embedding: RasterFairy and BSP-OT. The converged descent reaches $\StatMnistKnnFinal\%$ $10$-nearest-neighbor preservation between embedding and grid, and $\StatMnistLabelFinal\%$ of each digit's $10$ nearest grid neighbors share its label, compared with $\StatMnistLabelEmbed\%$ in the continuous embedding itself (the random seed alone preserves $\StatMnistKnnSeed\%$ of neighborhoods---descent builds all of the structure). The two constructions fail in opposite ways. RasterFairy roughly preserves neighborhoods ($\StatMnistKnnRasterFairy\%$) but leaves $\StatMnistRasterFairyExcessPct\%$ extra squared displacement ($\StatMnistRasterFairyCost$ versus $\StatMnistFinalCost$)---large, coherent block errors. BSP-OT leaves only $\StatBspotMnistExcessPct\%$ extra cost ($\StatBspotMnistCost$, in $\StatBspotMnistTimeMs$~ms) but scrambles fine neighborhoods, preserving just $\StatBspotMnistKnn\%$---many small, independent errors. These metrics measure different properties; on this embedding, descent gives the best neighborhood preservation among the three tested configurations, and the whole run costs $\StatMnistElapsed$~s.
+A low cost does not by itself show a good picture, so we also measure two neighborhood properties (\texttt{benchmarks/bench\_mnist.py}, $k=10$, self excluded). \emph{Neighborhood preservation} is the mean fraction of a point's $10$ nearest neighbors in the original embedding that are also among its $10$ nearest neighbors in grid position. \emph{Label agreement} is the mean fraction of a point's $10$ nearest neighbors, in whichever positions are being evaluated, that share its digit label. These measure something different from displacement and are read separately.
 
+The converged assignment preserves $\StatMnistKnnFinal\%$ of embedding neighborhoods with $\StatMnistLabelFinal\%$ label agreement, against $\StatMnistLabelEmbed\%$ in the continuous embedding; the random seed alone scores $\StatMnistKnnSeed\%$ preservation (rounded). On the same embedding, RasterFairy preserves $\StatMnistKnnRasterFairy\%$ with $\StatMnistLabelRasterFairy\%$ label agreement but leaves $\StatMnistRasterFairyExcessPct\%$ more squared displacement ($\StatMnistRasterFairyCost$ versus $\StatMnistFinalCost$). BSP-OT leaves $\StatBspotMnistExcessPct\%$ extra cost ($\StatBspotMnistCost$, in $\StatBspotMnistTimeMs$~ms) but preserves $\StatBspotMnistKnn\%$ of neighborhoods with $\StatBspotMnistLabel\%$ label agreement. On this one embedding descent has the lowest cost and the best neighborhood scores of the three; one example is limited evidence about visual quality in general.
 
-\section{Related Work}
-\label{sec:related}
+\FloatBarrier
+\section{Convergence and design choices}
+\label{sec:convergence}
 
-\textbf{Exact and approximate geometric assignment.} The LAP can be solved using the Hungarian method \cite{kuhn1955}, Jonker--Volgenant shortest augmenting paths \cite{jonker1987}, the rectangular variant \cite{crouse2016} used by SciPy \cite{virtanen2020}, or auctions \cite{bertsekas1988}. Geometric algorithms exploit structure beyond a dense cost matrix: Vaidya \cite{vaidya1989}, Raghvendra--Agarwal \cite{raghvendra2020}, and Gattani et al.\ \cite{gattani2023} study Euclidean matching. Their guarantees for the sum of Euclidean distances do not directly establish the same guarantees for our squared-distance objective. For planar RMS matching, which minimizes the sum of squared distances, Lahn--Raghvendra \cite{lahn2020} give an $\varepsilon$-approximation in $O(n^{5/4}\operatorname{poly}(\log n,1/\varepsilon))$ time. Our method trades such formal guarantees for a small parallel kernel and empirical speed. We use a floating-point auction implementation as a high-accuracy reference, with the validation and limitations described in Section~\ref{sec:protocol}.
+Why strides, this schedule, a random start, and $6{\times}6$ windows? The answers are empirical, mostly from $200{\times}200$ meander instances, and are not a full factorial study.
 
-\textbf{Optimal transport.} Entropic regularization \cite{cuturi2013,flamary2021} scales OT to large problems but produces soft couplings, not one-to-one assignments; extracting a bijection requires an additional rounding or assignment step. Multiscale OT solvers \cite{merigot2011,schmitzer2016} solve coarsened problems and refine, using hierarchical representations or sparse candidate sets, with different algorithmic machinery. Most recently, BSP-OT \cite{genest2025} constructs sparse transport plans and bijections in loglinear time by recursively splitting both measures with matched counts and merging randomized constructions; it is a scalable constructor that targets the same squared-distance objective, and we compare against it directly in Section~\ref{sec:bspot}. Our method never coarsens the problem or the measure; it always works on the full-resolution assignment and instead coarsens the \emph{neighborhood structure} of a local search, which is what makes it a dozen lines of logic around one small exact solver.
+\subsection{How descent progresses}
+\label{sec:descent}
 
-\textbf{Grid layouts in visualization.} Snapping embeddings to grids is folklore in the visualization community. RasterFairy \cite{klingemann2016} is the canonical tool: it \emph{constructs} the assignment top-down by recursive balanced splitting and stops there---the result is never refined against \eqref{eq:objective}, and Section~\ref{sec:convergence} measures what that leaves on the table. IsoMatch \cite{fried2015} assigns via dense LAP at small scale. Self-organizing maps \cite{kohonen1990} and kernelized sorting \cite{quadrianto2009} learn grid arrangements from high-dimensional data directly. Closest in spirit, Linear Assignment Sorting (LAS/FLAS) \cite{barthel2023} improves visually sorted grids with local exact assignments over neighborhoods of decreasing radius, and has been parallelized to sort millions of Gaussian-splat parameters \cite{morgenstern2024}; cluster-aware grid layouts \cite{zhou2024} optimize perceptual criteria. LAS/FLAS optimize feature-space arrangements using evolving target maps, whereas cluster-aware layouts additionally address cluster compactness and shape. Their objectives differ from the fixed planar displacement considered here. Our setting is deliberately narrower---the input is already a 2D embedding, the objective is fixed---which is what makes exact per-window solves, global monotonicity, and comparisons against high-accuracy LAP reference costs possible. Balanced and constrained clustering \cite{malinen2014,bradley2000} underlie the exact-cardinality splits that construction methods require.
+\begin{figure}[tbp]
+  \centering
+  \includegraphics[width=\linewidth]{convergence.png}
+  \caption{Gap to the auction reference on $200{\times}200$ meander instances (median of $3$; right panel adds initialization time and a min--max band). Multiscale descent converges to approximately $0.003$--$0.021\%$ in a fraction of a second from either start; the same windows without strides (``local only'') terminate near $0.5$--$0.6\%$ from both local-only starts, including RasterFairy's construction.}
+  \label{fig:convergence}
+\end{figure}
 
-Recent scalable visualization systems also address different output requirements. Sca$^2$Gri \cite{frey2025} selects representative glyphs for a limited grid with displacement constraints; its linear scaling in input points assumes that the displayed grid remains much smaller than the input. Here every point must retain its own cell, so both the number of targets and the output size grow with $n$.
+Figure~\ref{fig:convergence} tracks the reference gap by round; Figure~\ref{fig:main-action} shows the same kind of run as images. From a random permutation (median starting gap around $500\%$), multiscale descent crosses $1\%$ in five rounds, $0.1\%$ in $\StatConvRoundsToTenth$ rounds ($\StatConvRandomTimeToTenthS$~s), and converges at $\StatConvRandomFinal\%$ within a quarter second. Structural correction happens in the coarse rounds; the stride-$1$ tail is polishing. A raster-sorted start (gap about $210\%$) follows the same trajectory after one coarse round but ends at a higher median cost here; Section~\ref{sec:ablations} quantifies that.
 
+\textbf{The same windows without strides.} Stride-$1$ rounds alone from the raster start need about $660$ rounds and $14$~s just to cross $1\%$, and stop at a scheduled-window fixed point after about $1{,}000$ rounds at $\StatConvLocalFinal\%$. A lower-cost start still stalls at a similar gap: RasterFairy \cite{klingemann2016}\footnote{We run the released \texttt{rasterfairy} package. Its splits sort integer-cast coordinates, since it expects pixel-scale input, so point clouds are scaled up before the call; its output is unaffected.} begins at $\StatConvRasterFairySeedGap\%$, yet local windows from it stall at $\StatConvRasterFairyLocalFinal\%$. On these inputs, local-only descent reaches worse fixed points from each tested start. These runs change both schedule and start; the schedule ablation below includes a local-only run from the random start and lands in the same place.
 
+\textbf{A structured start can end higher.} Using BSP-OT ($16$ plans) as the initializer on the three $200{\times}200$ meander instances, descent starts at $\StatBspotSeedGap\%$ but converges to a median $\StatBspotSeedFinal\%$, above the $\StatConvRandomFinal\%$ from random starts. Three instances and one schedule do not establish a general ordering; a structured seed may place the search in a different basin before the coarse scales are visited, but we have not tested that.
 
-\section{The billion-point solve, visualized, with a BSP-OT reference}
+\subsection{Schedules, starts, window size, and threads}
+\label{sec:ablations}
+
+\begin{figure}[tbp]
+  \centering
+  \includegraphics[width=\linewidth]{ablations.png}
+  \caption{Left: window size trades per-round cost against reach; $w{\le}3$ does not reach $0.1\%$ on all instances, and $w \in \{4,5,6\}$ are all reasonable. Right: schedule variants run to convergence ($200{\times}200$, median of $3$). The default and cycled coarse-to-fine schedules give similar, low median gaps; the ablation is empirical, not a necessity result.}
+  \label{fig:ablations}
+\end{figure}
+
+\textbf{Schedule} (Figure~\ref{fig:ablations}, right; \texttt{benchmarks/bench\_ablations.py}). Cycling the full descent ($64\to1$) four times lowers the gap by less than $0.00002$ percentage points on each meander instance while adding rounds; one descent captures nearly all of the benefit. Dividing the stride by $4$ instead of $2$ ($64,16,4,1$) finishes around $0.08\%$. Half-depth descent ($8,4,2,1$, omitting the coarsest levels), fine-to-coarse, and local-only all finish at $0.4$--$0.6\%$. These motivate the default; they do not prove one descent suffices on every input, or that a stride-$1$ fixed point could not be improved by a later coarse move.
+
+\begin{figure}[tbp]
+  \centering
+  \includegraphics[width=\linewidth]{init.png}
+  \caption{Initialization ablation. Left: converged gap from the raster-sorted seed versus a random permutation on the five families ($200{\times}200$; $3$ instances each, $5$ permutations per instance). Right: rounds to strict convergence on meander instances as the grid grows (median of $3$); the sorted seed's convergence tail stretches with scale while the random seed's does not.}
+  \label{fig:init}
+\end{figure}
+
+\textbf{Initialization} (Figure~\ref{fig:init}). A random permutation costs $O(n)$ to build and, in this ablation, ends lower than the raster-sorted start. Comparing each raster run against the median of five random permutations of the same instance, the random start converges lower on $\StatInitWins$ of $\StatInitInstances$ family--size--instance pairings (five families at $96{\times}96$ and $200{\times}200$), with a median $\StatInitMedianRatio\times$ lower converged gap ($\StatInitRatioTwoHundred\times$ at $200{\times}200$). The convergence-time difference also appears at larger scales: at $\StatInitLargestSide^2$ ($640$k points; converged costs compared directly, no reference) the raster seed needs $\StatInitRoundsLargestRaster$ rounds ($\StatInitTimeLargestRasterS$~s) to converge where the random seed needs $\StatInitRoundsLargestRandom$ ($\StatInitTimeLargestRandomS$~s), and the random seed ends lower on $\StatInitScaleWins$ of $\StatInitScaleTotal$ instance--size pairs. This is why the default is a deterministic random permutation; it does not mean random is best for every instance or schedule.
+
+\textbf{Window size} (Figure~\ref{fig:ablations}, left). Per-window work grows as $O(w^6)$, but in these measurements larger windows converged lower: $w{=}2$ near $0.3\%$, $w{=}3$ near $0.1\%$, neither reaching $0.1\%$ on every instance; $w\in\{4,5,6\}$ all reach $0.1\%$ in $0.07$--$0.11$~s (differences within noise), with converged gaps of $0.02\%$ at $w{=}4$ and $0.006\%$ at $w{=}6$. We ship $w=6$, the largest the fixed-size kernel supports.
+
+\textbf{Threads.} Round throughput on $24$ threads is $\StatThreadSpeedup\times$ that on one thread ($512{\times}512$, budgeted runs, so the two settings completed different mixes of coarse and fine rounds). Thread count never changes a run-to-convergence result.
+
+\FloatBarrier
+\section{Scaling and memory}
+\label{sec:scaling}
+
+Above $40$k points there are no reference costs (Section~\ref{sec:protocol}); quality below is relative to each run's own final cost.
+
+\subsection{Thousands to millions}
+
+\begin{figure}[tbp]
+  \centering
+  \includegraphics[width=\linewidth]{scaling.png}
+  \caption{Left: wall time versus problem size on meander instances from the default random permutation (median of $3$ up to $640$k points; single runs above). Where auction references exist ($n \le 40$k), time to $0.1\%$ reference gap; everywhere, time to full convergence and time to reach within $0.1\%$ of the converged cost. BSP-OT's construction time is shown for context. Right: per-round time is linear in $n$.}
+  \label{fig:scaling}
+\end{figure}
+
+Figure~\ref{fig:scaling} sweeps meander instances from $5$k to $4.2$M points. Against the reference solver the crossover is immediate: at $5$k the auction takes about $5$~s while descent converges in well under a second; at $40$k the auction needs $\StatFortyKOracleS$~s versus $\StatFortyKConvergeS$~s to converge (gap $\StatFortyKGap\%$) and $\StatFortyKToTenthS$~s to reach $0.1\%$. Per-round time is linear in $n$ across three orders of magnitude, and memory follows: the $\StatLargestN$-point run peaks at $\StatLargestPeakRssGiB$~GiB of process memory including the harness, where a dense cost matrix would be $\StatLargestDenseGiB$~TiB. Every sweep run converged before its budget: $\StatSixHundredKConvergeS$~s at $640$k, $\StatMillionConvergeS$~s at $1.3$M, $\StatLargestConvergeMin$ minutes at $4.2$M. Progress is front-loaded: the $1.3$M run is within $0.1\%$ of its converged cost after $\StatMillionWithinTenthS$~s and the $4.2$M run after $\StatLargestWithinTenthS$~s; the tail buys the last tenth of a percent.
+
+\subsection{A billion points}
 \label{app:billion}
 
 \begin{figure}[tbp]
   \centering
   % generated by benchmarks/render_billion_test.py --side 31623 --interp 0.75
   \includegraphics[width=\linewidth]{billion_interp75.png}
-  \caption{The billion-point solve of Section~\ref{sec:scaling} from the
-  default random permutation, drawn as one
-  pixel per point at $75\%$ of the way from each point's source position to
-  its assigned cell center ($10{,}000^2$ output pixels, Lab position colors
-  averaged per pixel; the white frame is the grid's $0.03$ margin). Partial
-  interpolation opens the transport map's discontinuities into white seams:
-  the assignment is smooth almost everywhere, and the tears that remain
-  branch like fractures along the meander's folds instead of cutting straight
-  across the layout.}
+  \caption{The billion-point solve from the default random permutation, with each point drawn $75\%$ of the way from its source position to its assigned cell center and rasterized into $10{,}000^2$ pixels (Lab position colors averaged per pixel; the white frame is the grid's $0.03$ margin). Where neighboring cells hold points from distant sources, the partial collapse opens white seams; these branch along the meander's folds rather than cutting across the layout.}
   \label{fig:billion-interp}
 \end{figure}
 
-Figure~\ref{fig:billion-interp} renders the $\StatGigaNBillion$-billion-point
-random-init solve of Section~\ref{sec:scaling} in a way that exposes exactly where the
-transport map is discontinuous. Every point is drawn most of the way toward
-its assigned cell: wherever neighboring cells hold points from nearby source
-positions, the partially collapsed cloud stays dense and the image stays
-colored; where neighboring assignments separate in this visualization, white seams open up. The seams are sparse,
-smooth, and dendritic, which provides a qualitative view of spatial coherence, rather than a quantitative neighborhood-preservation test at this scale.
+The largest run is one instance: a $\StatGigaSide{\times}\StatGigaSide$ grid holding $\StatGigaNBillion$~billion meander points (seed $0$) on the same $\StatMemory$~GB desktop with $24$ threads, under a requested $\StatGigaBudgetH$-hour budget rather than run to a zero-change round, so its quality figures are relative to its cost at the time limit. Behavior extrapolates from Figure~\ref{fig:scaling}: the seed takes $\StatGigaSeedS$~s, each round $\StatGigaPerRoundMin$~minutes, and the run completes $\StatGigaRounds$ rounds. It is within $1\%$ of its final cost after $\StatGigaWithinOneMin$~minutes, $0.1\%$ after $\StatGigaWithinTenthMin$, $0.01\%$ after $\StatGigaWithinHundredthMin$, and $0.001\%$ after $\StatGigaWithinThousandthH$~hours. Peak process memory is $\StatGigaPeakRssGiB$~GiB including coordinates, index arrays, and harness overhead; a dense cost matrix would need $\StatGigaDenseMTiB$~million~TiB.
 
-For context on the same instance, we also ran BSP-OT (Section~\ref{sec:bspot})
-at this scale. The evaluated official implementation does not fit in our memory budget at its tested $16$-plan setting: each stored matching keeps
-a plan and its inverse, projection records are $16$-byte pairs, and merging
-materializes per-point cost vectors, which puts a single plan near
-$\StatGigaBspotStockOnePlanGiB$~GiB and the $16$-plan setting beyond
-$\StatGigaBspotStockDefaultGiB$~GiB at $n = 10^9$ (both extrapolated from
-footprints we measured at $10^8$), against $\StatMemory$~GB on our machine. We
-therefore ported its single-plan Gaussian construction to a memory-lean driver
-(\texttt{solvers/cpp/bspot\_grid\_giga.cpp}: packed $8$-byte projection
-records, streamed slice moments, no inverse plan). On the stored $10^8$-point comparison, the port's single-plan cost is about $3\%$ above the official binary's. We then ran the port at a billion points. The single
-plan builds its billion-point bijection in $\StatGigaBspotTimeMin$~minutes on
-one thread (its parallelism is across plans) with a peak of
-$\StatGigaBspotPeakRssGiB$~GiB, and lands $\StatGigaBspotExcessPct\%$ above
-descent's final cost. Single plans are BSP-OT's weakest configuration; at
-$10^8$ points, where the official $16$-plan configuration still fits
-($\StatHundredMBspotDefaultGiB$~GiB with four OpenMP threads), $16$ merged plans land
-$\StatHundredMBspotSixteenExcessPct\%$ above a descent run from the default
-random permutation with a $500$~s requested budget on the same instance (the final completed round ends at $520$~s), and single plans
-$\StatHundredMBspotOneExcessLoPct$--$\StatHundredMBspotOneExcessHiPct\%$.
-The $10^8$ comparison retains summary measurements but not raw upstream logs or a pinned upstream revision; it is supporting evidence, not a reproducible equivalence test. Descent uses $24$ threads in these stress tests.
-Descent's billion-point run (Section~\ref{sec:scaling}; $24$ threads,
-$\StatGigaPeakRssGiB$~GiB peak) drops below BSP-OT's final cost by the end of
-its round~$\StatGigaCrossBspotRound$, $\StatGigaCrossBspotMin$~minutes in, and
-continues to within $0.1\%$ of its final cost at
-$\StatGigaWithinTenthMin$~minutes. The pattern of Table~\ref{tab:bspot}
-carries unchanged to $10^9$: the construction is fast and memory-comparable,
-but additional descent lowers the cost. This stress-test comparison uses a custom single-plan port and different thread counts; it is not a time-matched comparison with the official $16$-plan implementation, and neither billion-point result has an optimality certificate.
+Figure~\ref{fig:billion-interp} renders the result at $75\%$ interpolation so that places where adjacent cells hold points from distant sources show up as white seams. The seams are sparse and branch along the meander's folds. This is a qualitative view of spatial coherence at a scale where the neighborhood metrics of Section~\ref{sec:mnist} were not computed, and says nothing about the optimality gap.
 
+\textbf{BSP-OT at this scale.} For context we also ran BSP-OT on the same instance, under settings that differ from Table~\ref{tab:bspot}. The official $16$-plan implementation does not fit in $\StatMemory$~GB at $n=10^9$: each matching keeps a plan and its inverse, projection records are $16$-byte pairs, and merging materializes per-point cost vectors, putting one plan near $\StatGigaBspotStockOnePlanGiB$~GiB and $16$ plans beyond $\StatGigaBspotStockDefaultGiB$~GiB (extrapolated from footprints measured at $10^8$). We therefore ported the single-plan Gaussian construction to a memory-lean driver (\texttt{solvers/cpp/bspot\_grid\_giga.cpp}: packed $8$-byte records, streamed slice moments, no inverse plan); on the stored $10^8$ comparison the port's single-plan cost is about $3\%$ above the official binary's. At $10^9$ the port builds its bijection in $\StatGigaBspotTimeMin$~minutes on one thread (its parallelism is across plans) with a $\StatGigaBspotPeakRssGiB$~GiB peak, and lands $\StatGigaBspotExcessPct\%$ above descent's final cost; descent, on $24$ threads, drops below that cost by the end of round~$\StatGigaCrossBspotRound$, $\StatGigaCrossBspotMin$~minutes in. Single plans are BSP-OT's weakest configuration. At $10^8$, where the official $16$-plan build fits ($\StatHundredMBspotDefaultGiB$~GiB with four OpenMP threads), $16$ plans land $\StatHundredMBspotSixteenExcessPct\%$ above a descent run from the default permutation with a requested $500$~s budget (last completed round at $520$~s), and single plans $\StatHundredMBspotOneExcessLoPct$--$\StatHundredMBspotOneExcessHiPct\%$; this $10^8$ summary lacks raw upstream logs and a pinned upstream revision.
+
+These stress tests demonstrate feasibility at $10^8$ and $10^9$ points. With a custom port, one thread against $24$, and a requested time budget rather than convergence, they are not a controlled comparison, and neither billion-point result has a reference cost or an optimality certificate.
 
 \FloatBarrier
+\section{Relationship to prior work}
+\label{sec:related}
+
+\textbf{Exact and approximate geometric assignment.} Classical exact solvers include the Hungarian method \cite{kuhn1955}, Jonker--Volgenant shortest augmenting paths \cite{jonker1987}, its rectangular variant \cite{crouse2016} used by SciPy \cite{virtanen2020}, and auctions \cite{bertsekas1988}. Geometric algorithms exploit structure a dense matrix hides: Vaidya \cite{vaidya1989}, Raghvendra and Agarwal \cite{raghvendra2020}, and Gattani et al.\ \cite{gattani2023} study matching under Euclidean distance. Those guarantees are for the sum of distances and do not transfer directly to our sum of \emph{squared} distances. For planar RMS matching, which does minimize squared distance, Lahn and Raghvendra \cite{lahn2020} give an $\varepsilon$-approximation in $O(n^{5/4}\operatorname{poly}(\log n,1/\varepsilon))$ time. ShuffleSnap trades such guarantees for a small parallel kernel and measured speed, using a floating-point auction as its reference with the validation in Section~\ref{sec:protocol}.
+
+\textbf{Transport and spatial construction.} Entropic regularization \cite{cuturi2013,flamary2021} scales optimal transport to large problems but returns soft couplings; a bijection needs a further rounding or assignment step. Multiscale transport solvers \cite{merigot2011,schmitzer2016} coarsen the problem, solve it, and refine with hierarchical representations or sparse candidate sets. BSP-OT \cite{genest2025} takes a different route: it constructs a bijection directly by recursively splitting both measures with matched counts and merging randomized constructions, in loglinear time, targeting the same squared-distance objective; Sections~\ref{sec:bspot} and~\ref{app:billion} compare against it. ShuffleSnap keeps every point and grid cell throughout the run, changing the spacing within its search neighborhoods instead of reducing the underlying problem. Every window solve uses the full-resolution coordinates. The resulting local search is simple to parallelize, but we give no approximation guarantee.
+
+\textbf{Grid layouts in visualization.} Snapping embeddings to grids is folklore in the visualization community. RasterFairy \cite{klingemann2016} constructs the assignment top-down by recursive balanced splitting and stops; the result is never refined against \eqref{eq:objective}, and Section~\ref{sec:convergence} measures what that leaves. IsoMatch \cite{fried2015} assigns with a dense solve at small scale. Self-organizing maps \cite{kohonen1990} and kernelized sorting \cite{quadrianto2009} learn grid arrangements from high-dimensional data directly. Closest in spirit, Linear Assignment Sorting (LAS/FLAS) \cite{barthel2023} improves visually sorted grids with local exact assignments over neighborhoods of decreasing radius, and has been parallelized to sort millions of Gaussian-splat parameters \cite{morgenstern2024}; cluster-aware grid layouts \cite{zhou2024} optimize perceptual criteria such as cluster compactness and shape. These methods optimize feature-space or perceptual objectives against evolving target maps. Here the input is already a 2D embedding and the objective is a fixed planar displacement, which is what lets us compare against reference costs for that objective. Balanced and constrained clustering \cite{malinen2014,bradley2000} underlie the exact-cardinality splits that construction methods rely on.
+
+Recent scalable visualization systems solve a different output problem. Sca$^2$Gri \cite{frey2025} selects representative glyphs for a limited grid under displacement constraints; its linear scaling assumes the displayed grid stays much smaller than the input. Here every point keeps its own cell, so targets and output both grow with $n$.
+
+\FloatBarrier
+{\small
 \bibliographystyle{plain}
 \bibliography{references}
+}
 \end{document}
