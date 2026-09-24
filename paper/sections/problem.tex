@@ -1,0 +1,60 @@
+\section{Problem}
+\label{sec:problem}
+
+\paragraph{Cells.} A target is a boolean mask on a $W\times H$ lattice. Lattice position
+$(x,y)$ is column $x$ and row $y$, and usable positions are the cells
+$c_1,\dots,c_M$. Cell centers default to the integer coordinates, so one unit is one cell
+pitch. Anisotropic pitches (e.g.\ for 4:3 thumbnails) scale the centers but leave the
+lattice unchanged. A full rectangle, a rectangle whose last row is only partly usable,
+a disk, a ring, and the shape of a letter are all masks.
+
+\paragraph{Points and normalization.} Input points $q_1,\dots,q_N$ ($N\le M$) are mapped
+into the cell frame before anything else. Unless stated otherwise, each axis of the
+point bounding box is mapped affinely onto the bounding box of the usable cell centers
+(\emph{bbox} normalization); $p_i$ denotes the mapped points. The mapping is part of the
+problem: in every comparison, all methods receive identical $p_i$ and identical cell
+centers.
+
+\paragraph{Objective.} We seek an injective assignment $\sigma:\{1..N\}\to\{1..M\}$
+minimizing
+\begin{equation}
+  C(\sigma) = \sum_{i=1}^N \lVert p_i - c_{\sigma(i)}\rVert^2 .
+  \label{eq:cost}
+\end{equation}
+When $N=M$ this is a bijection. When $N<M$ the solver must also decide which $M-N$ cells
+stay empty. Unlike the bijective case, the cell term $\sum_i \lVert c_{\sigma(i)}\rVert^2$
+then depends on the choice, so the surplus case is not just a relabelling of the
+bijective one.
+
+\paragraph{A certificate of optimality.} Equation~\eqref{eq:cost} is the linear program
+$\min \sum_{ij} c_{ij}x_{ij}$ with $\sum_j x_{ij}=1$ for every point,
+$\sum_i x_{ij}\le1$ for every cell, and $x\ge0$, where $c_{ij}=\lVert p_i-c_j\rVert^2$.
+Its constraint matrix is totally unimodular. We use the following elementary bound.
+
+\begin{proposition}\label{prop:lb}
+For any cell potentials $v\in\R^M$,
+\[
+  \mathrm{LB}(v) = \sum_{i=1}^N \min_{j} \bigl(c_{ij}-v_j\bigr) + \sum_{j=1}^M v_j - (M-N)\max_j v_j
+\]
+is a lower bound on the optimal cost. The bound is tight (equals the optimum) for
+optimal dual potentials.
+\end{proposition}
+\begin{proof}
+Let $\bar v=\max_j v_j$ and $v'_j=v_j-\bar v\le0$. Let $u_i=\min_j(c_{ij}-v'_j)$. Then
+$(u,v')$ is feasible for the dual $\max\sum_i u_i+\sum_j v'_j$ subject to
+$u_i+v'_j\le c_{ij}$ and $v'\le0$, and its objective equals $\mathrm{LB}(v)$ (shifting all
+potentials by $\bar v$ changes every $u_i$ by $+\bar v$ and the cell sum by $-M\bar v$).
+Weak duality gives the bound. Strong duality of the LP gives tightness.
+\end{proof}
+
+The bound needs a minimum over \emph{all} $M$ cells for every point. It does not depend
+on how $v$ was obtained, so $C(\sigma)-\mathrm{LB}(v)$ certifies the gap of any
+assignment $\sigma$. We use it for every ``excess over optimum'' number in this paper,
+and we never measure progress relative to our own final cost.
+
+\paragraph{Reporting error.} We report the \emph{relative excess}
+$C(\sigma)/C^\star-1$ and the \emph{absolute excess per point} $(C(\sigma)-C^\star)/N$ in
+cell units squared, where $C^\star$ is a certified optimum. Both are needed.
+Well-matched inputs (e.g.\ a jittered lattice) have a tiny $C^\star$, which makes
+relative numbers explode. Inputs dominated by outliers (heavy tails) have a huge
+$C^\star$, which makes every method look perfect in relative terms.

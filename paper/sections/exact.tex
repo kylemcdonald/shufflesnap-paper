@@ -1,0 +1,53 @@
+\section{A certified exact solver for $10^5$ points}
+\label{sec:exact}
+
+Excess over the optimum is only meaningful with a trustworthy optimum. At
+$N=100{,}000$ a dense matrix does not fit in memory. SciPy's sparse LAPJV on a
+16-nearest-cell graph did not finish a 10{,}000-point instance in eight minutes; we
+later found that such graphs are usually \emph{infeasible}, because some cells are not
+among any point's 16 nearest. We therefore built a solver that never forms the dense
+problem, yet certifies optimality against it.
+
+\begin{enumerate}
+\item \textbf{Candidates.} Give each point its 12 nearest cells, plus the $5\times5$
+  lattice neighbourhood of its cell in a starting assignment. Including the starting
+  assignment guarantees that a perfect matching exists.
+\item \textbf{Sparse solve.} Solve the min-cost flow (points $\to$ cells $\to$ sink,
+  unit capacities) with OR-Tools' cost-scaling solver. The solver needs integer costs,
+  so we scale by $S=2^{56}/((N{+}M{+}2)\max c)$ and round.
+  (Scales above about $2^{58}/(N{+}M)$ are rejected with \texttt{BAD\_COST\_RANGE};
+  we found this limit by probing.)
+\item \textbf{Potentials.} For the sparse optimum $\sigma$, build a graph on cells with
+  an arc $\sigma(i)\to j$ of weight $c_{ij}-c_{i\sigma(i)}$ for every candidate edge.
+  Shortest-path distances from a virtual source joined to all cells give potentials
+  $v$ that satisfy complementary slackness on every candidate edge, with $v=0$ on empty
+  cells. We compute them in exact integer arithmetic with a label-correcting algorithm.
+\item \textbf{Global pricing.} Evaluate $\mathrm{LB}(v)$ (Proposition~\ref{prop:lb}) over
+  \emph{all} cells. Cells are grouped into $16\times16$ blocks, and a block is scanned
+  only if $\mathrm{dist}^2(p_i,\text{block})-\max_{\text{block}}v$ could beat the best
+  value found so far. The pass also lists every cell whose reduced cost undercuts the
+  point's current cell. If the bound meets the cost, stop. Otherwise add those edges,
+  plus the $3\times3$ neighbourhood of each such point's best-priced cell, and go back
+  to step 2.
+\end{enumerate}
+
+The certificate is the gap $C(\sigma)-\mathrm{LB}(v)$, computed in floating point from
+real-valued costs. It is valid whatever errors occur in steps 1--3. Integer rounding
+can only loosen it, by at most $4N/S$ in total; we count an instance as certified when
+the gap is at most $\max(10^{-9}C, 4N/S)$. On small instances ($N\le2{,}500$, 720
+instances across six distributions and three grid types), the certified optimum agreed
+with SciPy's dense solver to relative $10^{-9}$ every time
+(Section~\ref{sec:correctness}).
+
+\paragraph{A pitfall.} Our first version flagged a ``negative cycle'' on some clustered
+instances with masks. It declared a cycle once a node had been queued more than $n$
+times, which is only valid for FIFO Bellman--Ford, not with the small-label-first queue
+we use. The fix is to verify a suspected cycle by walking parent pointers. A regression
+test covers it.
+
+\paragraph{Cost.} The solver reached a certificate on every one of the more than 200
+instances in this study, of up to 200{,}000 points. The number of pricing rounds was
+1 for uniform inputs and up to about 8 for clustered, curved or masked inputs.
+Section~\ref{sec:results} reports its running time and memory next to the heuristics.
+The solver needs a feasible starting assignment; we use \ShuffleSnap's. We also compare
+it with a bisection start, to separate the two methods' contributions.

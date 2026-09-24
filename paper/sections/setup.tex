@@ -1,0 +1,83 @@
+\section{Experimental setup}
+\label{sec:setup}
+
+\paragraph{Hardware and software.} All runs used one workstation: an Intel Core
+i9-12900KS (8 performance and 8 efficiency cores, 24 hardware threads), 62\,GB RAM,
+Ubuntu 24.04 (Linux 6.8), Python 3.12.3, NumPy 2.5.3, SciPy 1.18.1, OR-Tools 9.15,
+GCC 13.3 with \texttt{-O3} and no \texttt{-march=native} (portable build). The GPU was
+not used. Exact versions and commit hashes are stored with every raw result.
+\emph{Single-thread} runs were pinned to one performance core (\texttt{taskset -c 8}) with
+all thread pools set to 1. \emph{Multi-thread} runs used all 24 hardware threads without
+pinning; on this machine this was faster than using the 16 performance-core threads for
+both \ShuffleSnap\ and BSP-OT. The machine also ran unrelated background services
+(load average about 1). Benchmarks ran sequentially, only after all reference optima had
+been computed.
+
+\paragraph{Timing and memory boundaries.} Every run is a fresh process. The timer
+brackets exactly one call of the method adapter. It includes all method-specific work:
+cost matrices, trees, starts, the method's own normalization, and format conversion. It
+excludes instance generation, the common normalization, validation, and metrics. Before
+the timed call, each method is run once on a 256-point instance. This takes imports,
+lazy initialization and thread-pool start-up out of the timing; that warm-up time is
+recorded separately and is below 0.3\,s for every method. None of the methods uses
+just-in-time compilation. \ShuffleSnap's one-time C++ build (about 2\,s) is not part of
+any run. \emph{Peak memory} is the rise of the process's peak resident set size during
+the call: the kernel counter is reset through \texttt{/proc/self/clear\_refs} just before
+the call, and the resident size at that moment is subtracted. It therefore measures
+what the method needs on top of its inputs.
+
+\paragraph{Seeds and held-out evaluation.} All design decisions were made on instance
+seed 0. Reported results use instance seeds 1--3, which were not used for tuning. For
+the real embeddings, which have one fixed instance each, the seeds vary only the
+methods' own randomness.
+
+\paragraph{Data.} Synthetic distributions: uniform square, isotropic Gaussian, a 10-component
+anisotropic Gaussian mixture (\emph{gmm}, cluster structure like typical embeddings),
+two clusters with 90/10 mass (\emph{unequal2}), a thin ring, a noisy spiral (a 1D
+manifold), a checkerboard density with a 4:1 contrast, Student-$t$ with 1.5 degrees of
+freedom (\emph{heavy}), 16 locations with many duplicates, a nearly degenerate line, and
+the target lattice itself with Gaussian jitter ($\sigma=0.25$ cells), whose optimum is
+nearly the identity. Real data: UMAP embeddings~\citep{mcinnes2018umapjoss} of all
+70{,}000 MNIST digits~\citep{lecun1998gradient} and all 70{,}000 Fashion-MNIST
+images~\citep{xiao2017fashion} (15 neighbours, min\_dist 0.1, fixed seed). Targets: an
+exact-fit near-square grid (\emph{square}, last row partially usable when needed), the
+full rectangle with its few surplus cells (\emph{free}), a rectangle with 10\% surplus
+cells (\emph{free10}), a 4:1 grid (\emph{wide}), a disk, a ring, and a mask shaped like
+the letter S (\emph{logo}).
+
+\paragraph{Comparators and adapters.} Each adapter receives the same normalized
+float64 coordinates and cell centers and returns one cell per point. We check validity
+(injective, usable cells only) independently of every method.
+\begin{itemize}
+\item \emph{Exact, dense}: SciPy \texttt{linear\_sum\_assignment} on the float64 cost matrix,
+  the fastest of three dense solvers we tried (\texttt{lap.lapjv} and \texttt{lapjv} were 3--7$\times$
+  slower at $N=2{,}500$).
+\item \emph{Exact, certified sparse}: Section~\ref{sec:exact}, started from \ShuffleSnap-baseline
+  (time included) or from bisection.
+\item \emph{RasterFairy}~\citep{klingemann2015rasterfairy}. The PyPI release 1.0.6 (2019)
+  uses the removed NumPy alias \texttt{np.float}, and it orders points by
+  \emph{integer-truncated} coordinates. With grid-unit inputs this discards sub-cell order:
+  excess was 193\% without our remedy of multiplying inputs by 1000, and 82\% with it
+  (uniform, $N=2{,}500$). The PyPI swap optimizer is Python~2 code and allocates a dense
+  $N\times N$ distance matrix, so we exclude it. The upstream GitHub master (July 2026)
+  normalizes internally, sorts on floats, and solves leaf blocks of up to 200 points
+  exactly with SciPy. It is much better (9\% excess on the same instance), and it is our
+  representative setting. Its per-leaf console printing is captured so that it does not
+  inflate the timing. Surplus cells are removed at random by its \texttt{autoAdjustCount}
+  (default strategy).
+\item \emph{BSP-OT}~\citep{genest2025bspot} through its official Python binding \texttt{bspot}
+  1.2.0~\citep{takayama2026bspotpython}. Bijections use \texttt{compute\_matching} with
+  Gaussian slicing, as in the upstream demo; surplus cells use
+  \texttt{compute\_partial\_matching}, which has no Gaussian option. We report 16 plans (the default)
+  and 64 plans (as in the paper's figure), and sweep 1--1024 plans for time--quality
+  curves. The binding always runs the cycle-merge step, whereas the upstream C++ wrapper
+  disables it at $N\ge500{,}000$.
+\item \emph{Bisection}: the recursive median split alone, an $O(N\log N)$ baseline close to
+  one BSP matching with axis-aligned cuts.
+\end{itemize}
+
+\paragraph{Neighbourhood measures.} Displacement is not neighbourhood preservation, so we
+measure the latter separately on 5{,}000 sampled points: \emph{kNN recall}, the fraction of
+each point's 10 nearest input neighbours that are among its 10 nearest grid neighbours
+(ties at the 10th grid distance count), and \emph{lattice precision}, the fraction of
+occupied 8-neighbour cells whose points are among the 8 nearest input neighbours.

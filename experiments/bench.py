@@ -110,6 +110,10 @@ def run_child(spec):
         rec["excess_per_pt"] = (cost - ref["cost"]) / n
     info = dict(info)
     trace = info.pop("trace", None)
+    if trace is not None and len(trace) > 1:
+        tc = np.asarray(trace, dtype=float)[:, 1]
+        rec["trace_monotone"] = bool(np.all(np.diff(tc) <= 1e-9 * np.maximum(tc[:-1], 1.0)))
+        rec["trace_final_matches"] = bool(np.isclose(tc[-1], cost, rtol=1e-9))
     rec["info"] = info
     if spec.get("save_trace") and trace is not None:
         rec["trace"] = trace

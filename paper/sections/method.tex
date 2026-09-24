@@ -1,0 +1,127 @@
+\section{\ShuffleSnap}
+\label{sec:method}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{figures/fig_method.pdf}
+  \caption{How \ShuffleSnap\ works. (a)~At stride $s=4$ the lattice splits into
+  $s^2=16$ interleaved residue subgrids. Blue marks one of them. A $6\times6$ window of
+  that subgrid (filled blue) holds 36 cells spaced 4 apart and spans 21 cells. The
+  occupants of those 36 cells are reassigned among the same cells by an exact linear
+  assignment. (b)~Each round tiles every subgrid four times, with the tiling shifted by
+  half a window in $x$, $y$, or both, so that window borders move. Windows that cross the
+  subgrid edge are clipped (shaded), never dropped, on all four sides. (c)~Progress on a
+  10{,}000-point subset of a UMAP embedding of MNIST. Each point is colored by its
+  \emph{input} position, so a smooth color field means the input neighbourhood structure
+  survived, and seams are visible as color jumps. (d)~Mean squared displacement after
+  every phase. The coarse strides remove most of the cost; the stride-1 rounds that
+  follow change little.}
+  \label{fig:method}
+\end{figure}
+
+\subsection{The baseline algorithm}
+\label{sec:baseline}
+
+The baseline follows the specification we were given:
+\begin{enumerate}
+\item \textbf{Start.} Place the $N$ points on a uniformly random subset of $N$ cells, as a
+  seeded random permutation.
+\item \textbf{Strided windows.} At stride $(s_x,s_y)$, lattice positions with the same
+  residues $(x \bmod s_x,\, y\bmod s_y)$ form a subgrid, for $s_x s_y$ subgrids in
+  total. In its own coordinates each subgrid is tiled with $6\times6$ windows. A window
+  therefore contains at most 36 cells, spaced $s$ apart on the lattice and spanning
+  $5s+1$ cells per axis.
+\item \textbf{Exact reassignment.} In every window, the points currently occupying its
+  cells are reassigned among the same cells, empty ones included, by solving the dense
+  linear assignment on squared distances to the original (normalized) coordinates. The
+  window's cell set never changes, so the global assignment stays injective.
+\item \textbf{Shifted tilings.} The tiling is repeated with shifts $(0,0)$, $(0,3)$,
+  $(3,0)$ and $(3,3)$ in subgrid coordinates. These four phases form one round. Windows
+  in one phase are disjoint and are solved in parallel.
+\item \textbf{Schedule.} On an axis of length $L$, the first stride is the smallest power of
+  two with $6s\ge L$. After one round, both strides are halved (never below 1). Stride-1
+  rounds then repeat until a full round moves no point, or until a time budget runs out.
+\end{enumerate}
+
+\paragraph{Window solver and acceptance.} Each window is a rectangular problem: $k$
+occupants and $m\ge k$ cells, with $m\le36$ in the baseline. We solve it with the
+shortest-augmenting-path Hungarian method with potentials, in $O(k^2m)$ time. A cheap
+warm start (row reduction, then matching every row whose cheapest column is still free)
+saves 5--20\% and does not change the optimum. A new window assignment replaces the old
+one only if it is cheaper by more than a relative $10^{-12}$. Because the old assignment
+is feasible for the window problem, every accepted change strictly lowers the global
+cost by at least that margin. Hence the cost sequence is monotone, the search
+terminates, and ties (e.g.\ duplicated points) never cause cycling.
+
+\paragraph{Boundaries.} A subgrid of length $L_a$ is cut at positions $\equiv$ shift
+(mod 6). Both the first block (before the first cut) and the last (after the last cut)
+are kept as clipped windows. Every lattice position therefore belongs to exactly one
+window of every phase, on the upper-left and the lower-right sides alike. A test compares
+the tiling against an independent reference implementation for many sizes, strides,
+shifts and random masks. Windows with fewer than two usable cells are skipped, because
+nothing can move in them.
+
+\paragraph{Rectangular grids.} Each axis starts from its own stride, and the strides are
+halved together. The axis that reaches 1 first stays at 1 while the other continues.
+For a $1000\times50$ grid the stages are $(256,16),(128,8),\dots,(16,1),(8,1),\dots,(1,1)$.
+
+\paragraph{Masks, surplus cells and prime counts.} Masked positions never enter a window.
+Empty but usable cells do take part, so occupants can move into them, and the method
+therefore also decides which cells stay empty. A prime number of points can be placed
+in two ways. One is an exact-fit grid whose last row is partially usable (a bijection).
+The other is a full rectangle with a few surplus cells (an injection). We evaluate both
+(Section~\ref{sec:masks}).
+
+\subsection{Implementation}
+\label{sec:impl}
+
+The kernel is C++17, exposed to Python with nanobind, and parallelized with OpenMP over
+the windows of a phase. Each thread keeps its own scratch buffers. Because windows in a
+phase are disjoint and each solve is deterministic, the result is bit-identical for any
+thread count; a test checks this. We also track, for every cell, the last phase that
+changed its occupant. A window whose cells are unchanged since it was last solved in the
+same stage is already optimal, and skipping it does not change the result (also tested).
+This matters in the stride-1 convergence rounds, where most windows are untouched. The
+cost is recomputed exactly after every phase, which gives an anytime trace, and a time
+budget is checked between windows. There is no just-in-time compilation. Building the
+extension takes about 2\,s, and \texttt{pip install} builds a wheel.
+
+\paragraph{Work per level.} A phase at stride $s$ has about $M/w^2$ windows (plus clipped
+ones), each an $O(w^6)$ Hungarian solve in the worst case. The work per phase is
+therefore $O(Mw^4)$, independent of $s$, and a schedule with $\ell$ levels costs
+$O(\ell M w^4)$ plus the convergence rounds. With $\ell=O(\log L)$ this is
+$O(M\log M)$ for fixed $w$. The constant depends strongly on the data: windows far from
+optimal need long augmenting paths.
+
+\subsection{Improvements and non-improvements}
+\label{sec:improve}
+
+We tuned only on a development set (instance seed 0) and report every final claim on
+held-out seeds. Four changes were tested systematically (Section~\ref{sec:ablation}):
+
+\begin{itemize}
+\item \textbf{Stride ratio.} Dividing strides by $\sqrt2$ instead of 2 (rounded to
+  integers, duplicates removed) roughly doubles the number of levels. Each level costs
+  about the same, but the configuration entering a level is already better. At equal
+  window size this consistently lowered the excess. Ratios of 3 or 1.1, or using every
+  integer stride, were worse.
+\item \textbf{Window size.} Larger windows help at every level, at a cost that grows
+  roughly as $w^4$. Using small windows at coarse strides and large ones at stride 1
+  was worse than using large windows throughout.
+\item \textbf{Start.} Structured starts are \emph{worse} than a random permutation:
+  bisection (the recursive median split used by RasterFairy-like methods), row sorting,
+  and bisection followed by shuffling within $B\times B$ tiles. They create straight
+  seams that the local windows cannot repair. The random start is a decorrelating
+  device, not a lazy default.
+\item \textbf{Solver.} On windows with randomly placed occupants, JV with augmenting row
+  reduction is 1.5$\times$ ($6\times6$) to 15$\times$ ($16\times16$) slower than the
+  Hungarian method, because squared distances create many near-ties. Only on nearly
+  sorted $6\times6$ windows is it faster (7 vs.\ 11\,$\mu$s).
+  Polishing with extra stride-2 rounds after convergence changes nothing (a stride-2
+  window cannot move a point by one cell), and nine shifted tilings per round instead
+  of four is less efficient than a second round.
+\end{itemize}
+
+We keep the baseline exactly as specified and add three presets on the $\sqrt2$
+schedule: \emph{fast} ($6\times6$), \emph{balanced} ($8\times8$, the package default),
+and \emph{quality} ($12\times12$).

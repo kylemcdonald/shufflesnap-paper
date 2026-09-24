@@ -1,0 +1,58 @@
+\section{Related work}
+\label{sec:related}
+
+\paragraph{Exact assignment.} The Hungarian method~\citep{kuhn1955hungarian,munkres1957algorithms}
+and shortest-augmenting-path variants such as Jonker--Volgenant
+(JV)~\citep{jonker1987shortest} solve dense $N\times N$ problems in $O(N^3)$ time and
+$O(N^2)$ memory. SciPy's \texttt{linear\_sum\_assignment} implements a modified JV
+without initialization~\citep{crouse2016implementing,virtanen2020scipy}. The
+\texttt{lap} and \texttt{lapjv} packages provide dense JV with heuristic initialization
+(\texttt{lap} also provides a sparse variant)~\citep{kazmar_lap,markovtsev_lapjv}.
+Auction algorithms~\citep{bertsekas1979distributed,bertsekas1988auction} and cost-scaling
+push--relabel~\citep{goldberg1995efficient} handle sparse problems. The min-cost-flow
+solver in OR-Tools, which we use, is a cost-scaling push--relabel
+method~\citep{ortools,ortools_mincostflow_doc}. \citet{burkard2009assignment} survey the
+field. Geometric bipartite matching admits near-linear $\varepsilon$-approximations in
+theory~\citep{sharathkumar2012transportation,raghvendra2020nearlinear}. We know of no
+practical implementations aimed at this use case.
+
+\paragraph{Optimal transport.} With quadratic cost, optimal maps are gradients of
+convex functions~\citep{brenier1991polar}. Least-squares assignments with prescribed
+cluster sizes are exactly those induced by power
+diagrams~\citep{aurenhammer1998minkowski}, the geometric fact behind semi-discrete
+solvers~\citep{merigot2011multiscale,levy2015numerical} and behind the potentials in our
+certificate. Multiscale methods solve coarsened problems and refine
+them~\citep{merigot2011multiscale,schmitzer2016sparse,gerber2017multiscale}. Schmitzer's
+sparse multiscale algorithm in particular alternates sparse subproblems with global
+optimality checks~\citep{schmitzer2016sparse}, as our exact solver does. Entropic
+regularization~\citep{cuturi2013sinkhorn} and sliced
+transport~\citep{rabin2012wasserstein,bonneel2015sliced} trade exactness for speed; see
+\citet{peyre2019computational} for a survey. BSP-OT~\citep{genest2025bspot} builds many
+randomized binary space partition matchings in $O(N\log N)$ and merges them with a
+cycle-based rule. Its official code~\citep{genest2025bspotcode} has Python
+bindings~\citep{takayama2026bspotpython,flamary2026potsoftware}. The BSP-OT paper does
+not evaluate uniform grid targets.
+
+\paragraph{Grid layouts for visualization.} RasterFairy~\citep{klingemann2015rasterfairy}
+recursively slices the point cloud and the target raster in matching proportions, and
+supports masks and hexagonal rasters. Its current upstream version also solves small
+leaf blocks exactly (Section~\ref{sec:setup}). IsoMatch~\citep{fried2015isomatch}
+projects with Isomap and then solves a dense Hungarian problem, which it names as its
+bottleneck. Kernelized sorting~\citep{quadrianto2008kernelized,quadrianto2010kernelized},
+self-organizing maps~\citep{kohonen1982selforganized}, the Self-Sorting
+Map~\citep{strong2014selfsorting}, and Linear Assignment Sorting and its fast variant
+FLAS~\citep{barthel2023improved} arrange high-dimensional items directly on a grid.
+LAS repeatedly solves full JV problems between features and smoothed map vectors.
+Gridfit~\citep{keim1998gridfit} and DGrid~\citep{hilasaca2024grid} remove overlap in
+scatterplots by hierarchical partitioning. These methods mostly optimize neighbourhood
+preservation, and they measure it with trustworthiness and
+continuity~\citep{venna2001neighborhood,venna2006local} or the Distance Preservation
+Quality~\citep{barthel2023improved}. We keep that goal distinct from displacement:
+the LAP objective only minimizes how far points move.
+
+\paragraph{Sorting networks and Shellsort.} Shellsort~\citep{shell1959highspeed} sorts
+with insertion-sort passes over a decreasing sequence of gaps, so early passes move
+elements far and late passes move them little. \ShuffleSnap\ borrows this schedule.
+Unlike Shellsort's final gap-1 pass, however, its final stride-1 stage is not guaranteed
+to reach the optimum. That difference turns out to be the heart of the matter
+(Section~\ref{sec:anatomy}).

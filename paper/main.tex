@@ -1,0 +1,47 @@
+\documentclass[11pt]{article}
+\usepackage[letterpaper,margin=1in]{geometry}
+\usepackage{fontspec}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{xcolor}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage{microtype}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{enumitem}
+\usepackage[hidelinks,pdfusetitle]{hyperref}
+\captionsetup{font=small,labelfont=bf}
+\setlist{itemsep=2pt,topsep=4pt}
+\newtheorem{proposition}{Proposition}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\ShuffleSnap}{ShuffleSnap}
+\hypersetup{pdftitle={ShuffleSnap: strided windowed exact reassignment for point-to-grid layout, evaluated against certified optima},
+            pdfauthor={Draft}, pdfsubject={Point-to-grid assignment},
+            pdfkeywords={linear assignment, optimal transport, grid layout, UMAP, visualization}}
+
+\title{\ShuffleSnap: strided windowed exact reassignment for point-to-grid layout,\\ evaluated against certified optima}
+\author{Draft --- author list to be decided}
+\date{September 2026}
+
+\begin{document}
+\maketitle
+
+\input{sections/abstract}
+\input{sections/intro}
+\input{sections/problem}
+\input{sections/related}
+\input{sections/method}
+\input{sections/exact}
+\input{sections/setup}
+\input{sections/results}
+\input{sections/discussion}
+
+\bibliographystyle{plainnat}
+\bibliography{refs}
+
+\appendix
+\input{sections/appendix}
+
+\end{document}

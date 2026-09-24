@@ -1,0 +1,61 @@
+\section{Introduction}
+\label{sec:intro}
+
+A common way to show a large image or document collection is to embed the items in
+the plane (for example with t-SNE~\citep{vandermaaten2008tsne} or
+UMAP~\citep{mcinnes2018umap}) and then snap every item to its own cell of a regular grid,
+so that thumbnails tile the screen without overlap. Snapping is an assignment problem:
+each point must receive a distinct cell, and we would like points to move as little as
+possible. Measured as total squared displacement, the best snapping is a linear
+assignment problem (LAP), and also a discrete optimal-transport problem with quadratic
+cost~\citep{peyre2019computational}.
+
+For a few thousand points, practitioners solve this LAP exactly with a dense
+Jonker--Volgenant or Hungarian solver~\citep{markovtsev2017jvtsne,mcdonald2016cloudtogrid,
+markovtsev_lapjv,kazmar_lap}. The dense cost matrix needs $8N^2$ bytes, which is
+80\,GB at $N=100{,}000$, so these solvers stop being usable somewhere between
+10{,}000 and 30{,}000 points. Beyond that, people turn to recursive-splitting heuristics
+such as RasterFairy~\citep{klingemann2015rasterfairy} or to fast approximate transport
+such as BSP-OT~\citep{genest2025bspot}.
+
+This paper develops and evaluates \ShuffleSnap, a simple heuristic for this regime,
+taking its name from Shellsort~\citep{shell1959highspeed}. Shellsort sorts interleaved
+subsequences at a decreasing sequence of gaps. \ShuffleSnap\ does the same in 2D: at stride $s$
+it splits the grid into $s^2$ interleaved subgrids and solves small \emph{exact}
+assignment problems inside $6\times6$ windows of each subgrid, halving $s$ until it
+reaches 1 (Figure~\ref{fig:method}). All work is at full resolution; nothing is
+aggregated or downsampled.
+
+We treat the idea as a hypothesis to test, not a result to promote. Our aim throughout
+was to find where it fails. The main contributions are:
+
+\begin{itemize}
+\item \textbf{A careful implementation} of the specified baseline, with documented
+  boundary, rectangular-grid, surplus-cell and mask rules. It is a parallel C++ kernel
+  with a Python API whose results do not depend on the number of threads.
+\item \textbf{A certified exact solver that scales to $10^5$ points.} It solves min-cost
+  flow on sparse candidate edges, then prices every edge of the \emph{dense} problem
+  through a Lagrangian bound, adding edges until the bound meets the primal cost. It
+  gives true optimality gaps, not progress relative to our own best answer, for every
+  instance up to 200{,}000 points in this study. In our experiments it is also a strong
+  practical baseline.
+\item \textbf{Measured improvements and non-improvements.} On a held-out development set,
+  a finer stride sequence (ratio $\sqrt2$ instead of 2) and larger windows reduce the
+  excess cost severalfold for a small time increase. Several intuitive ideas make things
+  \emph{worse}: sorted or bisection starts, polishing at coarser strides, and a
+  Jonker--Volgenant window solver.
+\item \textbf{A diagnosis of the remaining error.} The gap to the optimum is concentrated
+  in a few long closed loops of points, each displaced by about one cell. No window
+  smaller than a loop can remove it. Masks with concave bays and grids with surplus
+  cells expose the same mechanism at a larger scale.
+\item \textbf{A benchmark against exact LAP, RasterFairy and BSP-OT.} We first verified
+  each comparator's capabilities: we found and worked around coordinate truncation in the
+  PyPI release of RasterFairy, and used its much stronger upstream version. The
+  benchmark covers varied and adversarial distributions, masks, prime point counts, two
+  real UMAP embeddings with 70{,}000 points each, multiple seeds, matched-budget curves,
+  and scaling to $10^6$ points. We report cost, time, peak memory, and neighbourhood
+  preservation, and we keep displacement and neighbourhood measures separate.
+\end{itemize}
+
+The implementation (\texttt{shufflesnap}) and this paper's experiment code, raw results
+and figure scripts are released as two separate repositories.

@@ -1,0 +1,32 @@
+\section{Reproducing the results}
+\label{app:repro}
+
+The paper repository contains every script, raw result, and figure source. The
+implementation is a separate repository (\texttt{shufflesnap}). Starting from a checkout
+of both side by side:
+\begin{verbatim}
+pip install ./shufflesnap[exact]   # C++ build, ~2 s
+pip install -r shufflesnap-paper/requirements.txt
+cd shufflesnap-paper
+python experiments/make_embeddings.py mnist fashion   # UMAP, fixed seed
+python experiments/references_all.py 6                # certified optima (parallel)
+bash experiments/run_all.sh                           # all benchmarks, sequential
+python experiments/small_exactness.py                 # small-N exactness table
+python experiments/dev_ablation.py                    # development-set search
+python experiments/make_figures.py all && python experiments/make_tables.py
+python experiments/fig_method.py; python experiments/fig_failures.py
+python experiments/fig_visual.py mnist; python experiments/fig_visual.py fashion
+python experiments/fig_masks.py
+cd paper && tectonic main.tex
+\end{verbatim}
+Raw results are JSON lines in \texttt{results/raw/}: one record per run, holding the
+full run specification, timings, memory, validity check, cost, displacement statistics,
+and the software environment (library versions, commit hashes of the comparator
+repositories). Certified optima are cached in \texttt{results/reference/} with their
+lower bound and gap. The lab notebook \texttt{notebook/LOG.md} records decisions and
+negative results in the order they happened.
+
+\paragraph{Timing boundary (summary).} A timed run is one call of a method adapter in a fresh
+process, after a warm-up call on a 256-point instance. It includes method-specific
+preprocessing and excludes instance generation, the shared normalization, and
+validation. Peak memory is the rise of peak RSS during the call.
