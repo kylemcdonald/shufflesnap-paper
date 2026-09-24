@@ -66,7 +66,8 @@ def m_exact(Pn, g, warm="shufflesnap", threads=0, k=12, radius=2):
     from shufflesnap import exact
 
     if warm == "shufflesnap":
-        cell0 = ss.assign(Pn, g, normalize="none", threads=threads).cell
+        # the package default preset ("balanced"); its time is part of the exact run
+        cell0 = ss.assign(Pn, g, normalize="none", preset="balanced", seed=0, threads=threads).cell
     else:
         cell0 = ss.initial_assignment(Pn, g, warm, 0)
     r = exact.solve_certified(Pn, g, cell0, k=k, radius=radius, threads=threads)

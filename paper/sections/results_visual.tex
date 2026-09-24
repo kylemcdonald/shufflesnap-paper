@@ -1,0 +1,34 @@
+\subsection{Real embeddings: displacement versus neighbourhoods}
+\label{sec:real}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{figures/fig_visual_mnist.pdf}
+  \caption{All 70{,}000 MNIST digits, UMAP layout snapped to a $265\times265$ grid. Each
+  point has the same color in every panel, set by its position in the input layout, so
+  color jumps show where a method tears the layout. The number under each method name is
+  the mean squared displacement in cells$^2$. Row~2 enlarges the $64\times64$ box. Row~3
+  shows each point's displacement. Row~4 shows lattice precision: the fraction of a
+  point's occupied 8-neighbour cells whose points are among its 8 nearest input
+  neighbours (higher is better). \ShuffleSnap\ is visually indistinguishable from the
+  certified optimum. BSP-OT is within 3\% of the optimal displacement but halves lattice
+  precision, because it scrambles local order (speckled boundaries in row~2). RasterFairy's
+  recursive slicing leaves rectangular seams.}
+  \label{fig:visual}
+\end{figure}
+
+Figure~\ref{fig:visual} and Table~\ref{tab:real} compare the methods on the full MNIST
+and Fashion-MNIST embeddings. In the runs shown, the balanced preset is within 0.002\%
+of the certified optimum on both datasets, and the baseline within 0.014\%.
+In every panel their colour fields match the optimum's.
+
+The two measures disagree on BSP-OT. Its displacement is only 3.0\% (MNIST) and 6.5\%
+(Fashion) above optimal, yet its lattice precision is 0.27--0.28, against 0.55--0.57 for
+the optimum. Averaged over plans, the merged BSP partitions are close to the transport
+map, but they shuffle points locally. RasterFairy shows the opposite pattern: its
+displacement is 20--25\% above optimal, yet its lattice precision (0.54--0.55) is close
+to the optimum's, because local order survives inside each slice and breaks only along
+the seams. Even the optimum has lattice precision well below 1: an optimal transport map
+from clustered data to a uniform grid tears the layout along cluster boundaries (the
+white lines in row~4). Minimizing displacement and preserving neighbourhoods are
+different objectives, and neither implies the other.

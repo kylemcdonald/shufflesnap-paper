@@ -47,7 +47,11 @@ test covers it.
 
 \paragraph{Cost.} The solver reached a certificate on every one of the more than 200
 instances in this study, of up to 200{,}000 points. The number of pricing rounds was
-1 for uniform inputs and up to about 8 for clustered, curved or masked inputs.
+1 for uniform inputs, up to about 8 for clustered, curved or masked inputs, and up to 12
+for the input with 16 heavily duplicated sites. Massive ties are the slowest case: one
+such 100{,}000-point instance took 34 minutes, while the median 100{,}000-point
+reference took under 3 minutes (six references were computed in parallel).
 Section~\ref{sec:results} reports its running time and memory next to the heuristics.
-The solver needs a feasible starting assignment; we use \ShuffleSnap's. We also compare
-it with a bisection start, to separate the two methods' contributions.
+The solver needs a feasible starting assignment. We use \ShuffleSnap's default preset,
+and at $10^5$ points we also run it from a bisection start, to separate the two methods'
+contributions.

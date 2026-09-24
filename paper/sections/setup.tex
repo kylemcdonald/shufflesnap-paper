@@ -8,8 +8,8 @@ GCC 13.3 with \texttt{-O3} and no \texttt{-march=native} (portable build). The G
 not used. Exact versions and commit hashes are stored with every raw result.
 \emph{Single-thread} runs were pinned to one performance core (\texttt{taskset -c 8}) with
 all thread pools set to 1. \emph{Multi-thread} runs used all 24 hardware threads without
-pinning; on this machine this was faster than using the 16 performance-core threads for
-both \ShuffleSnap\ and BSP-OT. The machine also ran unrelated background services
+pinning. For \ShuffleSnap\ this was faster on this machine than using only the 16
+performance-core threads (Section~\ref{sec:threads}). The machine also ran unrelated background services
 (load average about 1). Benchmarks ran sequentially, only after all reference optima had
 been computed.
 
@@ -52,8 +52,8 @@ float64 coordinates and cell centers and returns one cell per point. We check va
 \item \emph{Exact, dense}: SciPy \texttt{linear\_sum\_assignment} on the float64 cost matrix,
   the fastest of three dense solvers we tried (\texttt{lap.lapjv} and \texttt{lapjv} were 3--7$\times$
   slower at $N=2{,}500$).
-\item \emph{Exact, certified sparse}: Section~\ref{sec:exact}, started from \ShuffleSnap-baseline
-  (time included) or from bisection.
+\item \emph{Exact, certified sparse}: Section~\ref{sec:exact}, started from \ShuffleSnap's
+  default (balanced) preset, whose time is included, or from bisection.
 \item \emph{RasterFairy}~\citep{klingemann2015rasterfairy}. The PyPI release 1.0.6 (2019)
   uses the removed NumPy alias \texttt{np.float}, and it orders points by
   \emph{integer-truncated} coordinates. With grid-unit inputs this discards sub-cell order:
@@ -66,9 +66,9 @@ float64 coordinates and cell centers and returns one cell per point. We check va
   inflate the timing. Surplus cells are removed at random by its \texttt{autoAdjustCount}
   (default strategy).
 \item \emph{BSP-OT}~\citep{genest2025bspot} through its official Python binding \texttt{bspot}
-  1.2.0~\citep{takayama2026bspotpython}. Bijections use \texttt{compute\_matching} with
-  Gaussian slicing, as in the upstream demo; surplus cells use
-  \texttt{compute\_partial\_matching}, which has no Gaussian option. We report 16 plans (the default)
+  1.2.0~\citep{takayama2026bspotpython}. Bijections use its matching function with Gaussian
+  slicing, as in the upstream demo; surplus cells use its partial-matching function, which
+  has no Gaussian option. We report 16 plans (the default)
   and 64 plans (as in the paper's figure), and sweep 1--1024 plans for time--quality
   curves. The binding always runs the cycle-merge step, whereas the upstream C++ wrapper
   disables it at $N\ge500{,}000$.

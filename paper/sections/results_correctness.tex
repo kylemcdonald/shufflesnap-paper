@@ -1,0 +1,47 @@
+\subsection{Correctness checks}
+\label{sec:correctness}
+
+Three properties were checked independently of the kernel:
+\begin{itemize}
+\item \textbf{Window solver.} Two unit tests cover it. The first compares against brute-force
+  enumeration on random, tie-heavy and badly scaled matrices up to $5\times6$. The second
+  compares against SciPy's \texttt{linear\_sum\_assignment} on square and rectangular
+  matrices up to $144\times144$, including squared-distance matrices like the real use
+  case. Both run for all three window solvers.
+\item \textbf{Validity.} A NumPy validator, sharing no code with the kernel, checked that
+  every output of every method gives each point its own usable cell. All 943 completed
+  runs of the main benchmark were valid.
+\item \textbf{Monotonicity.} Each \ShuffleSnap\ run records the exact cost after every phase.
+  In all 396 \ShuffleSnap\ runs of the main benchmark, this trace was monotone, and its
+  final value matched the cost recomputed by the validator.
+\end{itemize}
+The test suite also checks that results do not depend on the thread count or on
+skipping unchanged windows, and that the window tiling matches an independent
+reference implementation.
+
+\paragraph{Small instances.} On 720 small instances
+($N\in\{100,400,900,2500\}$; six distributions; exact-fit, 10\%-surplus and disk
+targets; 10 seeds each), the certified solver agreed with SciPy's dense solver on
+every instance. Table~\ref{tab:small} shows how often each method reached the
+optimum. \ShuffleSnap\ is reliably exact only when its windows cover a large part of the
+grid: the quality preset's $12\times12$ window covers the whole $10\times10$ grid at
+$N=100$. By $N=2{,}500$, the baseline never reached the optimum, although its median
+excess was only 0.18\%.
+
+\begin{table}[h]
+\centering\small
+\caption{Small instances: fraction of the 180 instances per size (six distributions, three target
+types, 10 seeds) on which the method reached the certified optimum (relative excess
+$<10^{-9}$), and the median excess.}
+\label{tab:small}
+\begin{tabular}{lrrrrrr}
+\toprule
+ & SS base & SS fast & SS bal. & SS qual. & BSP-OT 16 & BSP-OT 64 \\
+\midrule
+$N=100$  & 0.57 / 0.000\% & 0.57 / 0.000\% & 0.86 / 0.000\% & 1.00 / 0.000\% & 0.04 / 9.3\% & 0.08 / 4.2\% \\
+$N=400$  & 0.11 / 0.195\% & 0.12 / 0.157\% & 0.30 / 0.029\% & 0.58 / 0.000\% & 0.00 / 11.9\% & 0.01 / 5.6\% \\
+$N=900$  & 0.03 / 0.204\% & 0.03 / 0.152\% & 0.09 / 0.062\% & 0.23 / 0.013\% & 0.00 / 11.6\% & 0.00 / 6.2\% \\
+$N=2500$ & 0.00 / 0.180\% & 0.01 / 0.099\% & 0.03 / 0.045\% & 0.08 / 0.011\% & 0.00 / 12.3\% & 0.00 / 6.4\% \\
+\bottomrule
+\end{tabular}
+\end{table}

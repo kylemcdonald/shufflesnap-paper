@@ -151,12 +151,17 @@ def environment():
                 ["git", "-C", os.path.join(ROOT, "..", "third_party", repo), "rev-parse", "HEAD"], text=True).strip()
         except Exception:
             pass
-    try:
-        info["shufflesnap_commit"] = subprocess.check_output(
-            ["git", "-C", os.path.join(ROOT, "..", "shufflesnap"), "rev-parse", "HEAD"], text=True,
-            stderr=subprocess.DEVNULL).strip()
-    except Exception:
-        info["shufflesnap_commit"] = "uncommitted"
+    frozen = os.environ.get("SHUFFLESNAP_SRC")
+    if frozen and os.path.exists(os.path.join(frozen, "..", "COMMIT")):
+        info["shufflesnap_commit"] = open(os.path.join(frozen, "..", "COMMIT")).read().strip()
+        info["shufflesnap_src"] = "frozen snapshot"
+    else:
+        try:
+            info["shufflesnap_commit"] = subprocess.check_output(
+                ["git", "-C", os.path.join(ROOT, "..", "shufflesnap"), "rev-parse", "HEAD"], text=True,
+                stderr=subprocess.DEVNULL).strip()
+        except Exception:
+            info["shufflesnap_commit"] = "uncommitted"
     return info
 
 
@@ -174,8 +179,10 @@ def run_specs(specs, out, threads=1, cpus=None, timeout=3600, rerun=False, verbo
     env = dict(os.environ)
     for v in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS", "NUMBA_NUM_THREADS"):
         env[v] = str(threads)
-    env["PYTHONPATH"] = os.pathsep.join([os.path.join(ROOT, "..", "shufflesnap", "src"), HERE,
-                                         env.get("PYTHONPATH", "")])
+    # SHUFFLESNAP_SRC may point at a frozen snapshot of one commit (see run_all.sh), so that
+    # editing the working tree during a long benchmark cannot change later runs.
+    src = os.environ.get("SHUFFLESNAP_SRC", os.path.join(ROOT, "..", "shufflesnap", "src"))
+    env["PYTHONPATH"] = os.pathsep.join([src, HERE, env.get("PYTHONPATH", "")])
     envinfo = environment()
     with open(out, "a") as f:
         for spec in specs:

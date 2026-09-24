@@ -27,7 +27,7 @@ def main(out):
     f = open(out, "w")
     for n in (100, 400, 900, 2500):
         for dist in ("uniform", "gaussian", "gmm", "spiral", "jitter", "duplicates"):
-            for grid in ("square", "free", "disk"):
+            for grid in ("square", "free10", "disk"):
                 for seed in range(100, 110):
                     Pn, g, _, _ = datasets.instance(dist, n, seed, grid)
                     t = time.perf_counter()

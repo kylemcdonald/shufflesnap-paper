@@ -4,6 +4,7 @@
 """
 from __future__ import annotations
 
+import json
 import os
 import sys
 
@@ -56,9 +57,10 @@ def _family_points(ax, sub, xcol="time_s", ycol="excess_pct"):
         fam = analysis.family(lab)
         if fam not in fs.COLORS:
             continue
+        filled = fs.marker(lab) not in ("x", "+")
         ax.errorbar(r["x"], r["y"], yerr=[[max(r["y"] - max(r["ylo"], FLOOR), 0)], [max(r["yhi"] - r["y"], 0)]],
-                    fmt=fs.marker(lab), color=fs.color(lab), ms=4.5, mec="white", mew=0.5, elinewidth=0.6,
-                    capsize=0, zorder=3)
+                    fmt=fs.marker(lab), color=fs.color(lab), ms=4.5 if filled else 5, mec="white" if filled else None,
+                    mew=0.5 if filled else 1.2, elinewidth=0.6, capsize=0, zorder=3)
     ex = g.loc[[l for l in g.index if l == "Exact-certified"]]
     for _, r in ex.iterrows():
         ax.axvline(r["x"], color=fs.INK, lw=0.8, zorder=1)
@@ -68,7 +70,9 @@ def _family_points(ax, sub, xcol="time_s", ycol="excess_pct"):
 def fig_tradeoff(df, n=100000, threads=1, name="fig_tradeoff"):
     d = _ok(df[(df["n"] == n) & (df["grid"] == "square") & (df["threads"] == threads) &
                (df["file"].str.startswith("main"))])
-    dists = [x for x in DIST_TITLES if x in set(d["dist"])]
+    # heavy tails: every method is within 0.001% in relative terms (outliers dominate the
+    # optimum), so the panel carries no information; it is reported in absolute terms in the table
+    dists = [x for x in DIST_TITLES if x in set(d["dist"]) and x != "heavy"]
     ncol = 4
     nrow = int(np.ceil((len(dists) + 1) / ncol))
     fig, axes = plt.subplots(nrow, ncol, figsize=(7.0, 1.75 * nrow + 0.3), layout="constrained")
@@ -86,8 +90,10 @@ def fig_tradeoff(df, n=100000, threads=1, name="fig_tradeoff"):
     handles = []
     for lab in ["SS-baseline", "SS-fast", "SS-balanced", "SS-quality", "BSP-OT", "RasterFairy-master",
                 "RasterFairy-pypi", "Bisection"]:
-        handles.append(plt.Line2D([], [], ls="", marker=fs.marker(lab), color=fs.color(lab), ms=5, mec="white",
-                                  mew=0.5, label=fs.NAMES[lab] if lab != "BSP-OT" else "BSP-OT (16, 64 plans)"))
+        filled = fs.marker(lab) not in ("x", "+")
+        handles.append(plt.Line2D([], [], ls="", marker=fs.marker(lab), color=fs.color(lab), ms=5,
+                                  mec="white" if filled else None, mew=0.5 if filled else 1.2,
+                                  label=fs.NAMES[lab] if lab != "BSP-OT" else "BSP-OT (16, 64 plans)"))
     handles.append(plt.Line2D([], [], color=fs.INK, lw=0.8, label="exact, certified (time)"))
     lax.legend(handles=handles, loc="center left", fontsize=6.3, handlelength=1.2)
     for ax in axes[::ncol]:
@@ -171,6 +177,105 @@ def fig_anytime(df, threads=1, name="fig_anytime"):
     _save(fig, name)
 
 
+ABL_GROUPS = [("window", "window side w (ratio 2)", "p_window"), ("window-r1.41", "window side w (ratio √2)", "p_window"),
+              ("ratio", "stride ratio (w = 6)", "p_ratio"), ("start", "start (w = 6)", "p_init"),
+              ("rounds", "rounds per level (w = 6)", "p_rounds"), ("offsets", "tilings per round (w = 6)", "p_offsets"),
+              ("coarse", "largest stride (w = 6)", "p_start_stride"), ("solver", "window solver", "p_solver")]
+
+
+def _abl_label(group, v, row=None):
+    if group == "offsets":
+        k = len(json.loads(v)) if isinstance(v, str) else 4
+        return {1: "1", 2: "2 (diag.)", 4: "4 (default)", 9: "9"}.get(k, str(k))
+    if group == "ratio":
+        return {3.0: "3", 2.0: "2", 2 ** 0.75: "1.68", 2 ** 0.5: "1.41", 2 ** 0.25: "1.19", 1.1: "1.1"}.get(
+            round(float(v), 6) if v == v else v, f"{float(v):.2f}")
+    if group == "coarse":
+        return "auto" if v is None or v != v else str(int(v))
+    if group == "solver":
+        return f"{v}\nw={int(row['p_window'])}" if row is not None else str(v)
+    if group in ("window", "window-r1.41", "rounds"):
+        return str(int(v))
+    return str(v)
+
+
+def fig_ablation(df, name="fig_ablation"):
+    d = _ok(df[df["file"].str.startswith("ablations")])
+    if d.empty:
+        return
+    d = d.copy()
+    d["group"] = d["label"].str.replace("abl-", "", regex=False)
+    dists = [x for x in ["uniform", "gmm", "mnist"] if x in set(d["dist"])]
+    groups = [g for g in ABL_GROUPS if g[0] in set(d["group"])]
+    fig, axes = plt.subplots(2, len(groups) // 2 + len(groups) % 2, figsize=(7.0, 4.6), layout="constrained")
+    axes = axes.ravel()
+    shades = {"uniform": "#2a78d6", "gmm": "#eb6834", "mnist": "#1baf7a"}
+    marks = {"uniform": "o", "gmm": "s", "mnist": "^"}
+    for ax, (group, title, col) in zip(axes, groups):
+        sub = d[d["group"] == group]
+        for dist in dists:
+            s2 = sub[sub["dist"] == dist]
+            if s2.empty:
+                continue
+            key = s2[col] if col in s2 else pd.Series(["?"] * len(s2))
+            if group == "solver":
+                keyv = s2["p_solver"].astype(str) + "|" + s2["p_window"].astype(str)
+            elif group == "coarse":
+                keyv = s2[col].fillna(-1)
+            else:
+                keyv = key
+            gg = s2.assign(k=keyv).groupby("k", sort=False).agg(e=("excess_pct", "mean"), t=("time_s", "median"),
+                                                                   rep=(col if col in s2 else "label", "first"))
+            ax.plot(gg["t"], gg["e"].clip(lower=FLOOR), marker=marks[dist], color=shades[dist], ms=3.5, lw=0.9,
+                    mec="white", mew=0.4, label=DIST_TITLES[dist])
+            if dist == dists[0]:
+                for kk, r in gg.iterrows():
+                    if group == "solver":
+                        sv, w = str(kk).split("|")
+                        lab = {"hungarian": "H", "hungarian_greedy": "H+g", "jv": "JV"}.get(sv, sv) + f" w{int(float(w))}"
+                    elif group == "coarse":
+                        lab = "auto" if kk == -1 else str(int(kk))
+                    else:
+                        lab = _abl_label(group, r["rep"])
+                    ax.annotate(lab, (r["t"], max(r["e"], FLOOR)), textcoords="offset points", xytext=(3, 2),
+                                fontsize=5.5, color=fs.INK2)
+        ax.set_xscale("log")
+        ax.set_yscale("log")
+        ax.set_title(title, loc="left", fontsize=7.5)
+        fs.recess(ax, grid_axis="both")
+    for ax in axes[len(groups):]:
+        ax.axis("off")
+    axes[0].legend(fontsize=6, loc="best")
+    fig.supxlabel("time (s, 24 threads)", fontsize=8)
+    fig.supylabel("excess over optimum (%)", fontsize=8)
+    _save(fig, name)
+
+
+def fig_threads(df, name="fig_threads"):
+    import glob
+    d = _ok(df[df["file"].str.startswith("threads")])
+    if d.empty:
+        return
+    fig, axes = plt.subplots(1, 2, figsize=(7.0, 2.4), layout="constrained")
+    for ax, dist in zip(axes, ["uniform", "gmm"]):
+        sub = d[d["dist"] == dist]
+        for lab in ["SS-baseline", "SS-balanced", "BSP-OT-16"]:
+            s2 = sub[sub["label"] == lab].groupby("threads")["time_s"].median()
+            if s2.empty:
+                continue
+            ax.plot(s2.index, s2.iloc[0] / s2.values, marker=fs.marker(lab), color=fs.color(lab), ms=4, mec="white",
+                    mew=0.4, label=f"{fs.NAMES[analysis.family(lab)] if lab != 'BSP-OT-16' else 'BSP-OT (16 plans)'}"
+                                   f" ({s2.iloc[0]:.1f} s on 1 thread)")
+        ax.plot([1, 24], [1, 24], color=fs.GRID, lw=0.8)
+        ax.axvline(16, color=fs.GRID, lw=0.6)
+        ax.set_xlabel("threads (≤16: performance cores)")
+        ax.set_title(DIST_TITLES[dist] + ", N = 100,000", loc="left")
+        fs.recess(ax, grid_axis="y")
+        ax.legend(fontsize=5.8, loc="upper left")
+    axes[0].set_ylabel("speed-up over 1 thread")
+    _save(fig, name)
+
+
 def main(which="all"):
     fs.setup()
     df = analysis.load()
@@ -180,6 +285,10 @@ def main(which="all"):
                 fig_tradeoff(df, n=n, name=f"fig_tradeoff_{n // 1000}k")
     if which in ("scaling", "all") and df["file"].str.startswith("scaling").any():
         fig_scaling(df)
+    if which in ("ablation", "all"):
+        fig_ablation(df)
+    if which in ("threads", "all"):
+        fig_threads(df)
     if which in ("anytime", "all") and df["file"].str.startswith("anytime").any():
         for t in sorted(df.loc[df["file"].str.startswith("anytime"), "threads"].unique()):
             fig_anytime(df, threads=int(t), name=f"fig_anytime_t{int(t)}")

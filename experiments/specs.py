@@ -38,7 +38,7 @@ def comparators(dist, n, seed, grid="square", threads=1, bsp_plans=(16, 64), rf=
     if exact:
         out.append(dict(method="exact", label="Exact-certified", dist=dist, n=n, seed=seed, grid=grid,
                         params=dict(threads=threads)))
-        if grid == "square":
+        if grid == "square" and n >= 100000:
             # same solver, seeded by the O(N log N) bisection start instead of ShuffleSnap
             out.append(dict(method="exact", label="Exact-certified-bisect", dist=dist, n=n, seed=seed, grid=grid,
                             params=dict(threads=threads, warm="bisect")))
@@ -84,7 +84,8 @@ def masks(n=20000, seeds=(1, 2, 3), dists=("uniform", "gmm", "spiral", "mnist"),
             for s in seeds:
                 for lab in SS:
                     specs.append(ss_spec(lab, d, n, s, grid=g, threads=threads))
-                specs += comparators(d, n, s, grid=g, threads=threads, bsp_plans=(16, 64), exact=(s == seeds[0]))
+                specs += comparators(d, n, s, grid=g, threads=threads, bsp_plans=(16, 64), rf=("master",),
+                                     exact=(s == seeds[0]))
     return specs
 
 
@@ -97,7 +98,8 @@ def primes(seeds=(1, 2, 3), threads=1):
                 for s in seeds:
                     for lab in SS:
                         specs.append(ss_spec(lab, d, n, s, grid=g, threads=threads))
-                    specs += comparators(d, n, s, grid=g, threads=threads, bsp_plans=(16,), exact=(s == seeds[0]))
+                    specs += comparators(d, n, s, grid=g, threads=threads, bsp_plans=(16,), rf=("master",),
+                                         exact=(s == seeds[0]))
     return specs
 
 

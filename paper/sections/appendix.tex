@@ -30,3 +30,36 @@ negative results in the order they happened.
 process, after a warm-up call on a 256-point instance. It includes method-specific
 preprocessing and excludes instance generation, the shared normalization, and
 validation. Peak memory is the rise of peak RSS during the call.
+
+\section{Additional tables}
+\label{app:tables}
+
+\begin{table}[h]
+\centering\scriptsize
+\setlength{\tabcolsep}{3.2pt}
+\caption{Absolute excess over the certified optimum, in cells$^2$ per point, at $N=100{,}000$
+(same runs as Table~\ref{tab:main}). ``Optimum'' is the certified optimal mean squared
+displacement. Relative and absolute excess tell different stories on the heavy-tailed
+input, where outliers dominate the optimum, and on the jittered lattice, where the
+optimum is tiny.}
+\label{tab:abs}
+\resizebox{\linewidth}{!}{\input{tables/tab_abs_100k_t1}}
+\end{table}
+
+\begin{table}[h]
+\centering\scriptsize
+\setlength{\tabcolsep}{3.2pt}
+\caption{As Table~\ref{tab:main}, at $N=10{,}000$. Here the dense SciPy solver is feasible; the
+last column gives its time on instance seed 1 (it returns the same optimum as the
+certified solver).}
+\label{tab:main10k}
+\resizebox{\linewidth}{!}{\input{tables/tab_main_10k_t1}}
+\end{table}
+
+\begin{table}[h]
+\centering\scriptsize
+\setlength{\tabcolsep}{3.2pt}
+\caption{As Table~\ref{tab:main}, at $N=50{,}000$.}
+\label{tab:main50k}
+\resizebox{\linewidth}{!}{\input{tables/tab_main_50k_t1}}
+\end{table}

@@ -34,7 +34,7 @@ def get(dist, n, seed, grid="square", normalize="bbox", compute=True, verbose=Fa
         return None
     Pn, g, _, _ = datasets.instance(dist, n, seed, grid, normalize)
     t0 = time.perf_counter()
-    warm = ss.assign(Pn, g, normalize="none", seed=12345)
+    warm = ss.assign(Pn, g, normalize="none", preset="balanced", seed=12345)
     t_warm = time.perf_counter() - t0
     ex = exact.solve_certified(Pn, g, warm.cell, verbose=verbose, time_limit=time_limit)
     ss.validate_assignment(ex["cell"], n, g)

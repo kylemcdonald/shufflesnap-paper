@@ -78,6 +78,13 @@ def load(pattern="*.jsonl", with_refs=True):
         ok = df["ref_certified"].fillna(False).astype(bool)
         df["excess_pct"] = np.where(ok, 100.0 * (df["cost"] / df["ref_cost"] - 1.0), np.nan)
         df["excess_per_pt"] = np.where(ok, (df["cost"] - df["ref_cost"]) / df["n"], np.nan)
+    # an "exact" run counts as exact only if it certified itself; otherwise it is flagged
+    if "info_certified" in df:
+        is_exact = df["method"].eq("exact")
+        df["exact_status"] = np.where(~is_exact, "",
+                                      np.where(df["error"].notna(), "timeout",
+                                               np.where(df["info_certified"].fillna(False).astype(bool),
+                                                        "certified", "not certified")))
     return df
 
 

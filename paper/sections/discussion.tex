@@ -1,0 +1,48 @@
+\section{Discussion and limitations}
+\label{sec:discussion}
+
+\paragraph{What the hypothesis survived.} Coarse-to-fine strided windows get very close
+to the optimum for the smooth, clustered layouts that motivate the problem. On the two
+real 70{,}000-point UMAP embeddings, the default preset is within \RealBalancedExcess\ of
+the certified optimum and visually indistinguishable from it. The method needs no dense
+matrix, runs in about a second with all cores at $10^5$ points, gives the same result for
+any number of threads, and never increases the cost.
+
+\paragraph{What it did not survive.} \ShuffleSnap\ is a local search, and its failures
+follow from that. (i)~On near-uniform data, its relative excess grows with $N$ (for the
+baseline, from about 1\% at $10^3$ points to about 3\% at $10^5$). The excess consists of a
+few long closed loops of one-cell shifts that no window can see whole. (ii)~Masks with
+concave bays and grids with surplus cells need global rerouting of mass, which the
+baseline gets wrong: a random start on the S-shaped mask gave up to 25\% excess. The
+$\sqrt2$ schedule removes most, but not all, of this. (iii)~A good start does not help,
+and structured starts hurt. (iv)~On a jittered lattice, where the optimum is almost the
+identity, every heuristic we tested stays far from optimal in relative terms.
+
+\paragraph{The exact solver changes the question.} We built the certified solver as an
+evaluation tool. It turned out to be practical: it gives a proven optimum at $10^5$ points
+in tens of seconds to a few minutes on one core, starting from \ShuffleSnap's answer.
+When a certified optimum is worth the wait, it is the better choice at this scale, and
+\ShuffleSnap's role is then that of a fast, good-enough answer, a warm start, and a
+method for sizes and time budgets where exact solving is out of reach. We report this
+even though it narrows the case for the method we set out to test.
+
+\paragraph{Displacement is not neighbourhood.} BSP-OT reaches within a few percent of the
+optimal displacement on the real embeddings, but halves the fraction of lattice
+neighbours that were input neighbours, because merging many partitions shuffles points
+locally. RasterFairy keeps local order inside its blocks and breaks it along block seams.
+If neighbourhood preservation is the goal, it should be optimized directly (e.g.\ with
+LAS/FLAS~\citep{barthel2023improved}); minimizing displacement buys it only to the
+extent that the optimal transport map is smooth.
+
+\paragraph{Limitations of this study.} Everything ran on one workstation, CPU only.
+BSP-OT has a CUDA implementation that we did not test. The objective is squared
+Euclidean displacement in 2D. The window solver works for any cost, but we did not
+evaluate other costs or 3D grids. The certified solver depends on OR-Tools and on
+integer scaling. Its certificate accounts for the scaling, but its running time depends
+on the candidate set and the warm start. Real data consist of two UMAP embeddings with
+one parameter setting. The bbox normalization is part of the problem definition; other
+normalizations change the optimum. Timings include warm-up exclusions and a fixed
+pinning policy, and unrelated background services were running (load about 1). We
+compared against the representative settings of each comparator, but not every setting.
+In particular, RasterFairy's swap optimizer was excluded because it requires dense
+$N\times N$ memory and does not run on Python~3 as released.

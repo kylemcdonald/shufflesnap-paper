@@ -58,6 +58,21 @@ def write(name, text):
     print("wrote", name)
 
 
+def _exact_cell(df, dist, n, threads, label):
+    """Time of a timed exact run on seed 1, or why it has no time (timeout / not certified)."""
+    r = df[(df["dist"] == dist) & (df["n"] == n) & (df["grid"] == "square") & (df["threads"] == threads) &
+           (df["label"] == label) & df["file"].str.startswith("main")]
+    if r.empty:
+        return "--"
+    r = r.iloc[0]
+    st = r.get("exact_status", "")
+    if st == "timeout":
+        return r"$>$3600\textsuperscript{t}"
+    if st == "not certified":
+        return fmt_t(r["time_s"]) + r"\textsuperscript{n}"
+    return fmt_t(r["time_s"])
+
+
 def table_main(df, n=100000, threads=1):
     d = _ok(df[(df["n"] == n) & (df["grid"] == "square") & (df["threads"] == threads) &
                df["file"].str.startswith("main")])
@@ -70,16 +85,24 @@ def table_main(df, n=100000, threads=1):
         for lab, _ in MAIN_COLS:
             e = s.loc[s["label"] == lab, "excess_pct"].mean()
             cells.append(fmt_pct(e))
-        ex = s.loc[s["label"] == "Exact-certified", "time_s"]
-        cells.append(fmt_t(ex.median()) if len(ex) else "--")
+        cells.append(_exact_cell(df, dist, n, threads, "Exact-certified"))
+        if n >= 100000:
+            cells.append(_exact_cell(df, dist, n, threads, "Exact-certified-bisect"))
+        if n <= 10000:
+            cells.append(_exact_cell(df, dist, n, threads, "Exact-dense-scipy"))
         rows.append(" & ".join(cells) + r" \\")
     # median time row
     trow = [r"\emph{median time (s)}"]
     for lab, _ in MAIN_COLS:
         trow.append(fmt_t(d.loc[d["label"] == lab, "time_s"].median()))
     trow.append(fmt_t(d.loc[d["label"] == "Exact-certified", "time_s"].median()))
-    head = " & ".join(["distribution"] + [c for _, c in MAIN_COLS] + ["exact (s)"]) + r" \\"
-    text = (r"\begin{tabular}{l" + "r" * (len(MAIN_COLS) + 1) + "}\n\\toprule\n" + head + "\n\\midrule\n" +
+    extra = ["exact (s)"] + (["exact, bis. (s)"] if n >= 100000 else []) + (["dense (s)"] if n <= 10000 else [])
+    if n >= 100000:
+        trow.append("")
+    if n <= 10000:
+        trow.append(fmt_t(d.loc[d["label"] == "Exact-dense-scipy", "time_s"].median()))
+    head = " & ".join(["distribution"] + [c for _, c in MAIN_COLS] + extra) + r" \\"
+    text = (r"\begin{tabular}{l" + "r" * (len(MAIN_COLS) + len(extra)) + "}\n\\toprule\n" + head + "\n\\midrule\n" +
             "\n".join(rows) + "\n\\midrule\n" + " & ".join(trow) + r" \\" + "\n\\bottomrule\n\\end{tabular}\n")
     write(f"tab_main_{n // 1000}k_t{threads}.tex", text)
 
@@ -104,12 +127,129 @@ def table_abs(df, n=100000, threads=1):
     write(f"tab_abs_{n // 1000}k_t{threads}.tex", text)
 
 
+GRID_NAMES = {"free": "surplus ($<$1 row)", "free10": "10\\% surplus", "wide": "4:1 rectangle", "disk": "disk",
+              "ring": "ring", "logo": "S mask", "square": "exact fit"}
+MASK_COLS = [("SS-baseline", "SS base"), ("SS-fast", "SS fast"), ("SS-balanced", "SS bal."),
+             ("SS-quality", "SS qual."), ("BSP-OT-16", "BSP 16"), ("BSP-OT-64", "BSP 64"),
+             ("RasterFairy-master", "RF master")]
+
+
+def table_masks(df):
+    d = _ok(df[df["file"].str.startswith("masks")])
+    if d.empty:
+        return
+    rows = []
+    for grid in ["free", "free10", "wide", "disk", "ring", "logo"]:
+        for dist in ["uniform", "gmm", "spiral", "mnist"]:
+            s = d[(d["grid"] == grid) & (d["dist"] == dist)]
+            if s.empty:
+                continue
+            cells = [GRID_NAMES[grid], DIST_NAMES[dist]]
+            for lab, _ in MASK_COLS:
+                v = s.loc[s["label"] == lab, "excess_pct"]
+                cells.append(fmt_pct(v.mean()) if len(v) else "--")
+            rows.append(" & ".join(cells) + r" \\")
+        rows.append(r"\addlinespace")
+    head = " & ".join(["target", "points"] + [c for _, c in MASK_COLS]) + r" \\"
+    text = (r"\begin{tabular}{ll" + "r" * len(MASK_COLS) + "}\n\\toprule\n" + head + "\n\\midrule\n" +
+            "\n".join(rows[:-1]) + "\n\\bottomrule\n\\end{tabular}\n")
+    write("tab_masks.tex", text)
+
+
+def table_primes(df):
+    d = _ok(df[df["file"].str.startswith("primes")])
+    if d.empty:
+        return
+    rows = []
+    for n in sorted(d["n"].unique()):
+        for grid in ["square", "free"]:
+            for dist in ["uniform", "gmm"]:
+                s = d[(d["n"] == n) & (d["grid"] == grid) & (d["dist"] == dist)]
+                if s.empty:
+                    continue
+                g = s.iloc[0]
+                shape = f"{int(g['n_cells'])} cells"
+                cells = [f"{n:,}", "exact fit" if grid == "square" else "full rectangle", DIST_NAMES[dist]]
+                for lab, _ in [("SS-baseline", ""), ("SS-balanced", ""), ("BSP-OT-16", ""), ("RasterFairy-master", "")]:
+                    v = s.loc[s["label"] == lab, "excess_pct"]
+                    cells.append(fmt_pct(v.mean()) if len(v) else "--")
+                rows.append(" & ".join(cells) + r" \\")
+    head = r"$N$ & target & points & SS base & SS bal. & BSP 16 & RF master \\"
+    text = ("\\begin{tabular}{lllrrrr}\n\\toprule\n" + head + "\n\\midrule\n" + "\n".join(rows) +
+            "\n\\bottomrule\n\\end{tabular}\n")
+    write("tab_primes.tex", text)
+
+
+REAL_ROWS = [("Exact-certified", "exact (certified)"), ("SS-baseline", "ShuffleSnap baseline"),
+             ("SS-fast", "ShuffleSnap fast"), ("SS-balanced", "ShuffleSnap balanced"),
+             ("SS-quality", "ShuffleSnap quality"), ("BSP-OT-16", "BSP-OT, 16 plans"), ("BSP-OT-64", "BSP-OT, 64 plans"),
+             ("RasterFairy-master", "RasterFairy master"), ("RasterFairy-pypi", "RasterFairy PyPI"),
+             ("Bisection", "bisection only")]
+
+
+def table_real(df):
+    d = _ok(df[df["file"].str.startswith("real")])
+    if d.empty:
+        return
+    t24 = d[d["threads"] == 24]
+    d1 = d[d["threads"] == 1]
+    rows = []
+    for dist in ["mnist", "fashion"]:
+        s = d1[d1["dist"] == dist]
+        s24 = t24[t24["dist"] == dist]
+        for lab, name in REAL_ROWS:
+            r = s[s["label"] == lab]
+            if r.empty:
+                continue
+            r24 = s24[s24["label"] == lab]
+            cells = [DIST_NAMES[dist] if lab == REAL_ROWS[0][0] else "", name,
+                     fmt_pct(r["excess_pct"].mean()), f"{r['mean_sq'].mean():.1f}",
+                     fmt_t(r["time_s"].median()), fmt_t(r24["time_s"].median()) if len(r24) else "--",
+                     f"{r['peak_rss_mb'].median():.0f}", f"{r['knn10'].mean():.3f}", f"{r['lattice_nbr'].mean():.3f}"]
+            rows.append(" & ".join(cells) + r" \\")
+        rows.append(r"\addlinespace")
+    head = (r" & method & excess (\%) & mean sq. & time 1T (s) & time 24T (s) & mem (MB) & kNN recall & "
+            r"lattice prec. \\")
+    text = ("\\begin{tabular}{llrrrrrrr}\n\\toprule\n" + head + "\n\\midrule\n" + "\n".join(rows[:-1]) +
+            "\n\\bottomrule\n\\end{tabular}\n")
+    write("tab_real.tex", text)
+
+
+def table_ablation(df):
+    d = _ok(df[df["file"].str.startswith("ablations")])
+    if d.empty:
+        return
+    d = d.copy()
+    d["group"] = d["label"].str.replace("abl-", "", regex=False)
+    lines = []
+    for group in d["group"].unique():
+        sub = d[d["group"] == group]
+        params = [c for c in sub.columns if c.startswith("p_") and c not in ("p_seed", "p_threads")]
+        varying = [c for c in params if sub[c].astype(str).nunique() > 1]
+        for key, s2 in sub.groupby([sub[c].astype(str) for c in varying] if varying else ["label"], sort=False):
+            key = key if isinstance(key, tuple) else (key,)
+            desc = ", ".join(f"{c[2:]}={k}" for c, k in zip(varying, key))
+            e = {dist: s2.loc[s2["dist"] == dist, "excess_pct"].mean() for dist in ["uniform", "gmm", "mnist"]}
+            t = {dist: s2.loc[s2["dist"] == dist, "time_s"].median() for dist in ["uniform", "gmm", "mnist"]}
+            lines.append(f"{group} & {desc.replace('_', ' ')} & " + " & ".join(
+                f"{fmt_pct(e[x])} & {fmt_t(t[x])}" for x in ["uniform", "gmm", "mnist"]) + r" \\")
+    head = r"group & setting & \multicolumn{2}{c}{uniform 100k} & \multicolumn{2}{c}{GMM 100k} & \multicolumn{2}{c}{MNIST 70k} \\"
+    sub = r" & & excess \% & time (s) & excess \% & time (s) & excess \% & time (s) \\"
+    text = ("\\begin{tabular}{llrrrrrr}\n\\toprule\n" + head + "\n" + sub + "\n\\midrule\n" + "\n".join(lines) +
+            "\n\\bottomrule\n\\end{tabular}\n")
+    write("tab_ablation.tex", text)
+
+
 def main():
     df = analysis.load()
     for n in (10000, 50000, 100000):
         if ((df["n"] == n) & df["file"].str.startswith("main")).any():
             table_main(df, n=n)
             table_abs(df, n=n)
+    table_masks(df)
+    table_primes(df)
+    table_real(df)
+    table_ablation(df)
 
 
 if __name__ == "__main__":
