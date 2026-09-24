@@ -33,17 +33,23 @@ was to find where it fails. The main contributions are:
 \item \textbf{A careful implementation} of the specified baseline, with documented
   boundary, rectangular-grid, surplus-cell and mask rules. It is a parallel C++ kernel
   with a Python API whose results do not depend on the number of threads.
-\item \textbf{A certified exact solver that scales to $10^5$ points.} It solves min-cost
+\item \textbf{A certified exact solver that reaches $10^6$ points.} It solves min-cost
   flow on sparse candidate edges, then prices every edge of the \emph{dense} problem
-  through a Lagrangian bound, adding edges until the bound meets the primal cost. It
-  gives true optimality gaps, not progress relative to our own best answer, for every
-  instance up to 200{,}000 points in this study. In our experiments it is also a strong
-  practical baseline.
-\item \textbf{Measured improvements and non-improvements.} On a held-out development set,
-  a finer stride sequence (ratio $\sqrt2$ instead of 2) and larger windows reduce the
-  excess cost severalfold for a small time increase. Several intuitive ideas make things
-  \emph{worse}: sorted or bisection starts, polishing at coarser strides, and a
-  Jonker--Volgenant window solver.
+  through a Lagrangian bound, adding edges until the bound meets the primal cost. It gives
+  true optimality gaps, not progress relative to our own best answer, for all 211 benchmark
+  instances (up to 200{,}000 points) and for uniform instances up to $10^6$ points. It
+  turned out to be a strong practical baseline as well.
+\item \textbf{Measured improvements and non-improvements.} Changes were chosen on a
+  development set and evaluated on held-out instances. A finer stride sequence (ratio
+  $\sqrt2$ instead of 2) with $8\times8$ windows reduces the excess over the optimum
+  2.6--14$\times$, at about three times the running time. Several intuitive ideas did not
+  help:
+  \begin{itemize}
+  \item sorted or bisection starts make results \emph{worse};
+  \item polishing at coarser strides and merging independent runs help little or not
+    at all;
+  \item a Jonker--Volgenant window solver is slower.
+  \end{itemize}
 \item \textbf{A diagnosis of the remaining error.} The gap to the optimum is concentrated
   in a few long closed loops of points, each displaced by about one cell. No window
   smaller than a loop can remove it. Masks with concave bays and grids with surplus

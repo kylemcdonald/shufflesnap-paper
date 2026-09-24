@@ -134,7 +134,7 @@ def fig_scaling(df, name="fig_scaling"):
 def fig_anytime(df, threads=1, name="fig_anytime"):
     d = _ok(df[df["file"].str.startswith("anytime") & (df["threads"] == threads)])
     dists = [x for x in ["uniform", "gmm", "mnist"] if x in set(d["dist"])]
-    fig, axes = plt.subplots(1, len(dists), figsize=(7.0, 2.5), layout="constrained")
+    fig, axes = plt.subplots(1, len(dists), figsize=(7.0, 2.9), layout="constrained")
     axes = np.atleast_1d(axes)
     for ax, dist in zip(axes, dists):
         sub = d[d["dist"] == dist]
@@ -169,11 +169,13 @@ def fig_anytime(df, threads=1, name="fig_anytime"):
             ax.plot([], [], marker="^", color=fs.COLORS["RasterFairy-master"], ls="", label="RasterFairy (leaf 1–1000)")
         ax.set_xscale("log")
         ax.set_yscale("log")
+        ax.set_ylim(FLOOR, 2e3)
         ax.set_xlabel(f"time (s, {'1 thread' if threads == 1 else f'{threads} threads'})")
         ax.set_title(DIST_TITLES[dist] + f", N = {int(sub['n'].iloc[0]):,}", loc="left")
         fs.recess(ax, grid_axis="both")
     axes[0].set_ylabel("excess over optimum (%)")
-    axes[-1].legend(fontsize=6, loc="upper right")
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="outside lower center", ncol=3, fontsize=6.3, frameon=False)
     _save(fig, name)
 
 
@@ -268,7 +270,7 @@ def fig_threads(df, name="fig_threads"):
                                    f" ({s2.iloc[0]:.1f} s on 1 thread)")
         ax.plot([1, 24], [1, 24], color=fs.GRID, lw=0.8)
         ax.axvline(16, color=fs.GRID, lw=0.6)
-        ax.set_xlabel("threads (≤16: performance cores)")
+        ax.set_xlabel("threads (grey line at 16 = performance-core threads)")
         ax.set_title(DIST_TITLES[dist] + ", N = 100,000", loc="left")
         fs.recess(ax, grid_axis="y")
         ax.legend(fontsize=5.8, loc="upper left")

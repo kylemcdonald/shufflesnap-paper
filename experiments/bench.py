@@ -71,6 +71,14 @@ def run_child(spec):
     rec["warmup_s"] = time.perf_counter() - tw
     Pn, g, labels, _ = datasets.instance(spec["dist"], spec["n"], spec["seed"], spec.get("grid", "square"))
     n = len(Pn)
+    if spec.get("trim_heap"):
+        # Return memory freed during instance generation to the OS, so that the method's own
+        # allocations raise the resident set instead of silently reusing freed heap pages.
+        import ctypes
+        import gc
+
+        gc.collect()
+        ctypes.CDLL("libc.so.6").malloc_trim(0)
     st0 = _status()
     _reset_peak()
     t0 = time.perf_counter()

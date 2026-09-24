@@ -1,7 +1,7 @@
 \subsection{Anatomy of the remaining error}
 \label{sec:anatomy}
 
-\begin{figure}[t]
+\begin{figure}[tbp]
   \centering
   \includegraphics[width=\linewidth]{figures/fig_failures.pdf}
   \caption{Where \ShuffleSnap\ loses to the optimum (development instances, shown for
@@ -50,7 +50,7 @@ suite includes this configuration as a documented limitation.
 On real inputs, larger windows remove the shorter loops, and the $\sqrt2$ schedule creates
 fewer loops in the first place, but the long loops remain. Their number and total length grow
 with $N$, which is why the baseline's relative excess on uniform points grows from about
-1\% at $10^3$ points to about 3\% at $10^5$.
+1\% at $10^3$ points to 2.5\% at $10^5$ and 5.3\% at $10^6$ (Section~\ref{sec:scaling}).
 
 Masks make the same mechanism visible at a larger scale (Figure~\ref{fig:failures}c--e).
 At a coarse stride, a window's cells can lie on both sides of a concave bay, so mass

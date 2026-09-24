@@ -1,3 +1,31 @@
 \begin{abstract}
-Pending.
+Snapping each point of a 2D embedding (such as a UMAP layout) to its own cell of a grid,
+while minimizing total squared displacement, is a linear assignment problem. Dense solvers
+cannot handle it beyond a few tens of thousands of points. We develop and test
+\ShuffleSnap, a local search inspired by Shellsort. At a decreasing sequence of strides, it
+splits the grid into interleaved subgrids and solves small exact assignment problems in
+shifted $6\times6$ windows of each.
+
+To measure true optimality gaps, we built a certified exact solver. It combines min-cost
+flow on sparse candidate edges with a Lagrangian lower bound priced over all cells. Started
+from \ShuffleSnap, it proved optimality on every instance we tried, up to $10^6$ points.
+
+On held-out instances with $10^5$ points, the baseline as specified is within 0.2\% of the
+optimum on nine of eleven distributions. It takes about 5\,s on one core and 0.35\,s on 24
+threads. A finer stride sequence (ratio $\sqrt2$) with $8\times8$ windows reduces the excess
+a further 2.6--14$\times$ on ten of the eleven. BSP-OT is faster but typically 10--350$\times$ further from
+optimal. RasterFairy is 17--425\% above optimal on most inputs. A dense exact solver
+already needs up to 6 minutes at $10^4$ points.
+
+The method's limits are structural. Its error consists of long closed loops of one-cell
+shifts that no window can remove, and we construct inputs on which its relative gap is
+unbounded. Uniform points (2.5\% at $10^5$, 5.3\% at $10^6$), jittered lattices (33\%), a
+concave mask (18\%, worse than BSP-OT) and surplus cells remain hard. Structured starts
+make results worse, and polishing at coarser strides changes nothing. Warm-started from
+\ShuffleSnap, the certified solver reaches proven optima in seconds to minutes at $10^5$
+points, which narrows the practical case for the heuristic.
+
+On real UMAP embeddings, displacement and neighbourhood preservation diverge. BSP-OT is
+within 2--7\% of the optimal displacement but halves the fraction of preserved grid
+neighbours. We release both the implementation and all experiment code and raw results.
 \end{abstract}

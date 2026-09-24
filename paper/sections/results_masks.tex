@@ -1,1 +1,45 @@
-\subsection{Pending}
+\subsection{Masks, surplus cells and prime counts}
+\label{sec:masks}
+
+\begin{figure}[tbp]
+  \centering
+  \includegraphics[width=\linewidth]{figures/fig_masks.pdf}
+  \caption{A 20{,}000-point subset of the MNIST UMAP embedding on a disk, a ring, an
+  S-shaped mask, and a rectangle with 10\% surplus cells (instance seed 1; colors encode
+  input position as in Figure~\ref{fig:visual}; white = empty or masked). Numbers are
+  excess over the certified optimum. With surplus cells, the optimum leaves one contiguous
+  region empty, far from the data, and \ShuffleSnap-balanced finds the same region.
+  BSP-OT's partial matching leaves ragged holes along the boundary, and RasterFairy
+  removes surplus cells at random before slicing.}
+  \label{fig:masks}
+\end{figure}
+
+\begin{table}[tbp]
+\centering\scriptsize
+\setlength{\tabcolsep}{3.5pt}
+\caption{Excess over the certified optimum (\%) on non-square targets, $N=20{,}000$, mean of
+instance seeds 1--3 (all 24 exact runs certified). ``Surplus ($<$1 row)'' is the full
+$W\times H$ rectangle holding $N$ points, with fewer than $W$ empty cells;
+``10\% surplus'' has $1.1N$ cells.}
+\label{tab:masks}
+\resizebox{\linewidth}{!}{\input{tables/tab_masks}}
+\end{table}
+
+Table~\ref{tab:masks} and Figure~\ref{fig:masks} cover non-square targets.
+\begin{itemize}
+\item \textbf{Convex masks.} On disks and rings, every \ShuffleSnap\ preset stays within
+  0.25\% (baseline) and 0.07\% (balanced) of the optimum. BSP-OT is at 2.5--9\% and
+  RasterFairy at 11--54\%.
+\item \textbf{The S-shaped mask.} This is the baseline's worst case. With uniform points
+  it is 18.3\% above optimal, worse than BSP-OT with 64 plans (13.2\%); with the spiral it
+  is 7.3\%. The mechanism is the one in Figure~\ref{fig:failures}: coarse strides route
+  mass across the bays. The $\sqrt2$ schedule repairs most of this. Balanced reaches
+  1.3\% and 0.26\%, and quality 0.13\% and 0.04\%.
+\item \textbf{Surplus cells.} When the solver must also choose the empty cells, the baseline
+  degrades noticeably: 0.7--4.4\% with 10\% surplus, and 8.4\% for uniform points with
+  less than one row of surplus. Balanced stays below 1\% everywhere except that last
+  case (3.1\%), and quality stays below 1.4\%. Surplus is where the comparators suffer
+  most. With 10\% surplus, BSP-OT's partial matching is 18--109\% above optimal, and
+  RasterFairy, which picks the empty cells at random, is 72--350\% above optimal. With
+  less than one row of surplus, they are at 5--90\% and 17--57\%.
+\end{itemize}

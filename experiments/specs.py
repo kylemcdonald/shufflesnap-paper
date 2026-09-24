@@ -184,3 +184,19 @@ def all_instances():
     inst = {(sp["dist"], sp["n"], sp["seed"], sp.get("grid", "square")) for sp in specs}
     # certified references only where tractable (<= 200k points)
     return sorted((i for i in inst if i[1] <= 200000), key=lambda i: (i[1], i[0], i[3], i[2]))
+
+
+def memory(threads=1, seed=1):
+    """Peak-memory measurements with the heap trimmed before the call (see bench.py)."""
+    specs = []
+    for d in ("uniform", "gmm"):
+        for n in (10000, 100000, 1000000):
+            for lab in ("SS-baseline", "SS-balanced"):
+                specs.append(dict(ss_spec(lab, d, n, seed, threads=threads), trim_heap=True))
+            for sp in comparators(d, n, seed, threads=threads, bsp_plans=(16,), rf=("master",),
+                                  exact=(n <= 100000), dense=(n <= 10000)):
+                if sp["label"] == "Exact-certified-bisect":
+                    continue
+                sp["trim_heap"] = True
+                specs.append(sp)
+    return specs

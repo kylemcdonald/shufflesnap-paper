@@ -202,8 +202,9 @@ def table_real(df):
             if r.empty:
                 continue
             r24 = s24[s24["label"] == lab]
+            exc = "0" if lab.startswith("Exact") else fmt_pct(r["excess_pct"].mean())
             cells = [DIST_NAMES[dist] if lab == REAL_ROWS[0][0] else "", name,
-                     fmt_pct(r["excess_pct"].mean()), f"{r['mean_sq'].mean():.1f}",
+                     exc, f"{r['mean_sq'].mean():.1f}",
                      fmt_t(r["time_s"].median()), fmt_t(r24["time_s"].median()) if len(r24) else "--",
                      f"{r['peak_rss_mb'].median():.0f}", f"{r['knn10'].mean():.3f}", f"{r['lattice_nbr'].mean():.3f}"]
             rows.append(" & ".join(cells) + r" \\")

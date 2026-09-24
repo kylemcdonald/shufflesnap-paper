@@ -1,1 +1,38 @@
-\subsection{Pending}
+\subsection{Scaling in time and memory}
+\label{sec:scaling}
+
+\begin{figure}[tbp]
+  \centering
+  \includegraphics[width=\linewidth]{figures/fig_scaling.pdf}
+  \caption{Time and peak extra memory against $N$ on one thread (instance seed 1). Dense
+  SciPy was run up to the largest size we considered sensible: 50k uniform points
+  (23\,GB) and 20k mixture points (22\,min). The certified solver was run up to $10^6$
+  uniform and $2\times10^5$ mixture points. \ShuffleSnap's tiny memory readings on the
+  mixture are a measurement artifact: they reuse heap pages freed while the instance was
+  generated. A heap-trimmed re-measurement is in Table~\ref{tab:memory}.}
+  \label{fig:scaling}
+\end{figure}
+
+Between $10^4$ and $10^6$ points, \ShuffleSnap, BSP-OT and RasterFairy all scale close to
+linearly. Their fitted exponents of time in $N$ are 1.11--1.18, 1.08 and about 1.0
+(Figure~\ref{fig:scaling}). On one thread, $10^6$ uniform points take 25\,s for the baseline
+and 45\,s for balanced; with 24 threads, 1.6\,s and 2.9\,s. On the mixture, $10^6$ points
+take 68\,s and 248\,s on one thread, or 4.4\,s and 17\,s on 24 threads. BSP-OT (16 plans)
+and RasterFairy take 9\,s and 13--20\,s on one thread.
+
+Exact solving scales worse but reaches further than we expected. The certified solver's
+time grew as $N^{1.5}$ on uniform points and $N^{1.6}$ on the mixture. It certified $10^6$
+uniform points in 11.8\,min using 4.3\,GB, and $2\times10^5$ mixture points in 6.8\,min.
+Its memory, 4--8\,kB per point, is set by the candidate edges and the flow solver.
+Dense SciPy grew as $N^{2.2}$ (uniform) to $N^{2.9}$ (mixture) and needs $8N^2$ bytes. It
+took 6.2\,min and 23\,GB at 50k uniform points, and 22\,min at 20k mixture points.
+\ShuffleSnap\ needs $O(N)$ working memory: an occupancy array, a position array, a
+last-change stamp per cell, and the window lists of the current level, which come to a
+few tens of bytes per cell.
+
+At $10^6$ uniform points, the quality ranking is unchanged. Measured against the
+certified optimum of that instance, the excess is 5.3\% for the baseline, 2.0\% for fast
+and 1.3\% for balanced, against 74\% for BSP-OT (16 plans) and 48\% for RasterFairy. The
+baseline's excess keeps growing with $N$ (1.1\% at $10^3$, 2.5\% at $10^5$ and 5.3\% at $10^6$,
+one instance each); the finer schedules grow much more slowly (balanced: 0.1\%, 1.0\%,
+1.3\%).

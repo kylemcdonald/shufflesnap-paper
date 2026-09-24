@@ -78,6 +78,20 @@ def load(pattern="*.jsonl", with_refs=True):
         ok = df["ref_certified"].fillna(False).astype(bool)
         df["excess_pct"] = np.where(ok, 100.0 * (df["cost"] / df["ref_cost"] - 1.0), np.nan)
         df["excess_per_pt"] = np.where(ok, (df["cost"] - df["ref_cost"]) / df["n"], np.nan)
+    # Beyond the reference cache (>200k points), a timed exact run that certified itself
+    # provides the optimum for the same instance.
+    if "info_certified" in df and "ref_cost" in df:
+        cert = df[df["method"].eq("exact") & df["info_certified"].fillna(False).astype(bool) & df["error"].isna()]
+        if not cert.empty:
+            best = cert.groupby(["dist", "n", "seed", "grid"])["cost"].min()
+            key = list(zip(df["dist"], df["n"], df["seed"], df["grid"]))
+            fill = pd.Series([best.get(k, np.nan) for k in key], index=df.index)
+            miss = df["ref_cost"].isna() & fill.notna()
+            df.loc[miss, "ref_cost"] = fill[miss]
+            df.loc[miss, "ref_certified"] = True
+            ok = df["ref_certified"].fillna(False).astype(bool)
+            df["excess_pct"] = np.where(ok, 100.0 * (df["cost"] / df["ref_cost"] - 1.0), np.nan)
+            df["excess_per_pt"] = np.where(ok, (df["cost"] - df["ref_cost"]) / df["n"], np.nan)
     # an "exact" run counts as exact only if it certified itself; otherwise it is flagged
     if "info_certified" in df:
         is_exact = df["method"].eq("exact")

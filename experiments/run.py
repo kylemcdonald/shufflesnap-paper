@@ -27,6 +27,7 @@ EXPERIMENTS = {
     "scaling": specs.scaling,
     "anytime": specs.anytime,
     "ablations": specs.ablations,
+    "memory": specs.memory,
 }
 
 PARALLEL_METHODS = {"shufflesnap", "bspot"}

@@ -12,7 +12,16 @@
 \usepackage{subcaption}
 \usepackage{enumitem}
 \usepackage[hidelinks,pdfusetitle]{hyperref}
+\usepackage[section]{placeins}
 \captionsetup{font=small,labelfont=bf}
+% let tall full-width figures sit near their text instead of drifting to the end
+\renewcommand{\topfraction}{0.92}
+\renewcommand{\bottomfraction}{0.8}
+\renewcommand{\textfraction}{0.07}
+\renewcommand{\floatpagefraction}{0.75}
+\setcounter{topnumber}{3}
+\setcounter{bottomnumber}{2}
+\setcounter{totalnumber}{5}
 \setlist{itemsep=2pt,topsep=4pt}
 \newtheorem{proposition}{Proposition}
 \newcommand{\R}{\mathbb{R}}

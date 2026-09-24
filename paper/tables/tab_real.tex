@@ -1,0 +1,27 @@
+\begin{tabular}{llrrrrrrr}
+\toprule
+ & method & excess (\%) & mean sq. & time 1T (s) & time 24T (s) & mem (MB) & kNN recall & lattice prec. \\
+\midrule
+MNIST UMAP & exact (certified) & 0 & 2284.7 & 85.2 & -- & 568 & 0.645 & 0.581 \\
+ & ShuffleSnap baseline & 0.015 & 2285.0 & 3.45 & 0.24 & 2 & 0.644 & 0.578 \\
+ & ShuffleSnap fast & 0.010 & 2284.9 & 5.01 & 0.34 & 2 & 0.643 & 0.578 \\
+ & ShuffleSnap balanced & 0.002 & 2284.7 & 11.5 & 0.80 & 2 & 0.645 & 0.580 \\
+ & ShuffleSnap quality & $<$0.001 & 2284.7 & 37.4 & 2.80 & 2 & 0.644 & 0.580 \\
+ & BSP-OT, 16 plans & 3.73 & 2370.0 & 0.49 & 0.088 & 16 & 0.305 & 0.255 \\
+ & BSP-OT, 64 plans & 2.42 & 2340.0 & 1.98 & 0.28 & 42 & 0.305 & 0.249 \\
+ & RasterFairy master & 20.0 & 2742.4 & 1.38 & -- & 42 & 0.631 & 0.551 \\
+ & RasterFairy PyPI & 44.5 & 3301.0 & 11.2 & -- & 44 & 0.602 & 0.534 \\
+ & bisection only & 34.4 & 3071.1 & 0.023 & -- & 0 & 0.569 & 0.498 \\
+\addlinespace
+Fashion UMAP & exact (certified) & 0 & 1802.6 & 77.6 & -- & 576 & 0.606 & 0.548 \\
+ & ShuffleSnap baseline & 0.009 & 1802.7 & 3.37 & 0.24 & 2 & 0.606 & 0.547 \\
+ & ShuffleSnap fast & 0.003 & 1802.6 & 4.73 & 0.32 & 2 & 0.606 & 0.547 \\
+ & ShuffleSnap balanced & 0.001 & 1802.6 & 10.8 & 0.76 & 2 & 0.607 & 0.547 \\
+ & ShuffleSnap quality & $<$0.001 & 1802.6 & 35.8 & 2.69 & 2 & 0.607 & 0.547 \\
+ & BSP-OT, 16 plans & 9.15 & 1967.5 & 0.50 & 0.088 & 16 & 0.295 & 0.245 \\
+ & BSP-OT, 64 plans & 6.73 & 1923.8 & 1.98 & 0.28 & 42 & 0.334 & 0.275 \\
+ & RasterFairy master & 24.6 & 2245.3 & 1.38 & -- & 42 & 0.611 & 0.532 \\
+ & RasterFairy PyPI & 25.6 & 2264.5 & 11.1 & -- & 44 & 0.594 & 0.526 \\
+ & bisection only & 23.0 & 2217.7 & 0.023 & -- & 0 & 0.544 & 0.477 \\
+\bottomrule
+\end{tabular}

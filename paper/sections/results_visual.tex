@@ -1,7 +1,7 @@
 \subsection{Real embeddings: displacement versus neighbourhoods}
 \label{sec:real}
 
-\begin{figure}[t]
+\begin{figure}[tbp]
   \centering
   \includegraphics[width=\linewidth]{figures/fig_visual_mnist.pdf}
   \caption{All 70{,}000 MNIST digits, UMAP layout snapped to a $265\times265$ grid. Each
@@ -17,18 +17,33 @@
   \label{fig:visual}
 \end{figure}
 
+\begin{table}[tbp]
+\centering\scriptsize
+\setlength{\tabcolsep}{3.5pt}
+\caption{Real embeddings, all 70{,}000 points (square exact-fit grid). Excess over the
+certified optimum and neighbourhood measures are means over three method seeds; times are
+medians on one thread (1T) and on 24 threads (24T, methods that use threads only). Memory is
+the rise of peak resident memory during the call. kNN recall: fraction of each point's 10
+nearest input neighbours among its 10 nearest grid neighbours. Lattice precision: fraction
+of occupied 8-neighbour cells holding one of the point's 8 nearest input neighbours.}
+\label{tab:real}
+\resizebox{\linewidth}{!}{\input{tables/tab_real}}
+\end{table}
+
 Figure~\ref{fig:visual} and Table~\ref{tab:real} compare the methods on the full MNIST
 and Fashion-MNIST embeddings. In the runs shown, the balanced preset is within 0.002\%
 of the certified optimum on both datasets, and the baseline within 0.014\%.
 In every panel their colour fields match the optimum's.
 
-The two measures disagree on BSP-OT. Its displacement is only 3.0\% (MNIST) and 6.5\%
-(Fashion) above optimal, yet its lattice precision is 0.27--0.28, against 0.55--0.57 for
-the optimum. Averaged over plans, the merged BSP partitions are close to the transport
+The two measures disagree on BSP-OT. With 64 plans, its displacement is only 2.4\% (MNIST) and
+6.7\% (Fashion) above optimal, yet both neighbourhood measures fall to about half: kNN recall
+0.31--0.33 against 0.61--0.65 for the optimum, and lattice precision 0.25--0.28 against
+0.55--0.58. Averaged over plans, the merged BSP partitions are close to the transport
 map, but they shuffle points locally. RasterFairy shows the opposite pattern: its
-displacement is 20--25\% above optimal, yet its lattice precision (0.54--0.55) is close
-to the optimum's, because local order survives inside each slice and breaks only along
-the seams. Even the optimum has lattice precision well below 1: an optimal transport map
+displacement is 20--25\% above optimal, yet its neighbourhood measures are close to the
+optimum's. On Fashion-MNIST its kNN recall (0.611) even exceeds the optimum's (0.606),
+because local order survives inside each slice and breaks only along the seams.
+\ShuffleSnap's measures match the optimum's to within 0.003. Even the optimum has lattice precision well below 1: an optimal transport map
 from clustered data to a uniform grid tears the layout along cluster boundaries (the
 white lines in row~4). Minimizing displacement and preserving neighbourhoods are
 different objectives, and neither implies the other.
