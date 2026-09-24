@@ -216,29 +216,86 @@ def table_real(df):
     write("tab_real.tex", text)
 
 
+ABL_NAMES = {"window": "window side (ratio 2)", "window-r1.41": r"window side (ratio $\sqrt2$)",
+             "ratio": "stride ratio", "start": "start", "rounds": "rounds per level", "offsets": "tilings per round",
+             "solver": "window solver", "skip_clean": "skip unchanged windows", "coarse": "first stride"}
+
+
+def _abl_setting(group, r):
+    if group in ("window", "window-r1.41"):
+        return f"{int(r['p_window'])}$\\times${int(r['p_window'])}"
+    if group == "ratio":
+        v = float(r["p_ratio"])
+        return {3.0: "3", 2.0: "2 (baseline)", 1.1: "1.1"}.get(round(v, 3), f"{v:.2f}")
+    if group == "start":
+        return {"random": "random (baseline)", "bisect": "bisection", "rowsort": "row sort"}[r["p_init"]]
+    if group == "rounds":
+        return f"{int(r['p_rounds'])}"
+    if group == "offsets":
+        import json as _json
+        k = len(_json.loads(r["p_offsets"]))
+        return {1: "1", 2: "2 (diagonal)", 4: "4 (baseline)", 9: "9"}.get(k, str(k))
+    if group == "solver":
+        name = {"hungarian": "Hungarian", "hungarian_greedy": "Hungarian + greedy start", "jv": "Jonker--Volgenant"}
+        return f"{name[r['p_solver']]}, {int(r['p_window'])}$\\times${int(r['p_window'])}"
+    if group == "skip_clean":
+        return "yes (baseline)" if bool(r["p_skip_clean"]) else "no"
+    if group == "coarse":
+        v = r.get("p_start_stride")
+        return "automatic (baseline)" if v is None or v != v else f"capped at {int(v)}"
+    return ""
+
+
 def table_ablation(df):
     d = _ok(df[df["file"].str.startswith("ablations")])
     if d.empty:
         return
     d = d.copy()
     d["group"] = d["label"].str.replace("abl-", "", regex=False)
+    d["setting"] = [_abl_setting(g, r) for g, (_, r) in zip(d["group"], d.iterrows())]
     lines = []
-    for group in d["group"].unique():
+    for group in ["window", "window-r1.41", "ratio", "start", "rounds", "offsets", "coarse", "solver", "skip_clean"]:
         sub = d[d["group"] == group]
-        params = [c for c in sub.columns if c.startswith("p_") and c not in ("p_seed", "p_threads")]
-        varying = [c for c in params if sub[c].astype(str).nunique() > 1]
-        for key, s2 in sub.groupby([sub[c].astype(str) for c in varying] if varying else ["label"], sort=False):
-            key = key if isinstance(key, tuple) else (key,)
-            desc = ", ".join(f"{c[2:]}={k}" for c, k in zip(varying, key))
-            e = {dist: s2.loc[s2["dist"] == dist, "excess_pct"].mean() for dist in ["uniform", "gmm", "mnist"]}
-            t = {dist: s2.loc[s2["dist"] == dist, "time_s"].median() for dist in ["uniform", "gmm", "mnist"]}
-            lines.append(f"{group} & {desc.replace('_', ' ')} & " + " & ".join(
+        if sub.empty:
+            continue
+        first = True
+        for setting, s2 in sub.groupby("setting", sort=False):
+            e = {x: s2.loc[s2["dist"] == x, "excess_pct"].mean() for x in ["uniform", "gmm", "mnist"]}
+            t = {x: s2.loc[s2["dist"] == x, "time_s"].median() for x in ["uniform", "gmm", "mnist"]}
+            lines.append((ABL_NAMES[group] if first else "") + f" & {setting} & " + " & ".join(
                 f"{fmt_pct(e[x])} & {fmt_t(t[x])}" for x in ["uniform", "gmm", "mnist"]) + r" \\")
-    head = r"group & setting & \multicolumn{2}{c}{uniform 100k} & \multicolumn{2}{c}{GMM 100k} & \multicolumn{2}{c}{MNIST 70k} \\"
+            first = False
+        lines.append(r"\addlinespace")
+    head = (r"change & setting & \multicolumn{2}{c}{uniform 100k} & \multicolumn{2}{c}{mixture 100k} & "
+            r"\multicolumn{2}{c}{MNIST 70k} \\")
     sub = r" & & excess \% & time (s) & excess \% & time (s) & excess \% & time (s) \\"
-    text = ("\\begin{tabular}{llrrrrrr}\n\\toprule\n" + head + "\n" + sub + "\n\\midrule\n" + "\n".join(lines) +
+    text = ("\\begin{tabular}{llrrrrrr}\n\\toprule\n" + head + "\n" + sub + "\n\\midrule\n" + "\n".join(lines[:-1]) +
             "\n\\bottomrule\n\\end{tabular}\n")
     write("tab_ablation.tex", text)
+
+
+def table_memory(df):
+    d = _ok(df[df["file"].str.startswith("memory")])
+    if d.empty:
+        return
+    rows_def = [("SS-baseline", "ShuffleSnap baseline"), ("SS-balanced", "ShuffleSnap balanced"),
+                ("BSP-OT-16", "BSP-OT, 16 plans"), ("RasterFairy-master", "RasterFairy master"),
+                ("Exact-certified", "exact, certified sparse"), ("Exact-dense-scipy", "exact, dense SciPy"),
+                ("Bisection", "bisection only")]
+    sizes = [10000, 100000, 1000000]
+    lines = []
+    for lab, name in rows_def:
+        cells = [name]
+        for dist in ["uniform", "gmm"]:
+            for n in sizes:
+                v = d[(d["label"] == lab) & (d["dist"] == dist) & (d["n"] == n)]["peak_rss_mb"]
+                cells.append(f"{v.median():.1f}" if len(v) and v.median() < 100 else (f"{v.median():.0f}" if len(v) else "--"))
+        lines.append(" & ".join(cells) + r" \\")
+    head = (r" & \multicolumn{3}{c}{uniform} & \multicolumn{3}{c}{Gaussian mixture} \\" + "\n" +
+            r"method & $10^4$ & $10^5$ & $10^6$ & $10^4$ & $10^5$ & $10^6$ \\")
+    text = ("\\begin{tabular}{lrrrrrr}\n\\toprule\n" + head + "\n\\midrule\n" + "\n".join(lines) +
+            "\n\\bottomrule\n\\end{tabular}\n")
+    write("tab_memory.tex", text)
 
 
 def main():
@@ -251,6 +308,7 @@ def main():
     table_primes(df)
     table_real(df)
     table_ablation(df)
+    table_memory(df)
 
 
 if __name__ == "__main__":

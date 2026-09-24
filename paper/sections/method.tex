@@ -46,8 +46,10 @@ The baseline follows the specification we were given:
 \paragraph{Window solver and acceptance.} Each window is a rectangular problem: $k$
 occupants and $m\ge k$ cells, with $m\le36$ in the baseline. We solve it with the
 shortest-augmenting-path Hungarian method with potentials, in $O(k^2m)$ time. A cheap
-warm start (row reduction, then matching every row whose cheapest column is still free)
-saves 5--20\% and does not change the optimum. A new window assignment replaces the old
+warm start does not change the optimum: row reduction, then matching every row whose
+cheapest column is still free. It saves 5--20\% in a micro-benchmark on synthetic windows,
+but in full runs its effect ranges from 15\% faster (uniform) to 3\% slower (clustered data;
+Section~\ref{sec:ablation}). A new window assignment replaces the old
 one only if it is cheaper by more than a relative $10^{-12}$. Because the old assignment
 is feasible for the window problem, every accepted change strictly lowers the global
 cost by at least that margin. Hence the cost sequence is monotone, the search
@@ -83,8 +85,10 @@ changed its occupant. A window whose cells are unchanged since it was last solve
 same stage is already optimal, and skipping it does not change the result (also tested).
 This matters in the stride-1 convergence rounds, where most windows are untouched. The
 cost is recomputed exactly after every phase, which gives an anytime trace, and a time
-budget is checked between windows. There is no just-in-time compilation. Building the
-extension takes about 2\,s, and \texttt{pip install} builds a wheel.
+budget is checked between windows. There is no just-in-time compilation, so nothing is compiled at run time. Compiling the
+extension takes 2.6\,s with parallel Ninja (7.8\,s on one core). A complete isolated wheel
+build, including creating the build environment as \texttt{pip install} does from source,
+takes about 35\,s.
 
 \paragraph{Work per level.} A phase at stride $s$ has about $M/w^2$ windows (plus clipped
 ones), each an $O(w^6)$ Hungarian solve in the worst case. The work per phase is
@@ -103,10 +107,12 @@ held-out seeds. Four changes were tested systematically (Section~\ref{sec:ablati
 \item \textbf{Stride ratio.} Dividing strides by $\sqrt2$ instead of 2 (rounded to
   integers, duplicates removed) roughly doubles the number of levels. Each level costs
   about the same, but the configuration entering a level is already better. At equal
-  window size this consistently lowered the excess. Ratios of 3 or 1.1, or using every
-  integer stride, were worse.
-\item \textbf{Window size.} Larger windows help at every level, at a cost that grows
-  roughly as $w^4$. Using small windows at coarse strides and large ones at stride 1
+  window size this consistently lowered the excess. Ratios of 3 or 1.1 were worse, and so was using every integer stride
+  (development set only).
+\item \textbf{Window size.} Larger windows help at every level. Their cost grows as $w^4$ in
+  the worst case, but in our runs as about $w^2$ (uniform) to $w^{2.8}$ (clustered data). Two measured
+  effects contribute: nearly sorted windows solve 2--3$\times$ faster than random ones, and
+  unchanged windows are skipped. Using small windows at coarse strides and large ones at stride 1
   was worse than using large windows throughout.
 \item \textbf{Start.} Structured starts are \emph{worse} than a random permutation:
   bisection (the recursive median split used by RasterFairy-like methods), row sorting,
@@ -117,9 +123,10 @@ held-out seeds. Four changes were tested systematically (Section~\ref{sec:ablati
   reduction is 1.5$\times$ ($6\times6$) to 15$\times$ ($16\times16$) slower than the
   Hungarian method, because squared distances create many near-ties. Only on nearly
   sorted $6\times6$ windows is it faster (7 vs.\ 11\,$\mu$s).
-  Polishing with extra stride-2 rounds after convergence changes nothing (a stride-2
-  window cannot move a point by one cell), and nine shifted tilings per round instead
-  of four is less efficient than a second round.
+  Polishing with extra stride-2 rounds after convergence changed nothing on
+  uniform points and removed under 3\% of the excess on clustered data (held-out check;
+  a stride-2 window cannot move a point by one cell). Merging independent runs component
+  by component, the rule BSP-OT uses, helps less per unit time than a larger window.
 \end{itemize}
 
 We keep the baseline exactly as specified and add three presets on the $\sqrt2$

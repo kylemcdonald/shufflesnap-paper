@@ -71,3 +71,13 @@ certified solver).}
   (RasterFairy is single-threaded).}
   \label{fig:anytime24}
 \end{figure}
+
+\begin{table}[tbp]
+\centering\scriptsize
+\caption{All held-out ablations (24 threads): mean excess over the certified optimum (\%) and
+median time (s) over instance seeds 1--3. Each row changes one setting of the baseline
+($6\times6$ windows, stride ratio 2, four tilings, random start, one round per level,
+greedy-start Hungarian solver, unchanged windows skipped, automatic start stride).}
+\label{tab:ablation}
+\resizebox{\linewidth}{!}{\input{tables/tab_ablation}}
+\end{table}

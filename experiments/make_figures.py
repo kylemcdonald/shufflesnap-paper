@@ -104,30 +104,28 @@ def fig_tradeoff(df, n=100000, threads=1, name="fig_tradeoff"):
 
 
 def fig_scaling(df, name="fig_scaling"):
+    """Single-thread time against N. Memory is reported separately from a heap-trimmed run
+    (Table tab:memory), because peak-RSS rise under-reports small allocations that reuse
+    heap pages freed while the instance was generated."""
     d = _ok(df[df["file"].str.startswith("scaling") & (df["grid"] == "square")])
-    fig, axes = plt.subplots(2, 2, figsize=(7.0, 4.8), layout="constrained", sharex=True)
-    for c, dist in enumerate(["uniform", "gmm"]):
-        for r, (col, ylabel) in enumerate([("time_s", "time (s, 1 thread)"), ("peak_rss_mb", "peak extra memory (MB)")]):
-            ax = axes[r, c]
-            sub = d[(d["dist"] == dist) & (d["threads"] == 1)]
-            for lab in ["SS-baseline", "SS-balanced", "SS-quality", "BSP-OT-16", "RasterFairy-master",
-                        "Exact-certified", "Exact-dense-scipy"]:
-                s2 = sub[sub["label"] == lab].groupby("n")[col].median()
-                if s2.empty:
-                    continue
-                y = s2.clip(lower=0.05 if col == "peak_rss_mb" else 1e-4)
-                ax.plot(s2.index, y.values, marker=fs.marker(lab), color=fs.color(lab), ms=3.5, mec="white", mew=0.4,
-                        lw=1.2, label=fs.NAMES[analysis.family(lab)] if lab != "BSP-OT-16" else "BSP-OT (16 plans)")
-            ax.set_xscale("log")
-            ax.set_yscale("log")
-            fs.recess(ax, grid_axis="both")
-            if r == 0:
-                ax.set_title(DIST_TITLES[dist], loc="left")
-            if c == 0:
-                ax.set_ylabel(ylabel)
-            if r == 1:
-                ax.set_xlabel("points N")
-    axes[0, 0].legend(fontsize=6.3, loc="upper left")
+    fig, axes = plt.subplots(1, 2, figsize=(7.0, 2.9), layout="constrained", sharey=True)
+    for ax, dist in zip(axes, ["uniform", "gmm"]):
+        sub = d[(d["dist"] == dist) & (d["threads"] == 1)]
+        for lab in ["SS-baseline", "SS-balanced", "SS-quality", "BSP-OT-16", "RasterFairy-master",
+                    "Exact-certified", "Exact-dense-scipy"]:
+            s2 = sub[sub["label"] == lab].groupby("n")["time_s"].median()
+            if s2.empty:
+                continue
+            ax.plot(s2.index, s2.values, marker=fs.marker(lab), color=fs.color(lab), ms=3.5, mec="white", mew=0.4,
+                    lw=1.2, label=fs.NAMES[analysis.family(lab)] if lab != "BSP-OT-16" else "BSP-OT (16 plans)")
+        ax.set_xscale("log")
+        ax.set_yscale("log")
+        fs.recess(ax, grid_axis="both")
+        ax.set_title(DIST_TITLES[dist], loc="left")
+        ax.set_xlabel("points N")
+    axes[0].set_ylabel("time (s, 1 thread)")
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="outside lower center", ncol=4, fontsize=6.3, frameon=False)
     _save(fig, name)
 
 
@@ -202,54 +200,70 @@ def _abl_label(group, v, row=None):
 
 
 def fig_ablation(df, name="fig_ablation"):
+    """One panel per dataset; every variant is ShuffleSnap, so everything is blue or ink.
+    Ordered knobs (window side, stride ratio) are lines; categorical choices are labelled
+    markers without connecting lines."""
     d = _ok(df[df["file"].str.startswith("ablations")])
     if d.empty:
         return
     d = d.copy()
     d["group"] = d["label"].str.replace("abl-", "", regex=False)
     dists = [x for x in ["uniform", "gmm", "mnist"] if x in set(d["dist"])]
-    groups = [g for g in ABL_GROUPS if g[0] in set(d["group"])]
-    fig, axes = plt.subplots(2, len(groups) // 2 + len(groups) % 2, figsize=(7.0, 4.6), layout="constrained")
-    axes = axes.ravel()
-    shades = {"uniform": "#2a78d6", "gmm": "#eb6834", "mnist": "#1baf7a"}
-    marks = {"uniform": "o", "gmm": "s", "mnist": "^"}
-    for ax, (group, title, col) in zip(axes, groups):
-        sub = d[d["group"] == group]
-        for dist in dists:
-            s2 = sub[sub["dist"] == dist]
-            if s2.empty:
-                continue
-            key = s2[col] if col in s2 else pd.Series(["?"] * len(s2))
-            if group == "solver":
-                keyv = s2["p_solver"].astype(str) + "|" + s2["p_window"].astype(str)
-            elif group == "coarse":
-                keyv = s2[col].fillna(-1)
-            else:
-                keyv = key
-            gg = s2.assign(k=keyv).groupby("k", sort=False).agg(e=("excess_pct", "mean"), t=("time_s", "median"),
-                                                                   rep=(col if col in s2 else "label", "first"))
-            ax.plot(gg["t"], gg["e"].clip(lower=FLOOR), marker=marks[dist], color=shades[dist], ms=3.5, lw=0.9,
-                    mec="white", mew=0.4, label=DIST_TITLES[dist])
-            if dist == dists[0]:
-                for kk, r in gg.iterrows():
-                    if group == "solver":
-                        sv, w = str(kk).split("|")
-                        lab = {"hungarian": "H", "hungarian_greedy": "H+g", "jv": "JV"}.get(sv, sv) + f" w{int(float(w))}"
-                    elif group == "coarse":
-                        lab = "auto" if kk == -1 else str(int(kk))
-                    else:
-                        lab = _abl_label(group, r["rep"])
-                    ax.annotate(lab, (r["t"], max(r["e"], FLOOR)), textcoords="offset points", xytext=(3, 2),
-                                fontsize=5.5, color=fs.INK2)
+    fig, axes = plt.subplots(1, len(dists), figsize=(7.0, 2.9), layout="constrained")
+    light, mid, dark = "#86b6ef", "#3987e5", "#0d366b"
+
+    def agg(sub, key):
+        return sub.groupby(key, sort=True).agg(e=("excess_pct", "mean"), t=("time_s", "median"))
+
+    for ax, dist in zip(axes, dists):
+        s = d[d["dist"] == dist]
+        w2 = agg(s[s["group"] == "window"], "p_window")
+        wr = agg(s[s["group"] == "window-r1.41"], "p_window")
+        ax.plot(w2["t"], w2["e"], color=light, marker="o", ms=3.5, mec="white", mew=0.4, lw=1.3,
+                label="window side, ratio 2")
+        ax.plot(wr["t"], wr["e"], color=dark, marker="o", ms=3.5, mec="white", mew=0.4, lw=1.3,
+                label="window side, ratio √2")
+        for w, r in w2.iterrows():
+            if int(w) in (3, 6, 12, 16):
+                ax.annotate(f"{int(w)}", (r["t"], r["e"]), textcoords="offset points", xytext=(-3, 4), fontsize=5.5,
+                            color=fs.INK2, ha="right")
+        for w, r in wr.iterrows():
+            if int(w) in (4, 6, 12, 16):
+                ax.annotate(f"{int(w)}", (r["t"], r["e"]), textcoords="offset points", xytext=(3, -7), fontsize=5.5,
+                            color=fs.INK2)
+        rr = agg(s[s["group"] == "ratio"], "p_ratio")
+        ax.plot(rr["t"], rr["e"], color=mid, marker="D", ms=3, mec="white", mew=0.4, lw=0.9,
+                label="stride ratio (w = 6)")
+        for rv, r in rr.iterrows():
+            lab = {3.0: "r3", 1.1: "r1.1"}.get(round(float(rv), 3))
+            if lab:
+                ax.annotate(lab, (r["t"], r["e"]), textcoords="offset points", xytext=(3, 2), fontsize=5.5,
+                            color=fs.INK2)
+        st = agg(s[s["group"] == "start"], "p_init")
+        for kind, mk in (("bisect", "x"), ("rowsort", "+")):
+            if kind in st.index:
+                r = st.loc[kind]
+                ax.plot(r["t"], r["e"], ls="", marker=mk, color=fs.INK2, ms=5, mew=1.1)
+                ax.annotate(kind + " start", (r["t"], r["e"]), textcoords="offset points", xytext=(4, 0),
+                            fontsize=5.5, color=fs.INK2, va="center")
+        tl = s[s["group"] == "offsets"].copy()
+        if not tl.empty:
+            tl["k"] = tl["p_offsets"].map(lambda v: len(json.loads(v)) if isinstance(v, str) else 4)
+            tg = tl.groupby("k").agg(e=("excess_pct", "mean"), t=("time_s", "median"))
+            for k in (2, 9):
+                if k in tg.index:
+                    r = tg.loc[k]
+                    ax.plot(r["t"], r["e"], ls="", marker="^", color=fs.INK2, ms=3.5)
+                    ax.annotate(f"{k} tilings", (r["t"], r["e"]), textcoords="offset points", xytext=(4, 0),
+                                fontsize=5.5, color=fs.INK2, va="center")
         ax.set_xscale("log")
         ax.set_yscale("log")
-        ax.set_title(title, loc="left", fontsize=7.5)
+        ax.set_title(DIST_TITLES[dist] + f", N = {int(s['n'].iloc[0]):,}", loc="left")
+        ax.set_xlabel("time (s, 24 threads)")
         fs.recess(ax, grid_axis="both")
-    for ax in axes[len(groups):]:
-        ax.axis("off")
-    axes[0].legend(fontsize=6, loc="best")
-    fig.supxlabel("time (s, 24 threads)", fontsize=8)
-    fig.supylabel("excess over optimum (%)", fontsize=8)
+    axes[0].set_ylabel("excess over optimum (%)")
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="outside lower center", ncol=3, fontsize=6.3, frameon=False)
     _save(fig, name)
 
 

@@ -110,3 +110,37 @@ Chronological record of decisions, observations and negative results. Times are 
 - Reference batch finished: 211/211 certified. Median wall time for the 47 instances at ~100k was
   157 s (6 in parallel), but heavily duplicated inputs are slow: duplicates-100k took 941-2036 s and
   10-12 pricing rounds; heavy tails up to 428 s. Full benchmark started 2026-09-23T21:54.
+
+## 2026-09-24 — benchmark results (held-out seeds)
+
+- main_t1 (946 runs) took 8.6 h (21:54-06:32), incl. three 1-h timeouts of the certified solver
+  started from bisection (gmm, duplicates, near-line at 100k); a 4th bisection-started run
+  (spiral) stopped after 50 pricing rounds without a certificate. All ShuffleSnap-started exact
+  runs certified. All 943 completed outputs valid; all 396 ShuffleSnap traces monotone.
+- main_t24: ShuffleSnap bit-identical to 1 thread in all 396 paired runs; 13-15x speed-up.
+- Scaling: certified solver certified 1M uniform points in 706 s (4.3 GB); dense SciPy 50k uniform
+  372 s / 23.4 GB; gmm 20k 1319 s. Peak-RSS rise under-reports ShuffleSnap on gmm (heap reuse
+  after instance generation) -> added heap-trimmed memory experiment (bench.py trim_heap).
+- Masks (20k): baseline 18.3% on uniform/S-mask, worse than BSP-OT-64 (13.2%); balanced 1.3%.
+- Primes: full rectangle with <200 surplus cells is much harder on uniform points (baseline
+  12.6-14.5% vs 2.1-3.0% exact-fit; absolute 0.15-0.16 vs 0.04 cells^2/pt).
+- Real embeddings: RasterFairy's kNN recall on Fashion (0.611) exceeds the optimum's (0.606)
+  despite +24.6% displacement; BSP-OT halves kNN recall and lattice precision.
+- Bug (mine): the "coarse" ablation group (cap on the starting stride) failed in all 54 runs with
+  TypeError because the m_shufflesnap adapter did not accept `start_stride`. Fixed the adapter
+  (verified it reproduces ss.build_schedule for ratio 2), removed the 54 error records
+  (original kept as results/raw/ablations_t24.with_adapter_errors.jsonl.bak) and reran that group
+  after the memory and polish checks.
+- Held-out ablations (uniform/gmm 100k, mnist 70k; seeds 1-3; 24 threads) confirm the development
+  findings: structured starts 3-18x worse than random; ratio sqrt2 best or near-best; window side
+  the main knob; a single tiling fails completely (uniform 21,000% excess), 2 tilings 5.5%, 4
+  tilings 2.5%, 9 tilings 1.9% at 2x time; solvers identical in quality, JV 2-10x slower;
+  skip-unchanged identical in quality, 35-40% faster.
+- Correction: the greedy warm start of the window solver (default) is 5-20% faster only in the
+  synthetic micro-benchmark; in held-out full runs it is up to 15% faster on uniform inputs and
+  2-3% slower on clustered inputs. Kept as default (identical results), paper text corrected.
+- Held-out polish check (uniform/gmm 100k, mnist 70k; seeds 1-3): three extra [stride 2, stride 1]
+  cycles after the baseline changed nothing on uniform (3/3 identical) and removed <3% of the
+  excess on clustered inputs; merging 4 independent baseline runs cut uniform excess 23-38% at 4x
+  cost (fast preset: 1.5% at ~1x). Heap-trimmed memory: ShuffleSnap 22-37 B/pt, BSP-OT ~243,
+  RasterFairy ~647, certified exact 4-8 kB/pt.

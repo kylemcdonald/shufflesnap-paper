@@ -20,8 +20,8 @@ excludes instance generation, the common normalization, validation, and metrics.
 the timed call, each method is run once on a 256-point instance. This takes imports,
 lazy initialization and thread-pool start-up out of the timing; that warm-up time is
 recorded separately and is below 0.3\,s for every method. None of the methods uses
-just-in-time compilation. \ShuffleSnap's one-time C++ build (about 2\,s) is not part of
-any run. \emph{Peak memory} is the rise of the process's peak resident set size during
+just-in-time compilation. \ShuffleSnap's one-time C++ build is not part of any run: 2.6\,s to compile, or about 35\,s
+for an isolated wheel build. \emph{Peak memory} is the rise of the process's peak resident set size during
 the call: the kernel counter is reset through \texttt{/proc/self/clear\_refs} just before
 the call, and the resident size at that moment is subtracted. It therefore measures
 what the method needs on top of its inputs.
@@ -50,7 +50,7 @@ float64 coordinates and cell centers and returns one cell per point. We check va
 (injective, usable cells only) independently of every method.
 \begin{itemize}
 \item \emph{Exact, dense}: SciPy \texttt{linear\_sum\_assignment} on the float64 cost matrix,
-  the fastest of three dense solvers we tried (\texttt{lap.lapjv} and \texttt{lapjv} were 3--7$\times$
+  the fastest of three dense solvers we tried (\texttt{lap.lapjv} and \texttt{lapjv} were 3--8$\times$
   slower at $N=2{,}500$).
 \item \emph{Exact, certified sparse}: Section~\ref{sec:exact}, started from \ShuffleSnap's
   default (balanced) preset, whose time is included, or from bisection.
@@ -58,8 +58,9 @@ float64 coordinates and cell centers and returns one cell per point. We check va
   uses the removed NumPy alias \texttt{np.float}, and it orders points by
   \emph{integer-truncated} coordinates. With grid-unit inputs this discards sub-cell order:
   excess was 193\% without our remedy of multiplying inputs by 1000, and 82\% with it
-  (uniform, $N=2{,}500$). The PyPI swap optimizer is Python~2 code and allocates a dense
-  $N\times N$ distance matrix, so we exclude it. The upstream GitHub master (July 2026)
+  (uniform, $N=2{,}500$). RasterFairy's optional swap optimizer is excluded: the PyPI copy is
+  Python~2 code (a \texttt{SyntaxError} on Python~3), and the upstream copy, which does run
+  on Python~3, allocates a dense $N\times N$ distance matrix (80\,GB at $10^5$ points). The upstream GitHub master (July 2026)
   normalizes internally, sorts on floats, and solves leaf blocks of up to 200 points
   exactly with SciPy. It is much better (9\% excess on the same instance), and it is our
   representative setting. Its per-leaf console printing is captured so that it does not

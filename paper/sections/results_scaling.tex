@@ -4,14 +4,21 @@
 \begin{figure}[tbp]
   \centering
   \includegraphics[width=\linewidth]{figures/fig_scaling.pdf}
-  \caption{Time and peak extra memory against $N$ on one thread (instance seed 1). Dense
-  SciPy was run up to the largest size we considered sensible: 50k uniform points
-  (23\,GB) and 20k mixture points (22\,min). The certified solver was run up to $10^6$
-  uniform and $2\times10^5$ mixture points. \ShuffleSnap's tiny memory readings on the
-  mixture are a measurement artifact: they reuse heap pages freed while the instance was
-  generated. A heap-trimmed re-measurement is in Table~\ref{tab:memory}.}
+  \caption{Time against $N$ on one thread (instance seed 1). Dense SciPy was run up to the
+  largest size we considered sensible, 50k uniform points (6.2\,min, 23\,GB) and 20k
+  mixture points (22\,min). The certified solver was run up to $10^6$ uniform and
+  $2\times10^5$ mixture points. The quality preset was run up to $2\times10^5$ points.}
   \label{fig:scaling}
 \end{figure}
+
+\begin{table}[tbp]
+\centering\small
+\caption{Peak extra resident memory (MB) during one call, measured on a heap trimmed right
+before the call (\texttt{malloc\_trim}), one thread, instance seed 1. Without trimming,
+small allocations can reuse pages freed while the instance was generated and go unseen.}
+\label{tab:memory}
+\input{tables/tab_memory}
+\end{table}
 
 Between $10^4$ and $10^6$ points, \ShuffleSnap, BSP-OT and RasterFairy all scale close to
 linearly. Their fitted exponents of time in $N$ are 1.11--1.18, 1.08 and about 1.0
@@ -27,8 +34,10 @@ Its memory, 4--8\,kB per point, is set by the candidate edges and the flow solve
 Dense SciPy grew as $N^{2.2}$ (uniform) to $N^{2.9}$ (mixture) and needs $8N^2$ bytes. It
 took 6.2\,min and 23\,GB at 50k uniform points, and 22\,min at 20k mixture points.
 \ShuffleSnap\ needs $O(N)$ working memory: an occupancy array, a position array, a
-last-change stamp per cell, and the window lists of the current level, which come to a
-few tens of bytes per cell.
+last-change stamp per cell, and the window lists of the current level. Measured, this is
+22--37 bytes per point, or 37\,MB at $10^6$ points (Table~\ref{tab:memory}). The
+comparators need 7--29$\times$ more: BSP-OT about 240 and RasterFairy about 650 bytes per
+point.
 
 At $10^6$ uniform points, the quality ranking is unchanged. Measured against the
 certified optimum of that instance, the excess is 5.3\% for the baseline, 2.0\% for fast

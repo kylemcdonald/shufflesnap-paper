@@ -31,8 +31,9 @@ every window:
 \item Coarser windows cannot help either. A one-cell shift moves a point to another
   residue class, and a strided window only permutes points within one class.
 \end{itemize}
-Polishing with extra stride-2 rounds after convergence indeed changed nothing in our
-tests.
+Indeed, three extra cycles of stride-2 and stride-1 rounds after convergence changed
+nothing on held-out uniform instances, and removed under 3\% of the excess on clustered
+ones.
 
 \paragraph{A constructed fixed point.} The argument can be checked directly. Put the
 points exactly on the cell centers of a $64\times48$ grid, so that the optimum is the

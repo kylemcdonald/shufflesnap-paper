@@ -43,3 +43,24 @@ Table~\ref{tab:masks} and Figure~\ref{fig:masks} cover non-square targets.
   RasterFairy, which picks the empty cells at random, is 72--350\% above optimal. With
   less than one row of surplus, they are at 5--90\% and 17--57\%.
 \end{itemize}
+
+\begin{table}[tbp]
+\centering\small
+\caption{Prime point counts, excess over the certified optimum (\%), mean of instance seeds 1--3
+(24 threads; all 8 timed exact runs certified). The \emph{exact fit} target is a near-square grid
+whose last row is partially usable, so every cell is filled. The \emph{full rectangle} has a few
+surplus cells (177 for $N=49{,}999$, 181 for $N=99{,}991$), and the solver must also choose which
+cells stay empty.}
+\label{tab:primes}
+\input{tables/tab_primes}
+\end{table}
+
+\paragraph{Prime counts.} A prime number of points never fills a rectangle.
+Table~\ref{tab:primes} compares the two ways of handling this. With an exact-fit grid,
+the results match the square case: 2.1--3.0\% for the baseline on uniform points, and
+about 0.01\% on the mixture. Leaving the solver to pick fewer than 200 empty cells in a
+full rectangle is much harder on uniform points. The baseline reaches 12.6--14.5\%,
+balanced 5.1--5.7\% and quality 3.0--3.6\%; for the baseline this is 0.15--0.16
+cells$^2$ per point, about four times the exact-fit case. BSP-OT's partial matching becomes
+worse still, at 147--152\%. For layouts where the empty cells' position does not
+matter, an exact-fit mask is therefore both simpler and better handled by every method.

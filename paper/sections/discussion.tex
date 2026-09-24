@@ -28,13 +28,27 @@ When a certified optimum is worth the wait, it is the better choice at this scal
 method for sizes and time budgets where exact solving is out of reach. We report this
 even though it narrows the case for the method we set out to test.
 
-\paragraph{Displacement is not neighbourhood.} BSP-OT reaches within a few percent of the
-optimal displacement on the real embeddings, but halves the fraction of lattice
-neighbours that were input neighbours, because merging many partitions shuffles points
-locally. RasterFairy keeps local order inside its blocks and breaks it along block seams.
-If neighbourhood preservation is the goal, it should be optimized directly (e.g.\ with
-LAS/FLAS~\citep{barthel2023improved}); minimizing displacement buys it only to the
-extent that the optimal transport map is smooth.
+\paragraph{Displacement is not neighbourhood.} On the real embeddings, BSP-OT comes within
+2--9\% of the optimal displacement, yet its layouts are locally scrambled
+(Figure~\ref{fig:visual}, row 2), and it halves both neighbourhood measures. RasterFairy
+keeps local order inside its blocks and breaks it along block seams. Even the optimum
+tears neighbourhoods along cluster boundaries (Figure~\ref{fig:visual}, row 4). If
+neighbourhood preservation is the goal, it should be optimized or at least measured
+directly, e.g.\ with LAS/FLAS and DPQ~\citep{barthel2023improved}. A lower displacement
+does not guarantee it.
+
+\paragraph{Which method to use.} In our measurements:
+\begin{itemize}
+\item If a proven optimum is worth minutes of computation, use the certified solver
+  started from \ShuffleSnap. We tested it up to $10^6$ uniform and $2\times10^5$ clustered
+  points.
+\item For interactive use, the balanced (or fast) preset gives near-optimal layouts of
+  $10^5$ points in about a second on a multicore machine.
+\item Under very tight budgets (below about 1\,s on one core at $10^5$ points), BSP-OT
+  gives the best result available.
+\item When the position of empty cells does not matter, an exact-fit mask is both simpler
+  and handled far better than surplus cells, by every method.
+\end{itemize}
 
 \paragraph{Limitations of this study.} Everything ran on one workstation, CPU only.
 BSP-OT has a CUDA implementation that we did not test. The objective is squared
@@ -43,8 +57,23 @@ evaluate other costs or 3D grids. The certified solver depends on OR-Tools and o
 integer scaling. Its certificate accounts for the scaling, but its running time depends
 on the candidate set and the warm start. Real data consist of two UMAP embeddings with
 one parameter setting. The bbox normalization is part of the problem definition; other
-normalizations change the optimum. Timings include warm-up exclusions and a fixed
+normalizations change the optimum. Timings exclude warm-up (imports, thread start-up) and follow one
 pinning policy, and unrelated background services were running (load about 1). We
 compared against the representative settings of each comparator, but not every setting.
-In particular, RasterFairy's swap optimizer was excluded because it requires dense
-$N\times N$ memory and does not run on Python~3 as released.
+In particular, RasterFairy's swap optimizer was excluded: it needs dense $N\times N$ memory,
+and its PyPI release does not run on Python~3.
+
+\section{Conclusion}
+\label{sec:conclusion}
+
+Treated as a hypothesis, the Shellsort idea largely held up. Strided exact windows,
+refined from coarse to fine, bring clustered layouts, including two real UMAP embeddings
+of 70{,}000 points, to within hundredths of a percent of a proven optimum in about a
+second, with little memory and deterministic parallelism. The idea also has sharp
+limits. Its remaining error forms long loops that no window can see, which makes uniform
+data, lattices, concave masks and surplus cells hard, with an unbounded worst case. A
+finer $\sqrt2$ stride schedule with larger windows is a better default than the original
+halving schedule. The most consequential finding may be the exact solver built to judge
+the heuristic: seeded with \ShuffleSnap's answer, proven optima are within reach at
+$10^5$--$10^6$ points. For point-to-grid layout, exactness is therefore a matter of
+minutes, not a matter of impossibility.

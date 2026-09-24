@@ -1,4 +1,4 @@
-\section{A certified exact solver for $10^5$ points}
+\section{A certified exact solver for large instances}
 \label{sec:exact}
 
 Excess over the optimum is only meaningful with a trustworthy optimum. At
@@ -15,8 +15,8 @@ problem, yet certifies optimality against it.
 \item \textbf{Sparse solve.} Solve the min-cost flow (points $\to$ cells $\to$ sink,
   unit capacities) with OR-Tools' cost-scaling solver. The solver needs integer costs,
   so we scale by $S=2^{56}/((N{+}M{+}2)\max c)$ and round.
-  (Scales above about $2^{58}/(N{+}M)$ are rejected with \texttt{BAD\_COST\_RANGE};
-  we found this limit by probing.)
+  (We found by probing that a scale of $2^{58}/((N{+}M)\max c)$ is accepted and
+  $2^{60}/((N{+}M)\max c)$ is rejected with \texttt{BAD\_COST\_RANGE}.)
 \item \textbf{Potentials.} For the sparse optimum $\sigma$, build a graph on cells with
   an arc $\sigma(i)\to j$ of weight $c_{ij}-c_{i\sigma(i)}$ for every candidate edge.
   Shortest-path distances from a virtual source joined to all cells give potentials
@@ -45,10 +45,12 @@ times, which is only valid for FIFO Bellman--Ford, not with the small-label-firs
 we use. The fix is to verify a suspected cycle by walking parent pointers. A regression
 test covers it.
 
-\paragraph{Cost.} The solver reached a certificate on every one of the more than 200
-instances in this study, of up to 200{,}000 points. The number of pricing rounds was
-1 for uniform inputs, up to about 8 for clustered, curved or masked inputs, and up to 12
-for the input with 16 heavily duplicated sites. Massive ties are the slowest case: one
+\paragraph{Cost.} Started from \ShuffleSnap, the solver reached a certificate on every
+instance we gave it: the 211 reference instances (up to 200{,}000 points), every timed run,
+and uniform instances up to $10^6$ points. Started from bisection, it failed on 4 of 11
+instances at $10^5$ points (Section~\ref{sec:main}). The number of pricing rounds was 1 for
+uniform inputs, up to about 8 for clustered, curved or masked inputs, and up to 13 for the
+input with 16 heavily duplicated sites. Massive ties are the slowest case: one
 such 100{,}000-point instance took 34 minutes, while the median 100{,}000-point
 reference took under 3 minutes (six references were computed in parallel).
 Section~\ref{sec:results} reports its running time and memory next to the heuristics.

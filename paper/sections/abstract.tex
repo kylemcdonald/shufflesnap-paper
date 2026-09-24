@@ -21,7 +21,7 @@ The method's limits are structural. Its error consists of long closed loops of o
 shifts that no window can remove, and we construct inputs on which its relative gap is
 unbounded. Uniform points (2.5\% at $10^5$, 5.3\% at $10^6$), jittered lattices (33\%), a
 concave mask (18\%, worse than BSP-OT) and surplus cells remain hard. Structured starts
-make results worse, and polishing at coarser strides changes nothing. Warm-started from
+make results worse, and polishing at coarser strides barely changes the result. Warm-started from
 \ShuffleSnap, the certified solver reaches proven optima in seconds to minutes at $10^5$
 points, which narrows the practical case for the heuristic.
 

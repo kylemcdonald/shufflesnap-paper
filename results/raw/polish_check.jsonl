@@ -1,0 +1,9 @@
+{"dist": "uniform", "n": 100000, "seed": 1, "base_excess": 2.5252628500515018, "vcycle_excess": 2.5252628500515018, "vcycle_changed_cost": false, "vcycle_s": 0.06719775404781103, "merge4_excess": 1.9428907494350556}
+{"dist": "uniform", "n": 100000, "seed": 2, "base_excess": 2.8889935053605154, "vcycle_excess": 2.8889935053605154, "vcycle_changed_cost": false, "vcycle_s": 0.07867277099285275, "merge4_excess": 1.7921748862338438}
+{"dist": "uniform", "n": 100000, "seed": 3, "base_excess": 2.104044756065515, "vcycle_excess": 2.104044756065515, "vcycle_changed_cost": false, "vcycle_s": 0.07473719294648618, "merge4_excess": 1.5055024663023442}
+{"dist": "gmm", "n": 100000, "seed": 1, "base_excess": 0.004210670749227319, "vcycle_excess": 0.004210670749227319, "vcycle_changed_cost": false, "vcycle_s": 0.3081477270461619, "merge4_excess": 0.0026755120004384736}
+{"dist": "gmm", "n": 100000, "seed": 2, "base_excess": 0.004626807937269106, "vcycle_excess": 0.004604684782627544, "vcycle_changed_cost": true, "vcycle_s": 0.3170163370668888, "merge4_excess": 0.0035979197744229197}
+{"dist": "gmm", "n": 100000, "seed": 3, "base_excess": 0.025454109429490224, "vcycle_excess": 0.025444427194187824, "vcycle_changed_cost": true, "vcycle_s": 0.31200887309387326, "merge4_excess": 0.021781749056404287}
+{"dist": "mnist", "n": 70000, "seed": 1, "base_excess": 0.013537879849923051, "vcycle_excess": 0.013352631987073593, "vcycle_changed_cost": true, "vcycle_s": 0.222528739948757, "merge4_excess": 0.012979303813120957}
+{"dist": "mnist", "n": 70000, "seed": 2, "base_excess": 0.01583272461607166, "vcycle_excess": 0.015351922317896616, "vcycle_changed_cost": true, "vcycle_s": 0.22874346398748457, "merge4_excess": 0.013336466422075866}
+{"dist": "mnist", "n": 70000, "seed": 3, "base_excess": 0.01555222659679334, "vcycle_excess": 0.01537692665176671, "vcycle_changed_cost": true, "vcycle_s": 0.21977998805232346, "merge4_excess": 0.013509254856902686}

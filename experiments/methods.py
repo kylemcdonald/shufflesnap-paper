@@ -22,13 +22,16 @@ THIRD = os.path.abspath(os.path.join(HERE, "..", "..", "third_party"))
 
 
 # --------------------------------------------------------------------------- ShuffleSnap
-def ratio_schedule(width, height, window=6, ratio=2.0, rounds=1):
+def ratio_schedule(width, height, window=6, ratio=2.0, rounds=1, start_stride=None):
     """Strides s0, s0/r, s0/r^2, ... (rounded, deduplicated) down to 1, per axis; s0 is the
-    smallest power of two with window * s0 >= L.  ratio=2 reproduces the baseline rule."""
+    smallest power of two with window * s0 >= L, optionally capped at start_stride.
+    ratio=2 reproduces the baseline rule."""
     def seq(L):
         s = 1
         while window * s < L:
             s *= 2
+        if start_stride is not None:
+            s = min(s, int(start_stride))
         out, x = [], float(s)
         while x > 1.0 + 1e-9:
             out.append(max(1, int(round(x))))
@@ -47,8 +50,8 @@ def ratio_schedule(width, height, window=6, ratio=2.0, rounds=1):
 
 
 def m_shufflesnap(Pn, g, window=6, ratio=2.0, rounds=1, init="random", seed=0, threads=0, solver="hungarian_greedy",
-                  time_budget=None, final_rounds=None, offsets=None, skip_clean=True):
-    stages = ratio_schedule(g.width, g.height, window, ratio, rounds)
+                  time_budget=None, final_rounds=None, offsets=None, skip_clean=True, start_stride=None):
+    stages = ratio_schedule(g.width, g.height, window, ratio, rounds, start_stride)
     if final_rounds is not None:
         stages[-1, 2] = int(final_rounds)
     res = ss.assign(Pn, g, normalize="none", init=init, seed=seed, window=window, schedule=stages,
