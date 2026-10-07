@@ -89,9 +89,12 @@ travel with the points. Numbers are the mean squared displacement in cells$^2$.\
 disk, the shape of a letter. Each axis has its own stride, masked cells never enter a
 window, and empty cells do, so with more cells than points the solver also chooses which
 cells stay empty. The kernel is C++; a 70-line NumPy version reproduces it exactly.
+At coarse strides a window's points often form one distant cluster that all prefer the same
+corner cell, which stalls generic solvers. Starting each exact solve from closed-form duals
+of per-axis optimal transport (sorting) leaves results unchanged but makes window solves 2--5
+times faster, enough to afford $8\times8$ windows at BSP-OT's running time.
 
-\paragraph{Certified optima.} Measuring gaps needs the true optimum, but at $10^5$ points
-a dense solver does not fit in memory. We solve a min-cost flow with
+\paragraph{Certified optima.} To measure gaps, we solve a min-cost flow with
 OR-Tools~\citep{ortools} on sparse candidate edges: each point's 12 nearest cells and the
 neighbourhood of its cell in a valid starting layout (\ShuffleSnap's). As this may miss an
 edge, we check it against the full, dense problem, whose optimal cost any cell potentials
@@ -101,9 +104,8 @@ $v$ bound from below:
 \]
 where $M\ge N$ is the number of cells. We derive $v$ from the sparse solution, evaluate
 the bound over \emph{all} cells, add every edge it shows to be missing, and repeat until
-the bound meets the cost. Then no assignment of the dense problem is cheaper: the result
-is its exact optimum; the start affects only the time. Where it fits, SciPy's dense solver found the same optimum on 600 instances of up to 2{,}500 points and on all ten
-distributions at $10^4$ points (relative difference below $10^{-9}$). It certified every benchmark instance (up to $2\times10^5$ points); all gaps below use it.
+the bound meets the cost. Then no assignment of the dense problem is cheaper, whatever the
+start. It certified every benchmark instance (up to $2\times10^5$ points); all gaps below use it.
 
 \clearpage
 
