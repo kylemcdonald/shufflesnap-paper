@@ -2,8 +2,10 @@
 
 This repository holds everything behind the paper *ShuffleSnap: strided windowed exact
 reassignment for point-to-grid layout, evaluated against certified optima*. The
-implementation lives in a separate repository (`shufflesnap`, expected as a sibling
-directory `../shufflesnap`).
+implementation lives in a separate repository
+([kylemcdonald/shufflesnap](https://github.com/kylemcdonald/shufflesnap), released on PyPI as
+`shufflesnap` 0.4.0), expected as a sibling directory `../shufflesnap`. Benchmarks ran against
+frozen snapshots of specific package commits (`../frozen/`, see `experiments/run_*.sh`).
 
 ## Layout
 
