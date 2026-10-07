@@ -228,7 +228,8 @@ def fig_summary(name="fig_summary"):
 
 # ------------------------------------------------------------------------------ gallery
 def fig_gallery():
-    """MNIST, all 70,000 points: whole grid, zoom, and lattice precision (three rows)."""
+    """MNIST, all 70,000 points: whole grid, zoom, distance to the optimal cell, and lattice
+    precision (four rows)."""
     import fig_visual as fv
 
     Pn, g, _, cells = fv.assignments("mnist")
@@ -236,7 +237,8 @@ def fig_gallery():
     cols = fs.source_colors(Pn)
     cx, cy, half = int(g.width * 0.52), int(g.height * 0.45), 32
     labs = [lab for lab, _ in fv.METHODS]
-    fig, axes = plt.subplots(3, len(labs), figsize=(7.0, 4.55), layout="constrained")
+    fig, axes = plt.subplots(4, len(labs), figsize=(7.0, 6.05), layout="constrained")
+    opt_cell = cells["Exact-certified"]
     for c, lab in enumerate(labs):
         cell = cells[lab]
         img = fs.grid_image(g, cell, cols)
@@ -246,20 +248,23 @@ def fig_gallery():
                                lw=0.7))
         ax.set_title(f"{fv.SHORT[lab]}\n{ss.assignment_cost(Pn, g, cell) / n:.1f}", fontsize=7)
         axes[1, c].imshow(img[cy - half:cy + half, cx - half:cx + half], interpolation="nearest")
+        im_o = fv.opt_distance_panel(axes[2, c], g, cell, fv.opt_distance(g, cell, opt_cell))
         nb = fv.neighbourhood_map(Pn, g, cell)
         nimg = np.full((g.height, g.width), np.nan)
         lat = g.lattice[cell]
         nimg[lat[:, 1], lat[:, 0]] = nb
         cm = matplotlib.colormaps["Oranges"].copy()
         cm.set_bad("white")
-        im = axes[2, c].imshow(nimg, cmap=cm, vmin=0, vmax=1, interpolation="nearest")
-        axes[2, c].set_xlabel(f"mean {nb.mean():.2f}", fontsize=6.5)
+        im = axes[3, c].imshow(nimg, cmap=cm, vmin=0, vmax=1, interpolation="nearest")
+        axes[3, c].set_xlabel(f"mean {nb.mean():.2f}", fontsize=6.5)
     for ax in axes.ravel():
         _clean(ax)
     axes[0, 0].set_ylabel("whole grid", fontsize=7)
     axes[1, 0].set_ylabel("zoom (64×64 cells)", fontsize=7)
-    axes[2, 0].set_ylabel("lattice precision", fontsize=7)
-    cb = fig.colorbar(im, ax=axes[2, :], shrink=0.85, pad=0.01)
+    axes[2, 0].set_ylabel("distance to optimal cell", fontsize=7)
+    axes[3, 0].set_ylabel("lattice precision", fontsize=7)
+    fv.opt_distance_colorbar(fig, im_o, axes[2, :])
+    cb = fig.colorbar(im, ax=axes[3, :], shrink=0.85, pad=0.01)
     cb.set_label("fraction", fontsize=6.5)
     cb.outline.set_visible(False)
     _save(fig, "fig_gallery_mnist")

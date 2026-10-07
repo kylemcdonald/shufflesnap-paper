@@ -321,11 +321,13 @@ needed 6\,min and 23\,GiB at 50{,}000. The default's uniform excess grows with $
 
 \subsection{Real embeddings: displacement versus neighbourhoods}
 
-\panel{fig_visual_mnist}{All 70{,}000 MNIST digits, UMAP layout snapped to a
+\panel{fig_gallery_mnist}{All 70{,}000 MNIST digits, UMAP layout snapped to a
 $265\times265$ grid. Colors and graph-paper lines follow each point's input position, so
 bent lines show how a method deforms the layout, and broken ones where it tears it; numbers
 are the mean squared displacement. Row~2 enlarges the white box, row~3 shows each point's
-displacement, row~4 its lattice precision.\label{fig:visual}}
+distance to its cell in the optimum (log scale; white is the optimal cell), row~4 its lattice
+precision. \ShuffleSnap\ leaves 74\% of the points on their optimal
+cell; BSP-OT's median point is 8 cells away.\label{fig:visual}}
 
 On both embeddings the default preset is within 0.002\% of the certified optimum, the fast
 preset within 0.031\% (BSP-OT with 16 plans: 3.7--9.2\%), and their layouts match the optimal one

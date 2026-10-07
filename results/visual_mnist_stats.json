@@ -3,24 +3,40 @@
   "mean_sq": 2284.6785006724162,
   "mean_disp": 42.19720778202246,
   "p99": 103.82692446900084,
-  "lattice_precision": 0.5746946258503401
+  "lattice_precision": 0.5746946258503401,
+  "opt_cell_frac": 1.0,
+  "opt_within1_frac": 1.0,
+  "opt_dist_median": 0.0,
+  "opt_dist_mean": 0.0
  },
  "SS-balanced": {
   "mean_sq": 2284.7265640962733,
   "mean_disp": 42.18882311101622,
   "p99": 103.90371051342767,
-  "lattice_precision": 0.5743559353741496
+  "lattice_precision": 0.5743559353741496,
+  "opt_cell_frac": 0.7411571428571428,
+  "opt_within1_frac": 0.9289428571428572,
+  "opt_dist_median": 0.0,
+  "opt_dist_mean": 0.2973364872253055
  },
  "BSP-OT-64": {
   "mean_sq": 2352.39768855694,
   "mean_disp": 43.25215719461336,
   "p99": 97.75954802023088,
-  "lattice_precision": 0.2653509183673469
+  "lattice_precision": 0.2653509183673469,
+  "opt_cell_frac": 0.0034142857142857143,
+  "opt_within1_frac": 0.016914285714285715,
+  "opt_dist_median": 8.06225774829855,
+  "opt_dist_mean": 8.7590121749945
  },
  "RasterFairy-master": {
   "mean_sq": 2742.412976316432,
   "mean_disp": 46.726053306096844,
   "p99": 99.01864700547873,
-  "lattice_precision": 0.5502086224489795
+  "lattice_precision": 0.5502086224489795,
+  "opt_cell_frac": 0.0007857142857142857,
+  "opt_within1_frac": 0.004614285714285714,
+  "opt_dist_median": 18.973665961010276,
+  "opt_dist_mean": 19.847765852868974
  }
 }

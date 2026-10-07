@@ -9,12 +9,16 @@
   dark bands are graph-paper lines drawn on the input, so bent lines show how a method
   deforms the layout, and color jumps or broken lines show where it tears it. The number under each method name is
   the mean squared displacement in cells$^2$. Row~2 enlarges the $64\times64$ box. Row~3
-  shows each point's displacement. Row~4 shows lattice precision: the fraction of a
+  shows each point's displacement. Row~4 shows the distance from each point's cell to its
+  cell in the certified optimum (logarithmic scale; white means the optimal cell, so the
+  optimum's own panel is blank). Row~5 shows lattice precision: the fraction of a
   point's occupied 8-neighbour cells whose points are among its 8 nearest input
   neighbours (higher is better). \ShuffleSnap\ is visually indistinguishable from the
-  certified optimum. BSP-OT is within 3\% of the optimal displacement but halves lattice
-  precision, because it scrambles local order (frayed lines and speckled boundaries in
-  rows~1--2). RasterFairy's recursive slicing breaks the lines at rectangular seams.}
+  certified optimum: 74\% of its points sit on their optimal cell, and its few errors form
+  the thin loops of one-cell shifts of Section~\ref{sec:anatomy}. BSP-OT is within 3\% of
+  the optimal displacement, yet its median point is 8 cells from its optimal cell, and it
+  halves lattice precision, because it scrambles local order (frayed lines and speckled
+  boundaries in rows~1--2). RasterFairy's recursive slicing breaks the lines at rectangular seams.}
   \label{fig:visual}
 \end{figure}
 
@@ -46,7 +50,10 @@ map, but they shuffle points locally. RasterFairy shows the opposite pattern: it
 displacement is 20--25\% above optimal, yet its neighbourhood measures are close to the
 optimum's. On Fashion-MNIST its kNN recall (0.611) even exceeds the optimum's (0.606),
 because local order survives inside each slice and breaks only along the seams.
-\ShuffleSnap's measures match the optimum's to within 0.003. Even the optimum has lattice precision well below 1: an optimal transport map
+\ShuffleSnap's measures match the optimum's to within 0.003. Compared cell by cell with the
+optimum (row~4, the figure's runs), \ShuffleSnap\ leaves 74\% (MNIST) and 69\% (Fashion)
+of the points on their optimal cell and 93\% and 91\% within one cell, while BSP-OT's and
+RasterFairy's median points are 8 and 19 cells from theirs on both embeddings. Even the optimum has lattice precision well below 1: an optimal transport map
 from clustered data to a uniform grid tears the layout along cluster boundaries (the
-white lines in row~4). Minimizing displacement and preserving neighbourhoods are
+white lines in row~5). Minimizing displacement and preserving neighbourhoods are
 different objectives, and neither implies the other.

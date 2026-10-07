@@ -38,8 +38,8 @@ are no reduced fonts or compressed line spacing; tables use `\small` at most.
 The shorter editions share the full paper's figures and add compact ones drawn for them by
 `experiments/fig_editions.py`: `fig_schematic` (one window solve, a strided window, shifted
 tilings), `fig_progress` (a real run on 10,000 MNIST points, next to its certified
-optimum), `fig_summary` (four quality/time panels), `fig_gallery_mnist` (three rows of the
-full MNIST figure), `fig_failures_row` and `fig_masks_row`. They reuse the benchmark data
+optimum), `fig_summary` (four quality/time panels), `fig_gallery_mnist` (the full MNIST
+figure without its displacement row, for the medium and long editions), `fig_failures_row` and `fig_masks_row`. They reuse the benchmark data
 and cached assignments; no benchmark was rerun for them. Every edition presents the default preset
 (8x8 windows, stride ratio sqrt 2) and uses these same figures; `fig_progress` shows every second
 stride, and `fig_summary` shows only the three presets, BSP-OT and RasterFairy. The older

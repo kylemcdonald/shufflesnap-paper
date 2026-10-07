@@ -2,7 +2,8 @@
 
 Rows: (1) whole grid, every point colored by its input position (same colors for all
 methods); (2) a zoomed crop around a cluster boundary; (3) displacement magnitude;
-(4) neighbourhood: fraction of a cell's occupied 8-neighbours whose points are among the
+(4) distance from each point's cell to its cell in the certified optimum (zero everywhere in
+the optimum's own column); (5) neighbourhood: fraction of a cell's occupied 8-neighbours whose points are among the
 point's 8 nearest input neighbours.  Assignments are recomputed here with the same
 settings as the benchmark (instance seed 1 for method randomness) and cached.
 """
@@ -17,6 +18,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.colors import ListedColormap, LogNorm
 from matplotlib.patches import Rectangle
 from scipy.spatial import cKDTree
 
@@ -64,6 +66,39 @@ def assignments(dist, n=70000, seed=1):
     return Pn, g, labels, out
 
 
+# distance to the optimal cell, shown as log(1 + d) so that 1 and tens of cells all read; points on
+# their optimal cell (d = 0) fall below the color range and are drawn white
+OPT_TICKS = [1, 2, 4, 8, 16, 32, 64]
+OPT_NORM = dict(vmin=2, vmax=1 + OPT_TICKS[-1])
+
+
+def opt_distance(g, cell, opt_cell):
+    """Euclidean distance, in cells, from each point's cell to its cell in the optimum."""
+    return np.sqrt(((g.lattice[cell] - g.lattice[opt_cell]).astype(float) ** 2).sum(1))
+
+
+def opt_distance_panel(ax, g, cell, d):
+    img = np.full((g.height, g.width), np.nan)
+    lat = g.lattice[cell]
+    img[lat[:, 1], lat[:, 0]] = 1 + d
+    cm = ListedColormap(matplotlib.colormaps["Purples"](np.linspace(0.3, 1.0, 256)))
+    cm.set_bad("white")
+    cm.set_under("white")
+    im = ax.imshow(img, cmap=cm, norm=LogNorm(**OPT_NORM), interpolation="nearest")
+    ax.set_xlabel(f"{100 * (d == 0).mean():.0f}% on optimal cell", fontsize=6.5)
+    return im
+
+
+def opt_distance_colorbar(fig, im, axes):
+    cb = fig.colorbar(im, ax=axes, shrink=0.8, pad=0.01)
+    cb.set_ticks([1 + t for t in OPT_TICKS], labels=[str(t) for t in OPT_TICKS])
+    cb.minorticks_off()
+    cb.ax.tick_params(labelsize=6)
+    cb.set_label("cells", fontsize=6.5)
+    cb.outline.set_visible(False)
+    return cb
+
+
 def neighbourhood_map(Pn, g, cell):
     n = len(Pn)
     occ = np.full(g.mask.shape, -1, dtype=np.int64)
@@ -96,8 +131,8 @@ def main(dist="mnist"):
     # crop window: centered on the densest cluster boundary region (fixed, same for all)
     cx, cy, half = int(g.width * 0.52), int(g.height * 0.45), 32
     k = len(METHODS)
-    fig, axes = plt.subplots(4, k, figsize=(7.0, 6.2), layout="constrained",
-                             gridspec_kw=dict(height_ratios=[1, 1, 1, 1]))
+    fig, axes = plt.subplots(5, k, figsize=(7.0, 7.7), layout="constrained")
+    opt_cell = cells["Exact-certified"]
     disp_max = None
     stats = {}
     for c, (lab, _) in enumerate(METHODS):
@@ -105,8 +140,11 @@ def main(dist="mnist"):
         cost = ss.assignment_cost(Pn, g, cell)
         d = np.sqrt(((Pn - g.centers[cell]) ** 2).sum(1))
         nb = neighbourhood_map(Pn, g, cell)
+        dopt = opt_distance(g, cell, opt_cell)
         stats[lab] = dict(mean_sq=cost / n, mean_disp=float(d.mean()), p99=float(np.quantile(d, 0.99)),
-                          lattice_precision=float(nb.mean()))
+                          lattice_precision=float(nb.mean()),
+                          opt_cell_frac=float((dopt == 0).mean()), opt_within1_frac=float((dopt <= 1).mean()),
+                          opt_dist_median=float(np.median(dopt)), opt_dist_mean=float(dopt.mean()))
         if disp_max is None:
             disp_max = float(np.quantile(d, 0.995))
         img = fs.grid_image(g, cell, cols)
@@ -123,7 +161,8 @@ def main(dist="mnist"):
         cm = matplotlib.colormaps["Blues"].copy()
         cm.set_bad("white")
         im_d = ax.imshow(dimg, cmap=cm, vmin=0, vmax=disp_max, interpolation="nearest")
-        ax = axes[3, c]
+        im_o = opt_distance_panel(axes[3, c], g, cell, dopt)
+        ax = axes[4, c]
         nimg = np.full((g.height, g.width), np.nan)
         nimg[lat[:, 1], lat[:, 0]] = nb
         cm2 = matplotlib.colormaps["Oranges"].copy()
@@ -139,11 +178,13 @@ def main(dist="mnist"):
     axes[0, 0].set_ylabel("color = input position", fontsize=7)
     axes[1, 0].set_ylabel("zoom (64×64 cells)", fontsize=7)
     axes[2, 0].set_ylabel("displacement", fontsize=7)
-    axes[3, 0].set_ylabel("lattice precision", fontsize=7)
+    axes[3, 0].set_ylabel("distance to optimal cell", fontsize=7)
+    axes[4, 0].set_ylabel("lattice precision", fontsize=7)
     cb = fig.colorbar(im_d, ax=axes[2, :], shrink=0.8, pad=0.01)
     cb.set_label("cells", fontsize=6.5)
     cb.outline.set_visible(False)
-    cb2 = fig.colorbar(im_n, ax=axes[3, :], shrink=0.8, pad=0.01)
+    opt_distance_colorbar(fig, im_o, axes[3, :])
+    cb2 = fig.colorbar(im_n, ax=axes[4, :], shrink=0.8, pad=0.01)
     cb2.set_label("fraction", fontsize=6.5)
     cb2.outline.set_visible(False)
     os.makedirs(OUT, exist_ok=True)

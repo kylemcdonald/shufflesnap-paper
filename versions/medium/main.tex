@@ -201,20 +201,21 @@ harder (Section~\ref{sec:fail}).
 
 \panel{fig_gallery_mnist}{All 70{,}000 MNIST digits on a $265\times265$ grid. Colors and
 graph-paper lines follow each point's input position; numbers are the mean squared
-displacement in cells$^2$. The bottom row shows lattice precision, the fraction of a point's
+displacement in cells$^2$. Row~3 shows each point's distance to its cell in the certified
+optimum (log scale; white is the optimal cell). The bottom row shows lattice precision, the fraction of a point's
 occupied neighbour cells that hold one of its 8 nearest input neighbours.\label{fig:gallery}}
 
 On both embeddings the default preset is within 0.002\% of the certified optimum, and its
 layout is visually indistinguishable from the optimal one: the graph-paper lines bend in
-the same places (Figure~\ref{fig:gallery}). The two comparators fail in opposite ways.
-BSP-OT is within 2.4\% (MNIST) and 6.7\% (Fashion-MNIST) of the optimal displacement, yet it
-halves both neighbourhood measures (the fraction of each point's 10 nearest input neighbours
-among its 10 nearest grid neighbours is 0.31--0.33, against 0.61--0.65 for the optimum): its merged partitions follow the optimal map on average
+the same places, and 74\% of its points sit on their optimal cell (Figure~\ref{fig:gallery}). The two comparators fail in opposite ways.
+BSP-OT is within 2.4\% (MNIST) and 6.7\% (Fashion-MNIST) of the optimal displacement, yet its
+median point is 8 cells from its optimal cell, and it halves both neighbourhood measures
+(10-nearest-neighbour recall 0.31--0.33, against 0.61--0.65 for the optimum): its merged partitions follow the optimal map on average
 but scramble points locally, which frays the lines. RasterFairy moves points 20--25\% more
 than necessary, but keeps local order inside its slices and breaks it only along their
 seams, so its neighbourhood measures stay close to the optimum's. Even the optimum tears
 the layout along cluster boundaries, visible as pale lines in the bottom row. Minimizing
-displacement and preserving neighbourhoods are different goals; neither implies the other.
+displacement and preserving neighbourhoods are different goals.
 
 \clearpage
 

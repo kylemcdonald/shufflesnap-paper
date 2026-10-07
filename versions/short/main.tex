@@ -165,8 +165,11 @@ separate repository.
 \panel{fig_visual_mnist}{All 70{,}000 MNIST digits, UMAP layout snapped to a $265\times265$
 grid. Colors and graph-paper lines encode input position as in Figure~\ref{fig:progress};
 numbers are the mean squared displacement in cells$^2$. Rows: the full grid, the
-$64\times64$ box enlarged, each point's displacement, and lattice precision (the fraction of
-a point's occupied 8-neighbour cells holding one of its 8 nearest input neighbours).
-BSP-OT stays within 3\% of the optimal displacement but halves lattice precision;
+$64\times64$ box enlarged, each point's displacement, its distance to its cell in the
+certified optimum (log scale; white is the optimal cell), and lattice precision (the fraction
+of a point's occupied 8-neighbour cells holding one of its 8 nearest input neighbours).
+\ShuffleSnap\ leaves 74\% of the points on their optimal cell, and its errors are thin
+loops of one-cell shifts. BSP-OT stays within 3\% of the optimal displacement, yet its median
+point is 8 cells from its optimal cell, and it halves lattice precision;
 RasterFairy breaks the lines at rectangular seams.\label{fig:visual}}
 \end{document}
