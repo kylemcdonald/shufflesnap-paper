@@ -46,9 +46,8 @@ default is $w=8$ and $r=\sqrt2$ (Section~\ref{sec:improve}).
   then repeat until a full round moves no point, or until a time budget runs out.
 \end{enumerate}
 With $r=2$ the strides halve, and every level quarters the area a window spans. With
-$r=\sqrt2$ the area halves from one level to the next, so each level starts from a layout
-that is already sorted at nearly its own scale; this plausibly explains why $\sqrt2$ works
-well (Section~\ref{sec:ablation}). It roughly doubles the number of levels.
+$r=\sqrt2$ the area halves from one level to the next, which roughly doubles the number of
+levels. We chose $\sqrt2$ experimentally (Section~\ref{sec:ablation}).
 
 \paragraph{Window solver and acceptance.} Each window is a rectangular problem: $k$
 occupants and $m\ge k$ cells, with $m\le w^2$. We solve it exactly by

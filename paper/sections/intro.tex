@@ -26,8 +26,8 @@ assignment problems inside $8\times8$ windows of each subgrid, dividing $s$ by $
 until it reaches 1 (Figure~\ref{fig:method}). All work is at full resolution; nothing is
 aggregated or downsampled.
 
-We treat the idea as a hypothesis to test, not a result to promote. Our aim throughout
-was to find where it fails. The main contributions are:
+Every gap we report is measured against a proven optimum on the same instance, and we
+report where the method fails as well as where it works. The main contributions are:
 
 \begin{itemize}
 \item \textbf{A careful implementation} with documented rules for boundaries,
@@ -76,5 +76,5 @@ was to find where it fails. The main contributions are:
   preservation, and we keep displacement and neighbourhood measures separate.
 \end{itemize}
 
-The implementation (\texttt{shufflesnap}) and this paper's experiment code, raw results
-and figure scripts are released as two separate repositories.
+The implementation is on PyPI as \texttt{shufflesnap}; this paper's experiment code, raw
+results and figure scripts are in a separate repository.

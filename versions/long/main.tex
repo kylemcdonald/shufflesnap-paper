@@ -17,7 +17,7 @@
 
 \title{\ShuffleSnap: strided windowed exact reassignment\\for point-to-grid layout}
 \author{Kyle McDonald}
-\date{September 2026}
+\date{October 6, 2026}
 
 \begin{document}
 \maketitle
@@ -61,7 +61,7 @@ splits the grid into $s^2$ interleaved subgrids and solves small \emph{exact} as
 problems inside $8\times8$ windows of each, dividing $s$ by $\sqrt2$ until it reaches 1
 (Figure~\ref{fig:schematic}). All work is at full resolution; nothing is aggregated.
 
-We treat the idea as a hypothesis, and our aim throughout was to find where it fails. We
+We measure every gap against a proven optimum and report where the method fails. We
 contribute a careful parallel implementation with a 70-line serial reference that reproduces
 it exactly; a window solver that starts from closed-form transport duals; a certified exact
 solver that reaches $10^6$ points, so that every gap is measured against a proven optimum;
@@ -183,8 +183,8 @@ We tuned only on development instances and report every claim on held-out ones.
 $16\times16$ cost 2--2.6 times the time and removed one half to two thirds of the remaining
 excess. The \emph{fast} ($5\times5$) and \emph{balanced} ($8\times8$, default) presets take
 about as long as BSP-OT with 16 and 64 plans; \emph{quality} is $12\times12$. \emph{Stride ratio:}
-dividing by $\sqrt2$ instead of 2 halves the area a window spans per level and was the best
-or close to the best ratio at every window size. \emph{Start:} structured starts, such as
+dividing by $\sqrt2$ instead of 2 was the best or close to the best ratio at every window
+size. \emph{Start:} structured starts, such as
 recursive bisection or sorting by rows, are worse than a random one: they create straight
 seams that windows cannot repair. \emph{Solver:} every point of a distant cluster prefers
 the same corner cell, which defeats the usual greedy start. Starting from the Brenier
@@ -412,8 +412,8 @@ LAS/FLAS~\citep{barthel2023improved}.
 
 \paragraph{Limitations.} Everything ran on one workstation, CPU only (BSP-OT's GPU version
 was not tested), for squared Euclidean displacement in 2D, on two real UMAP embeddings, with
-representative settings of each comparator. Code, raw results and figure scripts are
-released in two repositories.
+representative settings of each comparator. The package is on PyPI as
+\texttt{shufflesnap}; raw results and figure scripts are in a separate repository.
 \label{page:body-end}
 
 \clearpage

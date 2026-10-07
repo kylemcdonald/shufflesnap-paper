@@ -8,7 +8,7 @@
 | Short | 3 pages | `dist/shufflesnap-short.pdf` | `versions/short/main.tex` |
 
 References start on a new page after the body and do not count toward its length; the
-PDFs have 12, 7 and 4 pages in total. Each shorter edition is a standalone manuscript, not
+PDFs have 12, 7 and 5 pages in total. Each shorter edition is a standalone manuscript, not
 an excerpt: it is written for its length and keeps the full paper's claims, numbers and
 figures (it adds no new result).
 

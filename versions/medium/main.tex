@@ -15,7 +15,7 @@
 
 \title{\ShuffleSnap: strided windowed exact reassignment\\for point-to-grid layout}
 \author{Kyle McDonald}
-\date{September 2026}
+\date{October 6, 2026}
 
 \begin{document}
 \maketitle
@@ -47,8 +47,8 @@ BSP-OT~\citep{genest2025bspot}.
 \ShuffleSnap\ borrows from Shellsort~\citep{shell1959highspeed}, which sorts interleaved
 subsequences at a shrinking gap. It solves only small assignment problems, but exactly,
 with their cells spread across the grid first and brought together later
-(Figure~\ref{fig:schematic}). We treat the idea as a hypothesis, and measure its true gaps
-with a solver that proves optimality on the same instances.
+(Figure~\ref{fig:schematic}). We measure its gaps against a solver that proves optimality
+on the same instances, and report where it fails as well as where it works.
 
 \panel{fig_schematic}{(a)~A window collects the points that occupy its cells and
 reassigns them among the same cells by an exact linear assignment. (b)~At stride $s$ a
@@ -90,13 +90,13 @@ skips windows whose occupants have not changed. It solves each window exactly fr
 duals derived in closed form from per-axis optimal transport, so that the points of a distant
 cluster do not all compete for one corner cell. A 70-line serial version in NumPy and SciPy
 reproduces its assignments exactly. We chose the window side and the stride ratio on
-development instances. Larger windows were better in every test but slower: each step from
+development instances. Larger windows ended closer to the optimum in every test, but took longer to reach any
+cost that a smaller window also reached. Each step from
 $8\times8$ to $12\times12$ to $16\times16$ cost 2--2.6 times the time and removed one half to
 two thirds of the remaining excess. We offer \emph{fast} ($5\times5$), \emph{balanced}
 ($8\times8$, default) and \emph{quality} ($12\times12$); fast and balanced take about as long
-as BSP-OT with 16 and 64 plans, so the two compare at equal time. Dividing the stride by $\sqrt2$ halves the area a window spans from
-one level to the next, so each level starts from a layout already sorted at nearly its own
-scale; it was the best or close to the best ratio at every window size.
+as BSP-OT with 16 and 64 plans, so the two compare at equal time. Dividing the stride by $\sqrt2$ was the best or close to
+the best ratio at every window size.
 
 \panel{fig_progress}{Progress on 10{,}000 points of a UMAP embedding of MNIST
 digits~\citep{lecun1998gradient}. Every point keeps the color of its input position, and
@@ -246,7 +246,8 @@ gives near-optimal results in about 0.2\,s on a multicore machine (fast: 0.09\,s
 is worth minutes, the certified solver started from \ShuffleSnap\ is the better choice.
 Below 0.12--0.36\,s on one core, BSP-OT gives the best available result. If the position
 of empty cells does not matter, an exact-fit mask is easier than surplus cells for every
-method. The code, raw results and figure scripts are released in two repositories.
+method. The package is on PyPI as \texttt{shufflesnap}; raw results and figure scripts are in a
+separate repository.
 
 \paragraph{Limits of this study.} All measurements come from one workstation, CPU only;
 BSP-OT also has a GPU implementation that we did not test. The objective is squared

@@ -22,5 +22,8 @@ its excess drops from 249\% to 53\% to 28\% on uniform points, from 28\% to 3.1\
 (fast) and at 0.97\%, 0.0005\% and 0.002\% (default). BSP-OT with 1--8 plans is the better
 choice only for budgets below 0.12--0.36\,s on one thread, when \ShuffleSnap\ has finished
 only its coarsest levels. With 24 threads, the fast preset is ahead at every budget for which
-BSP-OT returns a result. RasterFairy's leaf size hardly matters except on uniform points
+BSP-OT returns a result. Larger windows are slower not only per round but also to any cost a smaller window
+reaches: the quality preset needed 2.8--7.4\,s to reach the cost at which the fast preset
+stops after 0.7--0.9\,s, and the default 1.4--2.6\,s. A larger window pays off only at
+costs that a smaller one never reaches. RasterFairy's leaf size hardly matters except on uniform points
 (73\% with no exact leaves, 45\% with 1000-point leaves).

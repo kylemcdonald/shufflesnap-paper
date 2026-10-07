@@ -1,7 +1,7 @@
 \section{Discussion and limitations}
 \label{sec:discussion}
 
-\paragraph{What the hypothesis survived.} Coarse-to-fine strided windows get very close
+\paragraph{Where it works.} Coarse-to-fine strided windows get very close
 to the optimum for the smooth, clustered layouts that motivate the problem. On the two
 real 70{,}000-point UMAP embeddings, the default preset is within \RealBalancedExcess\ of
 the certified optimum and visually indistinguishable from it. The method needs no dense
@@ -9,7 +9,7 @@ matrix, runs in 0.15--0.4\,s with all 24 threads at $10^5$ points (default prese
 same result for any number of threads, and never increases the cost. At the running time of
 BSP-OT with 16 or 64 plans, it is closer to the optimum on eight or nine of ten distributions.
 
-\paragraph{What it did not survive.} \ShuffleSnap\ is a local search, and its failures
+\paragraph{Where it fails.} \ShuffleSnap\ is a local search, and its failures
 follow from that. (i)~Near-uniform data stay hardest: the default is 0.84\% above the
 optimum at $10^5$ points, and its excess grows with $N$ (0.1\% at $10^3$ points, 1.3\% at
 $10^6$). The excess consists of a few long closed loops of one-cell shifts that no
@@ -71,7 +71,7 @@ and its PyPI release does not run on Python~3.
 \section{Conclusion}
 \label{sec:conclusion}
 
-Treated as a hypothesis, the Shellsort idea largely held up. Strided exact windows,
+The Shellsort idea largely works. Strided exact windows,
 refined from coarse to fine, bring clustered layouts, including two real UMAP embeddings
 of 70{,}000 points, to within hundredths of a percent of a proven optimum in a
 fraction of a second on a multicore machine, with little memory and deterministic parallelism. The idea also has sharp
