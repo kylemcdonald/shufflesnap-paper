@@ -27,6 +27,7 @@ import datasets  # noqa: E402
 import figstyle as fs  # noqa: E402
 import methods  # noqa: E402
 import reference  # noqa: E402
+import specs  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "..", "paper", "figures")
@@ -34,13 +35,11 @@ CACHE = os.path.join(HERE, "..", "results", "assignments", "visual")
 
 METHODS = [
     ("Exact-certified", None),
-    ("SS-baseline", ("shufflesnap", dict(window=6, ratio=2.0, seed=1))),
-    ("SS-balanced", ("shufflesnap", dict(window=8, ratio=2 ** 0.5, seed=1))),
+    ("SS-balanced", ("shufflesnap", dict(specs.DEFAULT, seed=1))),
     ("BSP-OT-64", ("bspot", dict(num_plans=64, variant="gaussian"))),
     ("RasterFairy-master", ("rasterfairy", dict(version="master"))),
 ]
-SHORT = {"Exact-certified": "exact optimum", "SS-baseline": "ShuffleSnap baseline",
-         "SS-balanced": "ShuffleSnap balanced", "BSP-OT-64": "BSP-OT (64 plans)",
+SHORT = {"Exact-certified": "exact optimum", "SS-balanced": "ShuffleSnap", "BSP-OT-64": "BSP-OT (64 plans)",
          "RasterFairy-master": "RasterFairy (master)"}
 
 
@@ -49,7 +48,8 @@ def assignments(dist, n=70000, seed=1):
     Pn, g, labels, raw = datasets.instance(dist, n, seed)
     out = {}
     for lab, spec in METHODS:
-        path = os.path.join(CACHE, f"{dist}-{n}-{seed}-{lab}.npy")
+        tag = f"-w{spec[1]['window']}" if spec and "window" in spec[1] else ""  # cache per configuration
+        path = os.path.join(CACHE, f"{dist}-{n}-{seed}-{lab}{tag}.npy")
         if os.path.exists(path):
             out[lab] = np.load(path)
             continue
@@ -92,7 +92,7 @@ def main(dist="mnist"):
     fs.setup()
     Pn, g, labels, cells = assignments(dist)
     n = len(Pn)
-    cols = fs.position_colors(Pn)
+    cols = fs.source_colors(Pn)
     # crop window: centered on the densest cluster boundary region (fixed, same for all)
     cx, cy, half = int(g.width * 0.52), int(g.height * 0.45), 32
     k = len(METHODS)

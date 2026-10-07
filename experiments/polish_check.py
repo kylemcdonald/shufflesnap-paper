@@ -1,8 +1,9 @@
-"""Held-out check of two post-convergence polishing ideas (quality only, instance seeds 1-3).
+"""Held-out check of two post-convergence polishing ideas (instance seeds 1-3), against simply
+using the quality preset.
 
-(a) V-cycles: after the baseline converges, run [stride 2 (1 round), stride 1 (to convergence)]
+(a) V-cycles: after the default preset converges, run [stride 2 (1 round), stride 1 (to convergence)]
     three more times.
-(b) Merging: combine 4 independent baseline runs (start seeds 1-4) per connected component of
+(b) Merging: combine 4 independent default runs (start seeds 1-4) per connected component of
     their union, keeping the cheaper side (the BSP-OT merge rule).
 """
 from __future__ import annotations
@@ -22,6 +23,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import datasets  # noqa: E402
 import methods  # noqa: E402
 import reference  # noqa: E402
+import specs  # noqa: E402
 
 
 def merge(P, g, a, b):
@@ -44,27 +46,37 @@ def main(out):
         for seed in (1, 2, 3):
             Pn, g, _, _ = datasets.instance(dist, n, seed)
             opt = reference.get(dist, n, seed, compute=False)["cost"]
-            base, _ = methods.m_shufflesnap(Pn, g, window=6, ratio=2.0, seed=seed)
+            t = time.perf_counter()
+            base, _ = methods.m_shufflesnap(Pn, g, seed=seed, **specs.DEFAULT)
+            t_base = time.perf_counter() - t
             c0 = ss.assignment_cost(Pn, g, base)
             pos = base.copy()
             t = time.perf_counter()
             vc = np.array([[2, 2, 1, 0], [1, 1, -1, 1]], dtype=np.int32)
             for _ in range(3):
-                ss.run_schedule(Pn, g, pos, vc, window=6)
+                ss.run_schedule(Pn, g, pos, vc, window=specs.DEFAULT["window"])
             t_vc = time.perf_counter() - t
             c_vc = ss.assignment_cost(Pn, g, pos)
-            runs = [base] + [methods.m_shufflesnap(Pn, g, window=6, ratio=2.0, seed=seed + 100 * k)[0] for k in (1, 2, 3)]
+            t = time.perf_counter()
+            runs = [base] + [methods.m_shufflesnap(Pn, g, seed=seed + 100 * k, **specs.DEFAULT)[0] for k in (1, 2, 3)]
             cur = runs[0]
             for r in runs[1:]:
                 cur = merge(Pn, g, cur, r)
             ss.validate_assignment(cur, n, g)
             c_m = ss.assignment_cost(Pn, g, cur)
-            rec = dict(dist=dist, n=n, seed=seed, base_excess=100 * (c0 / opt - 1),
+            t_merge = t_base + time.perf_counter() - t  # four runs and the merges
+            t = time.perf_counter()
+            q, _ = methods.m_shufflesnap(Pn, g, seed=seed, **specs.SS["SS-quality"])
+            t_q = time.perf_counter() - t
+            c_q = ss.assignment_cost(Pn, g, q)
+            rec = dict(dist=dist, n=n, seed=seed, base_excess=100 * (c0 / opt - 1), base_s=t_base,
                        vcycle_excess=100 * (c_vc / opt - 1), vcycle_changed_cost=bool(c_vc < c0), vcycle_s=t_vc,
-                       merge4_excess=100 * (c_m / opt - 1))
+                       merge4_excess=100 * (c_m / opt - 1), merge4_s=t_merge,
+                       quality_excess=100 * (c_q / opt - 1), quality_s=t_q)
             print(json.dumps(rec), flush=True)
             f.write(json.dumps(rec) + "\n")
 
 
 if __name__ == "__main__":
-    main(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "results", "raw", "polish_check.jsonl"))
+    raw = os.environ.get("SS_RESULTS_RAW", os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "results", "raw"))
+    main(os.path.join(raw, "polish_check.jsonl"))

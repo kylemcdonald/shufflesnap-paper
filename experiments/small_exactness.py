@@ -18,15 +18,15 @@ from shufflesnap import exact
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import datasets  # noqa: E402
 import methods  # noqa: E402
+import specs  # noqa: E402
 
-CONFIGS = {"SS-baseline": dict(window=6, ratio=2.0), "SS-fast": dict(window=6, ratio=2 ** 0.5),
-           "SS-balanced": dict(window=8, ratio=2 ** 0.5), "SS-quality": dict(window=12, ratio=2 ** 0.5)}
+CONFIGS = specs.SS
 
 
 def main(out):
     f = open(out, "w")
     for n in (100, 400, 900, 2500):
-        for dist in ("uniform", "gaussian", "gmm", "spiral", "jitter", "duplicates"):
+        for dist in ("uniform", "gaussian", "gmm", "spiral", "duplicates"):
             for grid in ("square", "free10", "disk"):
                 for seed in range(100, 110):
                     Pn, g, _, _ = datasets.instance(dist, n, seed, grid)
@@ -57,4 +57,5 @@ def main(out):
 
 
 if __name__ == "__main__":
-    main(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "results", "raw", "small_exactness.jsonl"))
+    raw = os.environ.get("SS_RESULTS_RAW", os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "results", "raw"))
+    main(os.path.join(raw, "small_exactness.jsonl"))

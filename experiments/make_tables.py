@@ -10,14 +10,16 @@ import pandas as pd
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import analysis  # noqa: E402
+import specs  # noqa: E402
 
 OUT = os.path.join(HERE, "..", "paper", "tables")
 DIST_NAMES = {"uniform": "uniform", "gaussian": "Gaussian", "gmm": "Gaussian mixture", "unequal2": "90/10 clusters",
               "ring": "ring", "spiral": "spiral", "checker": "checkerboard", "heavy": "heavy tails",
               "duplicates": "duplicates", "line": "near-line", "jitter": "jittered lattice", "mnist": "MNIST UMAP",
               "fashion": "Fashion UMAP"}
-MAIN_COLS = [("SS-baseline", "SS base"), ("SS-fast", "SS fast"), ("SS-balanced", "SS bal."), ("SS-quality", "SS qual."),
-             ("BSP-OT-16", "BSP 16"), ("BSP-OT-64", "BSP 64"), ("RasterFairy-master", "RF master"),
+# each ShuffleSnap preset next to the BSP-OT setting that takes about as long
+MAIN_COLS = [("SS-fast", "SS fast"), ("BSP-OT-16", "BSP 16"), ("SS-balanced", "SS bal."), ("BSP-OT-64", "BSP 64"),
+             ("SS-quality", "SS qual."), ("RasterFairy-master", "RF master"),
              ("RasterFairy-pypi", "RF PyPI"), ("Bisection", "Bisect.")]
 
 
@@ -107,6 +109,28 @@ def table_main(df, n=100000, threads=1):
     write(f"tab_main_{n // 1000}k_t{threads}.tex", text)
 
 
+def table_main_compact(df, n=100000, threads=1):
+    """The main table's key columns, for the shorter editions."""
+    d = _ok(df[(df["n"] == n) & (df["grid"] == "square") & (df["threads"] == threads) &
+               df["file"].str.startswith("main")])
+    cols = [("SS-fast", "SS fast"), ("BSP-OT-16", "BSP-OT 16"), ("SS-balanced", "SS bal."), ("BSP-OT-64", "BSP-OT 64"),
+            ("SS-quality", "SS qual."), ("RasterFairy-master", "RasterFairy")]
+    rows = []
+    for dist in DIST_NAMES:
+        s = d[d["dist"] == dist]
+        if s.empty:
+            continue
+        cells = [DIST_NAMES[dist]] + [fmt_pct(s.loc[s["label"] == lab, "excess_pct"].mean()) for lab, _ in cols]
+        cells.append(_exact_cell(df, dist, n, threads, "Exact-certified"))
+        rows.append(" & ".join(cells) + r" \\")
+    trow = [r"\emph{median time (s)}"] + [fmt_t(d.loc[d["label"] == lab, "time_s"].median()) for lab, _ in cols]
+    trow.append(fmt_t(d.loc[d["label"] == "Exact-certified", "time_s"].median()))
+    head = " & ".join(["distribution"] + [c for _, c in cols] + ["exact (s)"]) + r" \\"
+    text = (r"\begin{tabular}{lrrrrrrr}" + "\n\\toprule\n" + head + "\n\\midrule\n" + "\n".join(rows) +
+            "\n\\midrule\n" + " & ".join(trow) + r" \\" + "\n\\bottomrule\n\\end{tabular}\n")
+    write(f"tab_main_compact_{n // 1000}k_t{threads}.tex", text)
+
+
 def table_abs(df, n=100000, threads=1):
     """Absolute excess per point (cells^2), same layout."""
     d = _ok(df[(df["n"] == n) & (df["grid"] == "square") & (df["threads"] == threads) &
@@ -128,10 +152,9 @@ def table_abs(df, n=100000, threads=1):
 
 
 GRID_NAMES = {"free": "surplus ($<$1 row)", "free10": "10\\% surplus", "wide": "4:1 rectangle", "disk": "disk",
-              "ring": "ring", "logo": "S mask", "square": "exact fit"}
-MASK_COLS = [("SS-baseline", "SS base"), ("SS-fast", "SS fast"), ("SS-balanced", "SS bal."),
-             ("SS-quality", "SS qual."), ("BSP-OT-16", "BSP 16"), ("BSP-OT-64", "BSP 64"),
-             ("RasterFairy-master", "RF master")]
+              "ring": "ring", "logo": "S mask (font)", "srect": "S mask", "square": "exact fit"}
+MASK_COLS = [("SS-fast", "SS fast"), ("BSP-OT-16", "BSP 16"), ("SS-balanced", "SS bal."), ("BSP-OT-64", "BSP 64"),
+             ("SS-quality", "SS qual."), ("RasterFairy-master", "RF master")]
 
 
 def table_masks(df):
@@ -139,7 +162,7 @@ def table_masks(df):
     if d.empty:
         return
     rows = []
-    for grid in ["free", "free10", "wide", "disk", "ring", "logo"]:
+    for grid in ["free", "free10", "wide", "disk", "ring", "srect"]:
         for dist in ["uniform", "gmm", "spiral", "mnist"]:
             s = d[(d["grid"] == grid) & (d["dist"] == dist)]
             if s.empty:
@@ -170,18 +193,17 @@ def table_primes(df):
                 g = s.iloc[0]
                 shape = f"{int(g['n_cells'])} cells"
                 cells = [f"{n:,}", "exact fit" if grid == "square" else "full rectangle", DIST_NAMES[dist]]
-                for lab, _ in [("SS-baseline", ""), ("SS-balanced", ""), ("BSP-OT-16", ""), ("RasterFairy-master", "")]:
+                for lab in ("SS-fast", "SS-balanced", "SS-quality", "BSP-OT-16", "RasterFairy-master"):
                     v = s.loc[s["label"] == lab, "excess_pct"]
                     cells.append(fmt_pct(v.mean()) if len(v) else "--")
                 rows.append(" & ".join(cells) + r" \\")
-    head = r"$N$ & target & points & SS base & SS bal. & BSP 16 & RF master \\"
-    text = ("\\begin{tabular}{lllrrrr}\n\\toprule\n" + head + "\n\\midrule\n" + "\n".join(rows) +
+    head = r"$N$ & target & points & SS fast & SS bal. & SS qual. & BSP 16 & RF master \\"
+    text = ("\\begin{tabular}{lllrrrrr}\n\\toprule\n" + head + "\n\\midrule\n" + "\n".join(rows) +
             "\n\\bottomrule\n\\end{tabular}\n")
     write("tab_primes.tex", text)
 
 
-REAL_ROWS = [("Exact-certified", "exact (certified)"), ("SS-baseline", "ShuffleSnap baseline"),
-             ("SS-fast", "ShuffleSnap fast"), ("SS-balanced", "ShuffleSnap balanced"),
+REAL_ROWS = [("Exact-certified", "exact (certified)"), ("SS-fast", "ShuffleSnap fast"), ("SS-balanced", "ShuffleSnap balanced"),
              ("SS-quality", "ShuffleSnap quality"), ("BSP-OT-16", "BSP-OT, 16 plans"), ("BSP-OT-64", "BSP-OT, 64 plans"),
              ("RasterFairy-master", "RasterFairy master"), ("RasterFairy-pypi", "RasterFairy PyPI"),
              ("Bisection", "bisection only")]
@@ -209,40 +231,43 @@ def table_real(df):
                      f"{r['peak_rss_mb'].median():.0f}", f"{r['knn10'].mean():.3f}", f"{r['lattice_nbr'].mean():.3f}"]
             rows.append(" & ".join(cells) + r" \\")
         rows.append(r"\addlinespace")
-    head = (r" & method & excess (\%) & mean sq. & time 1T (s) & time 24T (s) & mem (MB) & kNN recall & "
+    head = (r" & method & excess (\%) & mean sq. & time 1T (s) & time 24T (s) & mem (MiB) & kNN recall & "
             r"lattice prec. \\")
     text = ("\\begin{tabular}{llrrrrrrr}\n\\toprule\n" + head + "\n\\midrule\n" + "\n".join(rows[:-1]) +
             "\n\\bottomrule\n\\end{tabular}\n")
     write("tab_real.tex", text)
 
 
-ABL_NAMES = {"window": "window side (ratio 2)", "window-r1.41": r"window side (ratio $\sqrt2$)",
-             "ratio": "stride ratio", "start": "start", "rounds": "rounds per level", "offsets": "tilings per round",
+ABL_NAMES = {"window": "window side (halving)", "window-r1.41": r"window side (ratio $\sqrt2$)",
+             "ratio": rf"stride ratio ({specs.DEFAULT['window']}$\times${specs.DEFAULT['window']})", "start": "start", "rounds": "rounds per level", "offsets": "tilings per round",
              "solver": "window solver", "skip_clean": "skip unchanged windows", "coarse": "first stride"}
 
 
 def _abl_setting(group, r):
     if group in ("window", "window-r1.41"):
-        return f"{int(r['p_window'])}$\\times${int(r['p_window'])}"
+        w = int(r["p_window"])
+        return f"{w}$\\times${w}" + (" (default)" if group == "window-r1.41" and w == specs.DEFAULT["window"] else "")
     if group == "ratio":
         v = float(r["p_ratio"])
-        return {3.0: "3", 2.0: "2 (baseline)", 1.1: "1.1"}.get(round(v, 3), f"{v:.2f}")
+        return {3.0: "3", 2.0: "2 (halving)", 1.414: "$\\sqrt2$ (default)", 1.1: "1.1"}.get(round(v, 3), f"{v:.2f}")
     if group == "start":
-        return {"random": "random (baseline)", "bisect": "bisection", "rowsort": "row sort"}[r["p_init"]]
+        return {"random": "random (default)", "bisect": "bisection", "rowsort": "row sort"}[r["p_init"]]
     if group == "rounds":
-        return f"{int(r['p_rounds'])}"
+        return f"{int(r['p_rounds'])}" + (" (default)" if int(r["p_rounds"]) == 1 else "")
     if group == "offsets":
         import json as _json
         k = len(_json.loads(r["p_offsets"]))
-        return {1: "1", 2: "2 (diagonal)", 4: "4 (baseline)", 9: "9"}.get(k, str(k))
+        return {1: "1", 2: "2 (diagonal)", 4: "4 (default)", 9: "9"}.get(k, str(k))
     if group == "solver":
-        name = {"hungarian": "Hungarian", "hungarian_greedy": "Hungarian + greedy start", "jv": "Jonker--Volgenant"}
-        return f"{name[r['p_solver']]}, {int(r['p_window'])}$\\times${int(r['p_window'])}"
+        name = {"hungarian": "Hungarian", "hungarian_greedy": "Hungarian + greedy start", "jv": "Jonker--Volgenant",
+                "auction": "auction + exact finish", "geometric": "geometric (default)"}
+        ratio = "" if abs(float(r["p_ratio"]) - 2.0) < 1e-9 else r", ratio $\sqrt2$"
+        return f"{name[r['p_solver']]}, {int(r['p_window'])}$\\times${int(r['p_window'])}{ratio}"
     if group == "skip_clean":
-        return "yes (baseline)" if bool(r["p_skip_clean"]) else "no"
+        return "yes (default)" if bool(r["p_skip_clean"]) else "no"
     if group == "coarse":
         v = r.get("p_start_stride")
-        return "automatic (baseline)" if v is None or v != v else f"capped at {int(v)}"
+        return "automatic (default)" if v is None or v != v else f"capped at {int(v)}"
     return ""
 
 
@@ -254,7 +279,7 @@ def table_ablation(df):
     d["group"] = d["label"].str.replace("abl-", "", regex=False)
     d["setting"] = [_abl_setting(g, r) for g, (_, r) in zip(d["group"], d.iterrows())]
     lines = []
-    for group in ["window", "window-r1.41", "ratio", "start", "rounds", "offsets", "coarse", "solver", "skip_clean"]:
+    for group in ["window-r1.41", "window", "ratio", "start", "rounds", "offsets", "coarse", "solver", "skip_clean"]:
         sub = d[d["group"] == group]
         if sub.empty:
             continue
@@ -278,7 +303,8 @@ def table_memory(df):
     d = _ok(df[df["file"].str.startswith("memory")])
     if d.empty:
         return
-    rows_def = [("SS-baseline", "ShuffleSnap baseline"), ("SS-balanced", "ShuffleSnap balanced"),
+    rows_def = [("SS-fast", "ShuffleSnap fast"), ("SS-balanced", "ShuffleSnap balanced"),
+                ("SS-quality", "ShuffleSnap quality"),
                 ("BSP-OT-16", "BSP-OT, 16 plans"), ("RasterFairy-master", "RasterFairy master"),
                 ("Exact-certified", "exact, certified sparse"), ("Exact-dense-scipy", "exact, dense SciPy"),
                 ("Bisection", "bisection only")]
@@ -303,6 +329,8 @@ def main():
     for n in (10000, 50000, 100000):
         if ((df["n"] == n) & df["file"].str.startswith("main")).any():
             table_main(df, n=n)
+            if n == 100000:
+                table_main_compact(df, n=n)
             table_abs(df, n=n)
     table_masks(df)
     table_primes(df)

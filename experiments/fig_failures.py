@@ -2,8 +2,10 @@
 
 (a) uniform points: the permutation between the ShuffleSnap and optimal layouts is a
     union of closed loops of one-cell moves; arrows show (optimal cell -> ShuffleSnap cell).
-(b) excess share by loop length (100k uniform, baseline).
-(c) 'S' mask with jittered-lattice input: baseline vs balanced vs optimum displacement.
+(b) excess share by loop length (10k and 100k uniform, fast and default presets).
+(c) rectilinear 'S' mask with points drawn uniformly inside it (optimum ~ identity): 6x6 windows
+    with halving strides (a coarse schedule
+    that shows the mechanism) vs the default preset vs the optimum.
 Development instances (seed 0 / 3) are used here; they illustrate mechanisms, not claims.
 """
 from __future__ import annotations
@@ -25,6 +27,7 @@ import datasets  # noqa: E402
 import figstyle as fs  # noqa: E402
 import methods  # noqa: E402
 import reference  # noqa: E402
+import specs  # noqa: E402
 
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "paper", "figures")
 
@@ -63,6 +66,15 @@ def excess_by_cycle(Pn, g, opt, cell):
     return np.array(lens), np.array(exc), cyc, occ_opt
 
 
+def s_inside(n, seed=3):
+    """Points drawn uniformly inside the rectilinear S (each cell center plus a uniform offset
+    within its cell), so that the optimal layout moves every point by less than a cell."""
+    g = datasets.grid_for("srect", n)
+    rng = np.random.default_rng(seed)
+    P = g.centers + rng.uniform(-0.5, 0.5, size=g.centers.shape)
+    return np.ascontiguousarray(P[rng.permutation(n)]), g
+
+
 def main():
     fs.setup()
     fig = plt.figure(figsize=(7.0, 6.2), layout="constrained")
@@ -72,7 +84,7 @@ def main():
     n = 10000
     Pn, g, _, _ = datasets.instance("uniform", n, 0)
     opt = reference.get("uniform", n, 0)["cell"]
-    cell, _ = methods.m_shufflesnap(Pn, g, window=6, ratio=2.0, seed=0)
+    cell, _ = methods.m_shufflesnap(Pn, g, seed=0, **specs.DEFAULT)
     lens, exc, cyc, occ_opt = excess_by_cycle(Pn, g, opt, cell)
     ax = fig.add_subplot(gs[0, 0])
     Qo, Qs = g.centers[opt], g.centers[cell]
@@ -94,7 +106,7 @@ def main():
         sp.set_color(fs.AXIS)
     c_ss = ss.assignment_cost(Pn, g, cell)
     c_op = ss.assignment_cost(Pn, g, opt)
-    ax.set_title(f"(a) uniform, N = 10k, baseline:\noptimal cell → ShuffleSnap cell", loc="left")
+    ax.set_title(f"(a) uniform, N = 10k, default:\noptimal cell → ShuffleSnap cell", loc="left")
     print("(a)", diff.sum(), "points differ; excess %.3f%%" % (100 * (c_ss / c_op - 1)))
 
     # (b) excess share by loop length on 100k
@@ -103,7 +115,7 @@ def main():
     for nn, lab in ((10000, "N = 10k"), (100000, "N = 100k")):
         P2, g2, _, _ = datasets.instance("uniform", nn, 0)
         o2 = reference.get("uniform", nn, 0)["cell"]
-        for name, cfg in (("baseline", dict(window=6, ratio=2.0)), ("balanced", dict(window=8, ratio=2 ** 0.5))):
+        for name, cfg in (("fast", specs.SS["SS-fast"]), ("default", specs.DEFAULT)):
             c2, _ = methods.m_shufflesnap(P2, g2, seed=0, **cfg)
             L2, E2, _, _ = excess_by_cycle(P2, g2, o2, c2)
             bins = [(2, 10), (11, 30), (31, 100), (101, 300), (301, 10 ** 9)]
@@ -123,13 +135,13 @@ def main():
     ax.legend(loc="upper left", fontsize=6.5)
     ax.set_title("(b) share of the excess by loop length (uniform)", loc="left")
 
-    # (c) S-mask with jittered lattice
+    # (c) rectilinear S mask with uniform points
     n = 4000
-    P3, g3, _, _ = datasets.instance("jitter", n, 3, "logo")
+    P3, g3 = s_inside(n)
     o3 = exact.solve_certified(P3, g3, ss.assign(P3, g3, normalize="none").cell)["cell"]
     vmax = 25
-    for k, (name, cfg) in enumerate((("baseline", dict(window=6, ratio=2.0)),
-                                     ("balanced", dict(window=8, ratio=2 ** 0.5)), ("optimum", None))):
+    for k, (name, cfg) in enumerate((("6×6, halving", dict(window=6, ratio=2.0)),
+                                     ("default", specs.DEFAULT), ("optimum", None))):
         if cfg is None:
             c3 = o3
         else:

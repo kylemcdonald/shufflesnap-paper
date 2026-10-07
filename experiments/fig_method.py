@@ -25,32 +25,33 @@ GRAY = "#d7d6cf"
 
 
 def panel_strided(ax):
-    W, H, s, w = 30, 26, 4, 6
+    W, H, s, w = 32, 30, 4, 8
     a, b = 1, 2
     xs, ys = np.meshgrid(np.arange(W), np.arange(H))
-    ax.scatter(xs.ravel(), ys.ravel(), s=1.2, c=GRAY, linewidths=0)
+    ax.scatter(xs.ravel(), ys.ravel(), s=0.8, c=GRAY, linewidths=0)
     cls = (xs % s == a) & (ys % s == b)
-    ax.scatter(xs[cls], ys[cls], s=7, facecolors="none", edgecolors=BLUE, linewidths=0.6)
+    ax.scatter(xs[cls], ys[cls], s=5, facecolors="none", edgecolors=BLUE, linewidths=0.5)
     wx = a + s * np.arange(w)
     wy = b + s * np.arange(w)
     WX, WY = np.meshgrid(wx, wy)
-    ax.scatter(WX.ravel(), WY.ravel(), s=9, c=BLUE, linewidths=0)
+    ax.scatter(WX.ravel(), WY.ravel(), s=6, c=BLUE, linewidths=0)
     ax.add_patch(Rectangle((wx[0] - 0.5, wy[0] - 0.5), wx[-1] - wx[0] + 1, wy[-1] - wy[0] + 1, fill=False,
                            ec=fs.INK, lw=0.8))
     ax.annotate("", xy=(wx[-1] + 0.5, H + 0.8), xytext=(wx[0] - 0.5, H + 0.8),
                 arrowprops=dict(arrowstyle="<->", lw=0.6, color=fs.INK2, shrinkA=0, shrinkB=0))
-    ax.text((wx[0] + wx[-1]) / 2, H + 1.4, "window spans (w−1)s+1 = 21 cells", ha="center", va="top", fontsize=6.5,
+    ax.text((wx[0] + wx[-1]) / 2, H + 1.4, f"window spans (w−1)s+1 = {(w - 1) * s + 1} cells", ha="center", va="top",
+            fontsize=6.5,
             color=fs.INK2)
     ax.set_xlim(-1, W)
     ax.set_ylim(H + 3.2, -1)
     ax.set_aspect("equal")
     ax.axis("off")
-    ax.set_title("(a) stride s = 4: residue class (1, 2)\nand one 6×6 window (36 cells)", loc="left")
+    ax.set_title(f"(a) stride s = {s}: residue class ({a}, {b})\nand one {w}×{w} window ({w * w} cells)", loc="left")
 
 
 def panel_tilings(axes):
-    Wa, Hb, w = 14, 11, 6
-    for ax, (ox, oy) in zip(axes, ss.default_offsets(6)):
+    Wa, Hb, w = 20, 16, 8
+    for ax, (ox, oy) in zip(axes, ss.default_offsets(w)):
         shx = (w - ox % w) % w
         shy = (w - oy % w) % w
         for ky in range((Hb + shy + w - 1) // w):
@@ -64,7 +65,7 @@ def panel_tilings(axes):
                 ax.add_patch(Rectangle((i0 - 0.5, j0 - 0.5), i1 - i0, j1 - j0, fc=BLUE_LIGHT if clipped else "white",
                                        ec=fs.INK, lw=0.7))
         xs, ys = np.meshgrid(np.arange(Wa), np.arange(Hb))
-        ax.scatter(xs.ravel(), ys.ravel(), s=1.0, c=fs.INK2, linewidths=0)
+        ax.scatter(xs.ravel(), ys.ravel(), s=0.5, c=fs.INK2, linewidths=0)
         ax.set_xlim(-0.8, Wa - 0.2)
         ax.set_ylim(Hb - 0.2, -0.8)
         ax.set_aspect("equal")
@@ -75,11 +76,12 @@ def panel_tilings(axes):
 def panel_progress(fig, gs_imgs, ax_curve):
     n = 10000
     Pn, g, _, raw = datasets.instance("mnist", n, 0)
-    cols = fs.position_colors(Pn)
-    res = ss.assign(Pn, g, normalize="none", preset="baseline", seed=1, snapshots=True)
+    cols = fs.source_colors(Pn)
+    res = ss.assign(Pn, g, normalize="none", preset="balanced", seed=1, snapshots=True)
     ref = reference.get("mnist", n, 0, compute=False)
     snaps = res.snapshots
-    picks = [0] + list(range(1, len(snaps)))
+    # the start, every second level and the converged layout
+    picks = sorted(set([0] + list(range(1, len(snaps) - 1, 2)) + [len(snaps) - 1]))
     axes = [fig.add_subplot(gs_imgs[0, k]) for k in range(len(picks) + 1)]
     ax0 = axes[0]
     ax0.scatter(Pn[:, 0], Pn[:, 1], s=0.15, c=cols, linewidths=0, rasterized=True)
@@ -125,7 +127,7 @@ def panel_progress(fig, gs_imgs, ax_curve):
     ax_curve.set_xlim(-0.5, len(y) - 0.5)
     ax_curve.set_ylim(ref["cost"] / n * 0.8 if ref else y.min() * 0.8, y.max() * 1.6)
     fs.recess(ax_curve)
-    ax_curve.set_title(f"(d) cost after every phase (MNIST UMAP subset, N = {n}, baseline)", loc="left")
+    ax_curve.set_title(f"(d) cost after every phase (MNIST UMAP subset, N = {n}, default preset)", loc="left")
     return res
 
 
@@ -139,8 +141,8 @@ def main():
     tgs = top[1].subgridspec(2, 2, wspace=0.10, hspace=0.32)
     taxes = [fig.add_subplot(tgs[i // 2, i % 2]) for i in range(4)]
     panel_tilings(taxes)
-    taxes[0].text(-0.8, -3.6, "(b) one round = four shifted tilings of each subgrid\n     (clipped edge windows shaded)",
-                  fontsize=8.5, ha="left", va="bottom")
+    taxes[0].text(0.0, 1.32, "(b) one round = four shifted tilings of each subgrid\n     (clipped edge windows shaded)",
+                  fontsize=8.5, ha="left", va="bottom", transform=taxes[0].transAxes)
     mid = outer[1].subgridspec(1, 8, wspace=0.12)
     fig.text(0.125, 0.565, "(c) coarse-to-fine progress (color = input position; number = mean squared "
              "displacement)", fontsize=8.5, ha="left")

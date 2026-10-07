@@ -144,3 +144,237 @@ Chronological record of decisions, observations and negative results. Times are 
   excess on clustered inputs; merging 4 independent baseline runs cut uniform excess 23-38% at 4x
   cost (fast preset: 1.5% at ~1x). Heap-trimmed memory: ShuffleSnap 22-37 B/pt, BSP-OT ~243,
   RasterFairy ~647, certified exact 4-8 kB/pt.
+
+## 2026-09-25 — comparison with the other implementations; fixes; shorter editions
+
+Compared this rebuild with the original implementation and paper (`../../shufflesnap`,
+`../../shufflesnap-paper`, including its 10/6/3-page editions) and with the Fable rebuild
+(`../fable`). The Codex rebuild's files no longer exist (its symlinks point to a deleted
+directory on `/media/kyle/data`); only the original's review of it (`REBUILD_REVIEW.md`) was
+available.
+
+- Adopted: (1) an executable serial reference in NumPy/SciPy, like the original's
+  `paper/reference.py`, as `shufflesnap.reference` (95 lines). It reproduces the kernel's
+  assignments exactly: 48/48 ad-hoc cases and 24 parametrized tests (four presets x exact fit,
+  partial row, surplus cells, thin rectangle, disk, random mask). Exact equality needs the
+  same sequential summation order for the acceptance test (NumPy's pairwise `sum` and
+  Python 3.12's compensated `sum()` differ in the last bits). (2) Codex's sparse-mask
+  counterexample (usable columns 0 and 7 of a one-row mask never share a window under the
+  baseline): a regression test and a paragraph in the anatomy section. Here empty cells are
+  movable, so the example needs *masked* cells between the two. (3) The original's graph-paper
+  lines (source-space grid lines darkened in the gallery), now in the MNIST, mask and progress
+  figures (`figstyle.source_colors`). The palette itself was not brightened: even the current
+  one clips 17% of colors to sRGB, and higher chroma clips 22-49%.
+- Bug found and fixed: `time_budget=0` (or a budget used up by normalization and the start)
+  ran the whole schedule, because the kernel treated budgets <= 0 as "none"; NaN and negative
+  budgets were accepted too. Now 0 returns the start and NaN/negative raise. No benchmark run
+  used a budget, so no result changes.
+- BSP-OT: its binding exposes no seed; the paired 1- and 24-thread runs (198 instances) never
+  returned the same cost (-8% to +13%, median 0). Fable reported a systematic degradation with
+  more threads for the POT port; there is none here. Added a sentence to the setup.
+- Not adopted: the original's memory-lean kernel layout (per-axis center coordinates instead
+  of an M x 2 array, one dirty byte per cell instead of an int64 stamp). It matters only near
+  10^9 cells, and the paper's timings would no longer describe the code. Fable's density-based
+  choice of initial empty cells (Fable measured it as ineffective) and its CLI.
+- Related work: added Volgenant's core-oriented LAP (LAPMOD), verified via Crossref and the
+  abstract. Considered the AKT log N law for uniform matching and dropped it: the measured
+  uniform optima per point are not monotone in N here (1.48, 1.30, 1.80 cells^2 at 10k, 50k,
+  100k), because each size has a different grid shape and partial last row.
+- Abstract: "a dense exact solver" -> "SciPy's dense exact solver" (the measured one).
+- Also from the original's review: a stage with unlimited rounds and no stop rule looped forever;
+  `run_schedule` now rejects it (unless a time budget bounds it), empty stage tables and strides
+  below 1. No experiment used such a table.
+- Shorter editions: `versions/{long,medium,short}` (10/6/3 body pages), built and checked by
+  `experiments/build_versions.py` (page count, overfull boxes, undefined references); compact
+  figures from `experiments/fig_editions.py`, and `tab_main_compact_100k_t1` from `make_tables.py`.
+  They reuse existing results only. Proofreading against the full paper corrected several
+  condensations (e.g. "5-37x worse and slower" -> "5-37x worse and 5-90x slower"; the serial
+  reference is 70 code lines, not 60).
+
+## 2026-09-25 — window solver at the balanced preset; auction solver
+
+- The solver ablation only covered 6x6 and 12x12 at ratio 2. Rerun at the balanced preset (8x8,
+  ratio sqrt2; uniform/gmm 100k, mnist 70k; seeds 1-3; 24 threads and 1 thread pinned to CPU 8):
+  `experiments/solver_balanced.py` -> `results/raw/solver_balanced_t{24,1}.jsonl`.
+- New window solvers: `auction` (eps-scaled forward auction, then a price-tightening pass and an
+  exact shortest-path finish from the auction prices; exact, like Hungarian) and `adaptive`
+  (per window: auction if >= 50% of rows collide on their cheapest column, else Hungarian with
+  greedy start). Tuned (eps0 0.05, epsf 1e-3 of the cost range, factor 8) on ~22k real 8x8
+  window matrices captured from the serial reference; exact on all of them vs SciPy.
+- Medians vs hungarian_greedy (24 threads / 1 thread); final cost identical for all solvers:
+  mnist: auction 0.49x / 0.53x, adaptive 0.50x / 0.54x, hungarian 1.01x / 1.00x, jv 6.0x / 6.1x.
+  gmm: auction 0.52x / 0.55x, adaptive 0.52x / 0.56x, hungarian 0.99x / 0.98x, jv 6.5x / 6.7x.
+  uniform: auction 1.35x / 1.51x, adaptive 1.09x / 1.06x, hungarian 1.14x / 1.14x, jv 2.7x / 2.8x.
+- Why: clustered windows (a dense group of points far from most cells) give near-degenerate
+  costs and long augmenting paths; the auction's prices remove most of them (hungarian_greedy
+  ~200 us vs auction ~95 us per 64x64 MNIST window). Uniform windows are nearly sorted already.
+- A first attempt at this run was discarded: a stray micro-benchmark sweep pinned to CPU 8 ran
+  concurrently. Default solver unchanged (hungarian_greedy) pending a decision.
+
+## 2026-09-26 — geometric window solver; all ShuffleSnap timings rerun
+
+- Solver search on ~79k real 8x8 windows captured from the serial reference at the balanced
+  preset (20k points of mnist/gmm/uniform, unchanged windows skipped as in the kernel; exact
+  optimum per window from SciPy). Per-window time vs hungarian_greedy (mnist / gmm / uniform):
+  auction 2.1x / 2.1x / 0.64x faster; plain Crouse SSP ~1.4x; affine Brenier start 2.9x / 3.4x /
+  1.5x; per-axis quantile start 3.8x / 4.5x / 1.6x; quantile + column reduction + Kuhn on tight
+  edges 5.1x / 5.6x / 1.9x (adopted: `geometric`). Exact on every window.
+- Did not pay off: full-covariance Gaussian start (worse than quantile), duals integrated from
+  the current assignment (better on clustered windows, worse on uniform; picking per window
+  cost more than it saved), auction refinement of the quantile start (fewer augmenting rows but
+  bids cost as much as search steps), extra row/column reduction rounds (stall after one),
+  dense branch-free augmenting scan (slower), branch-free Crouse loop (2-3%, not kept).
+- Why clustered windows are slow for generic solvers: in 96% of MNIST windows (>=16 points)
+  the points' cheapest cells number at most half the points (uniform: 1%).
+- Rectangular windows: padding with zero-cost rows made uniform grids with 50% surplus 11x
+  slower (one augmenting path per empty cell). Fix: windows with empty cells use the
+  rectangular v=0 path unless more than half their rows collide (GEO_RECT_COLLIDE = 0.5).
+- `adaptive` (auction or greedy per window) was dropped: geometric beats it everywhere.
+- Rerun of every ShuffleSnap-dependent run (incl. exact solver seeded by ShuffleSnap) against a
+  frozen snapshot of the working tree (`../frozen/shufflesnap-geometric-20260925`, base
+  860598c + worktree.patch; identical to the working tree incl. the .so): `experiments/
+  run_geometric.sh`, 2 h 27 min. Results go to `results/raw_geometric/` (comparator records
+  copied unchanged from `results/raw/`, which is untouched); `SS_RESULTS_RAW` selects the set
+  for analysis, figures and tables. Solver ablation extended to auction/geometric and to 8x8 at
+  ratio sqrt2.
+- Checks: 2016 ShuffleSnap runs valid, monotone, finished; 396/396 identical 1 vs 24 threads;
+  1846/1917 runs repeating an old spec have bit-identical cost, the rest differ <= 5e-8 rel.
+  (ties). Quality numbers in the paper are unchanged.
+- Timing at 1e5, one thread, median: baseline 5.07 -> 0.72 s, fast 6.89 -> 1.09, balanced
+  15.9 -> 2.25, quality 52.4 -> 6.37 s. 24 threads: 0.35 -> 0.064, 1.08 -> 0.17 s. Balanced
+  preset solver comparison: geometric 5.0-5.2x faster than hungarian_greedy on clustered data,
+  2.0x on uniform (1 and 24 threads). Derived prose numbers: `experiments/paper_numbers.py`.
+- Memory: ShuffleSnap now measures 55-67 B/pt (52 MB at 1e6), up from 22-37. Not the solver
+  (hungarian_greedy and geometric both 52.2 MB on the same code): the old memory table was
+  measured on 57ffcb1, before a840017 added `np.unique` validation of the start, which the main
+  benchmark already used. Possible follow-up: validate the start without N-sized temporaries.
+- small_exactness rerun: ShuffleSnap columns identical; BSP-OT columns differ (unseeded), so
+  the paper's hand-written table keeps its original BSP-OT numbers.
+- Paper: new method subsection (geometric solver), all timing statements updated in the full
+  paper and the three editions (still 10/6/3 pages). Compile time on one core 7.8 -> 8.1 s.
+
+## 2026-09-26 — presets re-chosen with the fast solver; baseline preset removed
+
+- Development search redone (`experiments/dev_ablation.py --geometric`, seed 0, 23 instances x
+  35 configurations x 5 start seeds; `results/raw_geometric/dev_ablation_geometric.jsonl`):
+  window sides 6-24 x ratios 2, 1.68, sqrt2, 1.19, plus two rounds per level for w 8/12/16.
+  Geomean excess vs geomean time relative to 8x8/sqrt2: no knee; each window step (8->12->16)
+  costs 2-2.6x the time and removes 1/2-2/3 of the remaining excess; sqrt2 on or next to the
+  Pareto front at every window size (clearly best at 24x24). 20x20 and 24x24: 12-21x the time.
+- New presets: fast 8x8, balanced 12x12 (default), quality 16x16, all ratio sqrt2. `baseline`
+  removed (6x6 halving stays available as window=6, schedule="halving"). Kernel window cap
+  16 -> 32. Serial reference defaults to the new default. Tests: mask-disconnect example
+  rebuilt for 12-wide windows (columns 0 and 13; 16-wide repairs it); rotated-ring fixed point
+  extended to w=16.
+- Rerun of every ShuffleSnap-dependent spec (`experiments/run_presets.sh`, 4 h 10 min) against
+  `../frozen/shufflesnap-presets-20260926` into `results/raw_presets/` (comparators copied
+  from raw_geometric; ShuffleSnap-seeded exact runs rerun because they now start from the new
+  default, although their spec ids did not change). 1714 runs, all valid/monotone/finished;
+  297/297 identical 1 vs 24 threads. The working tree differs from the snapshot only by a
+  docstring in api.py.
+- Ablations, polish check, solver comparison and small-exactness re-centred on the default.
+- Held-out results at 1e5 (default): within 0.02% on 9/11 distributions (uniform 0.44%,
+  jitter 7.4%), median 6.4 s on one core, 0.50 s on 24 threads; better than BSP-OT-64 on 11/11.
+  Real embeddings: within 0.001%. S mask (uniform) 0.13% (fast 1.3%). Surplus <1 row: 1.4%.
+  Polishing (V-cycles) changed nothing on all 9 instances; merging 4 default runs halves the
+  uniform excess at 4.0x the time, the quality preset does better at 2.0x.
+- Changed claims: the certified solver from the new default took 21 min / 4.9 GB at 1e6 uniform
+  (12 min before) and 8 s-15 min at 1e5 (median 131 s). On uniform points the default's
+  excess is not monotone in N (0.10, 0.20, 0.71, 0.58% at 1e3-1e6, seed 1); the fast preset's
+  grows (0.11 -> 1.33%). Stride ratio at 12x12 held-out: sqrt2 best on gmm, within 10% of
+  the best on uniform (1.1) and MNIST (1.68).
+- Lessons from the 3-page edition adopted in the full paper and the 10/6-page editions: the
+  default preset is presented as the method (no baseline/halving narrative; halving appears
+  only as an ablation setting and as the mechanism example in the failure figure); the
+  certified solver is framed as exact on the dense problem and compared with SciPy where it
+  fits (720 small instances and all 11 distributions at 1e4, max rel. diff 8e-11); one unit
+  per comparison sentence (no "x times further from optimal" next to percentages); figures
+  show only the presets and comparators (no baseline, no bisection); author Kyle McDonald in
+  every edition. Edition figures unified (fig_schematic/fig_progress/fig_summary at the default).
+
+## 2026-09-26 — presets time-matched to BSP-OT
+
+- User request: the former fast preset (8x8) becomes balanced, a new fast preset should take
+  about as long as BSP-OT with 16 plans, and balanced about as long as 64 plans, to show
+  improvements at equal running time. Quality is now 12x12 (one step up from balanced).
+- Single-thread sweep on development instances at 1e5 (seed 0, CPU 8): configurations at
+  BSP-OT-16's time (0.71 s median) were 5x5/sqrt2 (0.67 s) and 6x6/halving (0.70 s); 5x5/sqrt2
+  had lower excess on 5 of 7 instances and keeps every preset at ratio sqrt2 -> fast = 5x5.
+  8x8/sqrt2 took 1.8 s against BSP-OT-64's 2.8 s.
+- Rerun (`experiments/run_bspmatch.sh`, 2.5 h; snapshot `../frozen/shufflesnap-bspmatch-20260926`,
+  identical to the working tree; results in `results/raw_bspmatch/`): 1714 ShuffleSnap-dependent
+  runs, all valid; 297/297 identical 1 vs 24 threads.
+- Held-out, 1e5, one core: fast 0.74 s vs BSP-OT-16 0.72 s, closer to the optimum on 9/11
+  (behind on near-line 0.010 vs 0.008% and 90/10 clusters 0.050 vs 0.032%); balanced 2.29 s vs
+  BSP-OT-64 2.85 s, closer on 10/11 (near-line 0.0022 vs 0.0021%). 24 threads: fast 0.09 s vs
+  0.13 s, balanced 0.19 s vs 0.42 s. Real embeddings: fast 0.031%/0.008% vs BSP-16 3.7%/9.2%.
+- Other changes: with 8x8 windows a row-sorted start beat the random start on the mixture
+  (0.0011 vs 0.0023%; bisection is worse everywhere), so the paper now says bisection starts
+  are worse and row-sorted starts on most inputs. V-cycles changed 2 of 9 instances (MNIST,
+  <=5% of a tiny excess). Certified solver from the 8x8 default: 11 min / 4.2 GB at 1e6 uniform.
+- Tables pair each preset with its time-matched BSP-OT column. Full paper and 10/6/3-page
+  editions updated (page counts kept; the 10-page edition dropped its small-instance sentence
+  and the 3-page edition keeps the equal-time claim on the results page only).
+
+## 2026-09-26 — jittered lattice dropped; rectilinear S mask
+
+- The jittered lattice was dropped from the benchmark (main tables, small-instance check,
+  editions). Remaining: ten synthetic distributions; 600 small instances (five distributions).
+- The font-based S mask ("logo") was replaced by the blocky rectilinear S of the earlier
+  ShuffleSnap work (`symbol()` in the original's bench_rebuild_lessons.py: bars at y<.18,
+  .41-.59, >.82; left bar in the upper half, right bar in the lower half), as grid kind
+  "srect" (`datasets.s_mask`, exactly n cells via Grid.from_image). 12 new certified
+  references (20k points x 4 inputs x 3 seeds), all certified.
+- Result set `results/raw_final/` = raw_bspmatch minus jitter and logo records, plus every
+  method on srect (`experiments/run_final.sh`, same frozen package snapshot). 202 reference
+  instances in total.
+- S mask results (uniform / spiral): default 1.4% / 0.26% vs BSP-OT-64 9.3% / 4.8%; fast
+  17% / 3.3% vs BSP-OT-16 12% / 12.5% (uniform S is the one mask case BSP-OT wins at equal
+  time); quality 0.88% / 0.19%.
+- Failure figure (c-e) now uses 4000 points drawn uniformly inside the rectilinear S (optimum
+  0.17 cells^2/pt): 6x6 halving 32, default 6.3; misrouted points line up along the bays.
+  (Uniform points over the square did not show the mechanism: the optimum itself moves 36/pt.)
+- Summary figure's fourth panel is now the spiral. Equal-time counts over ten distributions:
+  fast vs BSP-OT-16 8/10, default vs BSP-OT-64 9/10.
+
+## 2026-09-27 — billion-point meander with the current kernel
+
+- Instance: the earlier work's 1e9 meander (side 31623, 1,000,014,129 points; generator ported
+  to `experiments/billion.py`, bit-identical at 1e6), same start (default_rng(0) permutation).
+  Balanced preset, geometric solver, 24 threads, 3600 s budget counted from the bbox scaling
+  (as `assign(time_budget=)`); instance generation (57 s) and grid construction (8.5 s) excluded.
+  The driver calls `_core.run_schedule` directly to avoid assign()'s point-sized temporaries;
+  at 9e4 points it returns exactly assign()'s cells.
+- Memory: peak 53.0 GiB (57 B/pt: P 16, centers 16, stamps 8, pos/occ/index 4 each, windows ~5).
+  A file-backed memmap for the centers was tried and dropped (disk had 15 GB free: bus error).
+  First attempt 2026-09-26 aborted by hand after 20 s: an unrelated 8-thread job started with it.
+- Result: stopped in the stride-16 level (68 phases, ~240 s per level; every window solved at
+  every level). Start 438% above the endpoint; within 1% after 11 min, 0.1% after 22, 0.01% after 34.
+- Same-frame prices (grid frame; old frame is a uniform x1.1317e9 scale): new 4.777420e16;
+  earlier implementation's 6 h run 4.777499e16 (+0.0016%, never reached our endpoint; we passed
+  its 6 h endpoint after 44 min and its 1 h cost after 42 min); single-plan BSP-OT port 5.16695e16
+  (+8.2%, 392 s, 1 thread).
+- Paper: full paper gets a "A billion points" paragraph + Figure (fig_billion: 75% interpolation
+  render and progress vs the 6 h run), a sentence in the abstract, intro and limitations. Long and
+  medium editions get one sentence each (page counts kept; long dropped "The exact solver changes
+  the question." and the exact-fit-mask sentence of its Discussion). Short edition unchanged.
+
+## 2026-09-28 — billion-point run continued toward 6 h (converged at 4.1 h)
+
+- Asked to extend the 1 h run to 6 h in total. `billion.py` gained `--resume/--resume-stride/
+  --time-offset/--tag` (resuming at a level boundary is bit-identical to an uninterrupted run,
+  checked at 1.6e5). The 1 h run had stopped inside the stride-16 level, so that level was rerun
+  from its first tiling (a small deviation from one uninterrupted run).
+- Segment 2 (`run_billion_6h.sh`, balanced, from stride 16): converged, fixed point at 1 h 43 min
+  total (stride 1 from 1 h 30 min, 78 stride-1 rounds). Segment 3 (`run_billion_quality.sh`,
+  quality preset 12x12, strides 4..1 from that fixed point): converged at 4.1 h total after 1059
+  stride-1 rounds (long tail of tiny moves), gaining only 1.2e-6 %. No further segment: every
+  preset had converged and larger windows would chase gains of that size.
+- Final cost 4.777415931e16. 1 h result +0.000095 %; balanced fixed point +1.2e-6 %; earlier 6 h
+  run +0.0017 % (passed after 44 min); single-plan BSP-OT +8.2 %. Within 1/0.1/0.01/0.001 % of
+  final after 11/22/34/46 min. Peak 53 GiB (segments 2-3: 50 and 49 GiB).
+- Correction: an interim chat message said the balanced continuation gained 0.00094 %; it is
+  0.000094 %.
+- Paper: full-paper paragraph, figure (three segments, y axis to 1e-7 %), abstract and
+  limitations updated; long and medium editions' sentence now reads "converged in 1 h 43 min ...
+  passing a six-hour run of an earlier implementation after 44 minutes". Short edition unchanged.

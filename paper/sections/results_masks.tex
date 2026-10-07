@@ -4,11 +4,12 @@
 \begin{figure}[tbp]
   \centering
   \includegraphics[width=\linewidth]{figures/fig_masks.pdf}
-  \caption{A 20{,}000-point subset of the MNIST UMAP embedding on a disk, a ring, an
-  S-shaped mask, and a rectangle with 10\% surplus cells (instance seed 1; colors encode
-  input position as in Figure~\ref{fig:visual}; white = empty or masked). Numbers are
+  \caption{A 20{,}000-point subset of the MNIST UMAP embedding on a disk, a ring, a
+  rectilinear S-shaped mask, and a rectangle with 10\% surplus cells (instance seed 1; colors and
+  graph-paper lines encode input position as in Figure~\ref{fig:visual}; white = empty or
+  masked). Numbers are
   excess over the certified optimum. With surplus cells, the optimum leaves one contiguous
-  region empty, far from the data, and \ShuffleSnap-balanced finds the same region.
+  region empty, far from the data, and \ShuffleSnap\ (default preset) finds the same region.
   BSP-OT's partial matching leaves ragged holes along the boundary, and RasterFairy
   removes surplus cells at random before slicing.}
   \label{fig:masks}
@@ -27,21 +28,24 @@ $W\times H$ rectangle holding $N$ points, with fewer than $W$ empty cells;
 
 Table~\ref{tab:masks} and Figure~\ref{fig:masks} cover non-square targets.
 \begin{itemize}
-\item \textbf{Convex masks.} On disks and rings, every \ShuffleSnap\ preset stays within
-  0.25\% (baseline) and 0.07\% (balanced) of the optimum. BSP-OT is at 2.5--9\% and
-  RasterFairy at 11--54\%.
-\item \textbf{The S-shaped mask.} This is the baseline's worst case. With uniform points
-  it is 18.3\% above optimal, worse than BSP-OT with 64 plans (13.2\%); with the spiral it
-  is 7.3\%. The mechanism is the one in Figure~\ref{fig:failures}: coarse strides route
-  mass across the bays. The $\sqrt2$ schedule repairs most of this. Balanced reaches
-  1.3\% and 0.26\%, and quality 0.13\% and 0.04\%.
-\item \textbf{Surplus cells.} When the solver must also choose the empty cells, the baseline
-  degrades noticeably: 0.7--4.4\% with 10\% surplus, and 8.4\% for uniform points with
-  less than one row of surplus. Balanced stays below 1\% everywhere except that last
-  case (3.1\%), and quality stays below 1.4\%. Surplus is where the comparators suffer
-  most. With 10\% surplus, BSP-OT's partial matching is 18--109\% above optimal, and
-  RasterFairy, which picks the empty cells at random, is 72--350\% above optimal. With
-  less than one row of surplus, they are at 5--90\% and 17--57\%.
+\item \textbf{Convex masks.} On disks and rings, the default preset stays within 0.07\% of
+  the optimum, fast within 0.14\% and quality within 0.025\%. BSP-OT is 2.5--9.3\% above it
+  and RasterFairy 11--54\%.
+\item \textbf{The S-shaped mask} (the blocky, rectilinear S of the earlier ShuffleSnap
+  work: three horizontal bars joined by vertical bars on alternating sides) is where the
+  schedule matters most. Coarse strides can route mass across its bays
+  (Figure~\ref{fig:failures}c). The default reaches 1.4\% with uniform points and 0.26\%
+  with the spiral, against 9.3\% and 4.8\% for BSP-OT with 64 plans, and the quality preset
+  0.88\% and 0.19\%. The fast preset is at 3.3\% with the spiral, against 12.5\% for BSP-OT
+  with 16 plans, but with uniform points it is the one mask case where BSP-OT wins at equal
+  time: 17\% against 12\%.
+\item \textbf{Surplus cells.} When the solver must also choose the empty cells, uniform points
+  with less than one row of surplus are the hardest case: 3.1\% for the default, 6.3\% for
+  fast and 1.4\% for quality. With 10\% surplus the default stays within 0.91\% on every
+  input. Surplus is where the comparators suffer most. With 10\% surplus, BSP-OT's partial
+  matching is 18--109\% above the optimum, and RasterFairy, which picks the empty cells at
+  random, is 72--350\% above it. With less than one row of surplus, they are at 5--90\% and
+  17--57\%.
 \end{itemize}
 
 \begin{table}[tbp]
@@ -57,10 +61,9 @@ cells stay empty.}
 
 \paragraph{Prime counts.} A prime number of points never fills a rectangle.
 Table~\ref{tab:primes} compares the two ways of handling this. With an exact-fit grid,
-the results match the square case: 2.1--3.0\% for the baseline on uniform points, and
-about 0.01\% on the mixture. Leaving the solver to pick fewer than 200 empty cells in a
-full rectangle is much harder on uniform points. The baseline reaches 12.6--14.5\%,
-balanced 5.1--5.7\% and quality 3.0--3.6\%; for the baseline this is 0.15--0.16
-cells$^2$ per point, about four times the exact-fit case. BSP-OT's partial matching becomes
-worse still, at 147--152\%. For layouts where the empty cells' position does not
-matter, an exact-fit mask is therefore both simpler and better handled by every method.
+the results match the square case: 0.85--1.2\% for the default on uniform points, and
+0.002--0.003\% on the mixture. Leaving the solver to pick fewer than 200 empty cells in a
+full rectangle is much harder on uniform points: the default reaches 5.1--5.7\% there, against
+0.85--1.2\% with the exact fit; fast reaches 10.3--10.9\% and quality 3.0--3.6\%. BSP-OT's
+partial matching is worse still, at 147--152\%. For layouts where the empty cells' position does
+not matter, an exact-fit mask is therefore both simpler and better handled by every method.

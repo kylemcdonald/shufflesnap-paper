@@ -21,22 +21,23 @@ import datasets  # noqa: E402
 import figstyle as fs  # noqa: E402
 import methods  # noqa: E402
 import reference  # noqa: E402
+import specs  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "..", "paper", "figures")
 CACHE = os.path.join(HERE, "..", "results", "assignments", "masks")
 
 ROWS = [("Exact-certified", None, "exact optimum"),
-        ("SS-baseline", ("shufflesnap", dict(window=6, ratio=2.0, seed=1)), "ShuffleSnap baseline"),
-        ("SS-balanced", ("shufflesnap", dict(window=8, ratio=2 ** 0.5, seed=1)), "ShuffleSnap balanced"),
+        ("SS-balanced", ("shufflesnap", dict(specs.DEFAULT, seed=1)), "ShuffleSnap"),
         ("BSP-OT-64", ("bspot", dict(num_plans=64)), "BSP-OT (64 plans)"),
         ("RasterFairy-master", ("rasterfairy", dict(version="master")), "RasterFairy (master)")]
-GRIDS = [("disk", "disk"), ("ring", "ring"), ("logo", "'S' mask"), ("free10", "10% surplus cells")]
+GRIDS = [("disk", "disk"), ("ring", "ring"), ("srect", "'S' mask"), ("free10", "10% surplus cells")]
 
 
 def get_cell(dist, n, seed, grid, lab, spec, Pn, g):
     os.makedirs(CACHE, exist_ok=True)
-    path = os.path.join(CACHE, f"{dist}-{n}-{seed}-{grid}-{lab}.npy")
+    tag = f"-w{spec[1]['window']}" if spec and "window" in spec[1] else ""  # cache per configuration
+    path = os.path.join(CACHE, f"{dist}-{n}-{seed}-{grid}-{lab}{tag}.npy")
     if os.path.exists(path):
         return np.load(path)
     if spec is None:
@@ -57,7 +58,7 @@ def main(dist="mnist", n=20000, seed=1):
     fig, axes = plt.subplots(len(ROWS), len(GRIDS), figsize=(7.0, 8.6), layout="constrained")
     for c, (grid, gname) in enumerate(GRIDS):
         Pn, g, _, _ = datasets.instance(dist, n, seed, grid)
-        cols = fs.position_colors(Pn)
+        cols = fs.source_colors(Pn)
         opt = None
         for r, (lab, spec, name) in enumerate(ROWS):
             cell = get_cell(dist, n, seed, grid, lab, spec, Pn, g)

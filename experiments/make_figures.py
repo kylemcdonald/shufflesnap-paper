@@ -18,6 +18,7 @@ import pandas as pd
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import analysis  # noqa: E402
+import specs  # noqa: E402
 import figstyle as fs  # noqa: E402
 
 OUT = os.path.join(HERE, "..", "paper", "figures")
@@ -44,7 +45,7 @@ def _family_points(ax, sub, xcol="time_s", ycol="excess_pct"):
     """Mean over seeds per label; SS presets and BSP-OT plan counts joined by lines."""
     g = sub.groupby("label").agg(x=(xcol, "median"), y=(ycol, "mean"), ylo=(ycol, "min"), yhi=(ycol, "max"))
     g["y"] = g["y"].clip(lower=FLOOR)
-    ss_order = ["SS-baseline", "SS-fast", "SS-balanced", "SS-quality"]
+    ss_order = ["SS-fast", "SS-balanced", "SS-quality"]
     have = [l for l in ss_order if l in g.index]
     if have:
         ax.plot(g.loc[have, "x"], g.loc[have, "y"], color=fs.SS_RAMP["SS-balanced"], lw=0.8, zorder=2)
@@ -64,6 +65,8 @@ def _family_points(ax, sub, xcol="time_s", ycol="excess_pct"):
     ex = g.loc[[l for l in g.index if l == "Exact-certified"]]
     for _, r in ex.iterrows():
         ax.axvline(r["x"], color=fs.INK, lw=0.8, zorder=1)
+        # axvline does not enter the data limits; an invisible point keeps the line on the axis
+        ax.plot([r["x"] * 1.3], [g["y"].median()], ls="", marker="", alpha=0)
     return g
 
 
@@ -78,7 +81,7 @@ def fig_tradeoff(df, n=100000, threads=1, name="fig_tradeoff"):
     fig, axes = plt.subplots(nrow, ncol, figsize=(7.0, 1.75 * nrow + 0.3), layout="constrained")
     axes = axes.ravel()
     for ax, dist in zip(axes, dists):
-        _family_points(ax, d[d["dist"] == dist])
+        _family_points(ax, d[(d["dist"] == dist) & (d["label"] != "Bisection")])
         ax.set_xscale("log")
         ax.set_yscale("log")
         ax.set_title(DIST_TITLES[dist], loc="left")
@@ -88,8 +91,7 @@ def fig_tradeoff(df, n=100000, threads=1, name="fig_tradeoff"):
     # legend panel
     lax = axes[len(dists)]
     handles = []
-    for lab in ["SS-baseline", "SS-fast", "SS-balanced", "SS-quality", "BSP-OT", "RasterFairy-master",
-                "RasterFairy-pypi", "Bisection"]:
+    for lab in ["SS-fast", "SS-balanced", "SS-quality", "BSP-OT", "RasterFairy-master", "RasterFairy-pypi"]:
         filled = fs.marker(lab) not in ("x", "+")
         handles.append(plt.Line2D([], [], ls="", marker=fs.marker(lab), color=fs.color(lab), ms=5,
                                   mec="white" if filled else None, mew=0.5 if filled else 1.2,
@@ -111,7 +113,7 @@ def fig_scaling(df, name="fig_scaling"):
     fig, axes = plt.subplots(1, 2, figsize=(7.0, 2.9), layout="constrained", sharey=True)
     for ax, dist in zip(axes, ["uniform", "gmm"]):
         sub = d[(d["dist"] == dist) & (d["threads"] == 1)]
-        for lab in ["SS-baseline", "SS-balanced", "SS-quality", "BSP-OT-16", "RasterFairy-master",
+        for lab in ["SS-fast", "SS-balanced", "SS-quality", "BSP-OT-16", "RasterFairy-master",
                     "Exact-certified", "Exact-dense-scipy"]:
             s2 = sub[sub["label"] == lab].groupby("n")["time_s"].median()
             if s2.empty:
@@ -140,7 +142,7 @@ def fig_anytime(df, threads=1, name="fig_anytime"):
         if ref.empty:
             continue
         opt = ref.iloc[0]
-        for lab in ["SS-baseline", "SS-fast", "SS-balanced", "SS-quality"]:
+        for lab in ["SS-fast", "SS-balanced", "SS-quality"]:
             r = sub[sub["label"] == lab]
             if r.empty or not isinstance(r.iloc[0].get("trace"), list):
                 continue
@@ -177,10 +179,11 @@ def fig_anytime(df, threads=1, name="fig_anytime"):
     _save(fig, name)
 
 
-ABL_GROUPS = [("window", "window side w (ratio 2)", "p_window"), ("window-r1.41", "window side w (ratio √2)", "p_window"),
-              ("ratio", "stride ratio (w = 6)", "p_ratio"), ("start", "start (w = 6)", "p_init"),
-              ("rounds", "rounds per level (w = 6)", "p_rounds"), ("offsets", "tilings per round (w = 6)", "p_offsets"),
-              ("coarse", "largest stride (w = 6)", "p_start_stride"), ("solver", "window solver", "p_solver")]
+W0 = specs.DEFAULT["window"]
+ABL_GROUPS = [("window-r1.41", "window side w (ratio √2)", "p_window"), ("window", "window side w (halving)", "p_window"),
+              ("ratio", f"stride ratio (w = {W0})", "p_ratio"), ("start", f"start (w = {W0})", "p_init"),
+              ("rounds", f"rounds per level (w = {W0})", "p_rounds"), ("offsets", f"tilings per round (w = {W0})", "p_offsets"),
+              ("coarse", f"largest stride (w = {W0})", "p_start_stride"), ("solver", "window solver", "p_solver")]
 
 
 def _abl_label(group, v, row=None):
@@ -220,20 +223,23 @@ def fig_ablation(df, name="fig_ablation"):
         w2 = agg(s[s["group"] == "window"], "p_window")
         wr = agg(s[s["group"] == "window-r1.41"], "p_window")
         ax.plot(w2["t"], w2["e"], color=light, marker="o", ms=3.5, mec="white", mew=0.4, lw=1.3,
-                label="window side, ratio 2")
+                label="window side, halving strides")
         ax.plot(wr["t"], wr["e"], color=dark, marker="o", ms=3.5, mec="white", mew=0.4, lw=1.3,
                 label="window side, ratio √2")
+        if W0 in wr.index:
+            ax.plot(wr.loc[W0, "t"], wr.loc[W0, "e"], ls="", marker="o", ms=7, mfc="none", mec=fs.INK, mew=0.9,
+                    label=f"default ({W0}×{W0}, √2)", zorder=4)
         for w, r in w2.iterrows():
-            if int(w) in (3, 6, 12, 16):
+            if int(w) in (4, 24):
                 ax.annotate(f"{int(w)}", (r["t"], r["e"]), textcoords="offset points", xytext=(-3, 4), fontsize=5.5,
                             color=fs.INK2, ha="right")
         for w, r in wr.iterrows():
-            if int(w) in (4, 6, 12, 16):
+            if int(w) in (4, 24):
                 ax.annotate(f"{int(w)}", (r["t"], r["e"]), textcoords="offset points", xytext=(3, -7), fontsize=5.5,
                             color=fs.INK2)
         rr = agg(s[s["group"] == "ratio"], "p_ratio")
         ax.plot(rr["t"], rr["e"], color=mid, marker="D", ms=3, mec="white", mew=0.4, lw=0.9,
-                label="stride ratio (w = 6)")
+                label=f"stride ratio (w = {W0})")
         for rv, r in rr.iterrows():
             lab = {3.0: "r3", 1.1: "r1.1"}.get(round(float(rv), 3))
             if lab:
@@ -275,7 +281,7 @@ def fig_threads(df, name="fig_threads"):
     fig, axes = plt.subplots(1, 2, figsize=(7.0, 2.4), layout="constrained")
     for ax, dist in zip(axes, ["uniform", "gmm"]):
         sub = d[d["dist"] == dist]
-        for lab in ["SS-baseline", "SS-balanced", "BSP-OT-16"]:
+        for lab in ["SS-fast", "SS-balanced", "BSP-OT-16"]:
             s2 = sub[sub["label"] == lab].groupby("threads")["time_s"].median()
             if s2.empty:
                 continue

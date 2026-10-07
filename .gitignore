@@ -6,3 +6,8 @@ paper/*.out
 paper/*.bbl
 paper/*.blg
 paper/*.toc
+versions/*/build/
+results/billion/*.npy
+results/billion/*.tmp
+results/billion/renders/
+results/paper_backup_*/

@@ -3,7 +3,7 @@
     python experiments/run.py main --threads 1 --cpus 8
     python experiments/run.py main --threads 24 --only-parallel
 
-Results are appended (resumably) to results/raw/<name>_t<threads>.jsonl.
+Results are appended (resumably) to results/raw/<name>_t<threads>.jsonl (or $SS_RESULTS_RAW).
 Single-thread runs are pinned to one performance core (CPU 8 on the benchmark host);
 multi-thread runs use all logical CPUs without pinning.
 """
@@ -42,7 +42,7 @@ def main():
     ap.add_argument("--max-n", type=int, default=None)
     ap.add_argument("--timeout", type=int, default=3600)
     args = ap.parse_args()
-    out_dir = os.path.join(HERE, "..", "results", "raw")
+    out_dir = bench.RAW_DIR
     os.makedirs(out_dir, exist_ok=True)
     if args.name == "threads":
         out = os.path.join(out_dir, "threads.jsonl")

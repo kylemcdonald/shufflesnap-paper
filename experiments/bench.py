@@ -25,6 +25,10 @@ import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, ".."))
+# Result directories; SS_RESULTS_RAW / SS_RESULTS_ASSIGN select another result set (e.g. a
+# rerun after a code change) without touching the original one.
+RAW_DIR = os.environ.get("SS_RESULTS_RAW", os.path.join(ROOT, "results", "raw"))
+ASSIGN_DIR = os.environ.get("SS_RESULTS_ASSIGN", os.path.join(ROOT, "results", "assignments"))
 
 
 def _status():
@@ -131,7 +135,7 @@ def run_child(spec):
         rec["knn10"] = knn_preservation(Pn, g, cell, k=10, sample=min(n, 5000), seed=0)
         rec.update(grid_neighbor_preservation(Pn, g, cell, sample=min(n, 5000), seed=0))
     if spec.get("save_cell"):
-        d = os.path.join(ROOT, "results", "assignments")
+        d = ASSIGN_DIR
         os.makedirs(d, exist_ok=True)
         np.save(os.path.join(d, rec["id"] + ".npy"), cell.astype(np.int32))
     return rec

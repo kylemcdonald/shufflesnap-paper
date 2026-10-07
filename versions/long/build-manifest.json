@@ -1,0 +1,9 @@
+{
+  "edition": "long",
+  "body_pages": 10,
+  "target_body_pages": 10,
+  "total_pages": 12,
+  "pdf": "shufflesnap-long.pdf",
+  "pdf_sha256": "976121eefd40795dfded4b432603345c4a8d09116ac9fa2e9b770373e2b608e4",
+  "source_archive": "shufflesnap-long-source.zip"
+}

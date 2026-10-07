@@ -7,15 +7,15 @@ from __future__ import annotations
 
 R2 = 2 ** 0.5
 
+# The package presets (chosen on the development set, seed 0; experiments/dev_ablation.py).
 SS = {
-    "SS-baseline": dict(window=6, ratio=2.0),
-    "SS-fast": dict(window=6, ratio=R2),
-    "SS-balanced": dict(window=8, ratio=R2),
+    "SS-fast": dict(window=5, ratio=R2),  # about the time of BSP-OT with 16 plans
+    "SS-balanced": dict(window=8, ratio=R2),  # about the time of BSP-OT with 64 plans
     "SS-quality": dict(window=12, ratio=R2),
 }
+DEFAULT = SS["SS-balanced"]
 
-MAIN_DISTS = ["uniform", "gaussian", "gmm", "unequal2", "ring", "spiral", "checker", "heavy", "duplicates", "line",
-              "jitter"]
+MAIN_DISTS = ["uniform", "gaussian", "gmm", "unequal2", "ring", "spiral", "checker", "heavy", "duplicates", "line"]
 
 
 def ss_spec(label, dist, n, seed, grid="square", threads=1, method_seed=None, **extra):
@@ -28,7 +28,7 @@ def ss_spec(label, dist, n, seed, grid="square", threads=1, method_seed=None, **
 def comparators(dist, n, seed, grid="square", threads=1, bsp_plans=(16, 64), rf=("master", "pypi"), exact=True,
                 dense=False):
     out = []
-    bij = grid in ("square", "wide", "disk", "ring", "logo")  # exactly n cells
+    bij = grid in ("square", "wide", "disk", "ring", "logo", "srect")  # exactly n cells
     for k in bsp_plans:
         out.append(dict(method="bspot", label=f"BSP-OT-{k}", dist=dist, n=n, seed=seed, grid=grid,
                         params=dict(num_plans=k, variant="gaussian" if bij else "default", threads=threads)))
@@ -77,7 +77,7 @@ def real_embeddings(seeds=(1, 2, 3), threads=1):
 
 
 def masks(n=20000, seeds=(1, 2, 3), dists=("uniform", "gmm", "spiral", "mnist"),
-          grids=("free", "free10", "wide", "disk", "ring", "logo"), threads=1):
+          grids=("free", "free10", "wide", "disk", "ring", "srect"), threads=1):
     specs = []
     for g in grids:
         for d in dists:
@@ -125,7 +125,7 @@ def threads_scaling(n=100000, seed=1):
     specs = []
     for T in (1, 2, 4, 8, 16, 24):
         for d in ("uniform", "gmm"):
-            for lab in ("SS-baseline", "SS-balanced"):
+            for lab in ("SS-fast", "SS-balanced"):
                 specs.append((T, ss_spec(lab, d, n, seed, threads=T)))
             specs.append((T, dict(method="bspot", label="BSP-OT-16", dist=d, n=n, seed=seed, grid="square",
                                   params=dict(num_plans=16, variant="gaussian", threads=T))))
@@ -148,18 +148,25 @@ def anytime(dists=("uniform", "gmm", "mnist"), threads=1, seed=1):
     return specs
 
 
+WINDOW_SOLVERS = ("hungarian", "hungarian_greedy", "jv", "auction", "geometric")
+
+# Every group changes one setting of the default (8x8 windows, ratio sqrt 2, four tilings
+# shifted by half a window, random start, one round per level, geometric solver, unchanged
+# windows skipped, automatic first stride).
+W0 = DEFAULT["window"]
 ABLATIONS = {
-    "window": [dict(window=w, ratio=2.0) for w in (3, 4, 5, 6, 7, 8, 10, 12, 16)],
-    "window-r1.41": [dict(window=w, ratio=R2) for w in (4, 6, 8, 10, 12, 16)],
-    "ratio": [dict(window=6, ratio=r) for r in (3.0, 2.0, 2 ** 0.75, R2, 2 ** 0.25, 1.1)],
-    "start": [dict(window=6, ratio=2.0, init=i) for i in ("random", "bisect", "rowsort")],
-    "rounds": [dict(window=6, ratio=2.0, rounds=r) for r in (1, 2, 3)],
-    "offsets": [dict(window=6, ratio=2.0, offsets=o) for o in ([[0, 0]], [[0, 0], [3, 3]],
-                                                               [[0, 0], [0, 3], [3, 0], [3, 3]],
-                                                               [[a, b] for a in (0, 2, 4) for b in (0, 2, 4)])],
-    "solver": [dict(window=w, ratio=2.0, solver=sv) for w in (6, 12) for sv in ("hungarian", "hungarian_greedy", "jv")],
-    "skip_clean": [dict(window=6, ratio=2.0, skip_clean=b) for b in (True, False)],
-    "coarse": [dict(window=6, ratio=2.0, start_stride=c) for c in (None, 16, 8, 4, 2, 1)],
+    "window-r1.41": [dict(window=w, ratio=R2) for w in (4, 6, 8, 10, 12, 14, 16, 20, 24)],
+    "window": [dict(window=w, ratio=2.0) for w in (4, 6, 8, 12, 16, 24)],
+    "ratio": [dict(window=W0, ratio=r) for r in (3.0, 2.0, 2 ** 0.75, R2, 2 ** 0.25, 1.1)],
+    "start": [dict(DEFAULT, init=i) for i in ("random", "bisect", "rowsort")],
+    "rounds": [dict(DEFAULT, rounds=r) for r in (1, 2, 3)],
+    "offsets": [dict(DEFAULT, offsets=o) for o in ([[0, 0]], [[0, 0], [W0 // 2, W0 // 2]],
+                                                   [[0, 0], [0, W0 // 2], [W0 // 2, 0], [W0 // 2, W0 // 2]],
+                                                   [[a, b] for a in (0, W0 // 3, 2 * W0 // 3)
+                                                    for b in (0, W0 // 3, 2 * W0 // 3)])],
+    "solver": [dict(window=w, ratio=R2, solver=sv) for w in (8, 12) for sv in WINDOW_SOLVERS],
+    "skip_clean": [dict(DEFAULT, skip_clean=b) for b in (True, False)],
+    "coarse": [dict(DEFAULT, start_stride=c) for c in (None, 16, 8, 4, 2, 1)],
 }
 
 
@@ -191,7 +198,7 @@ def memory(threads=1, seed=1):
     specs = []
     for d in ("uniform", "gmm"):
         for n in (10000, 100000, 1000000):
-            for lab in ("SS-baseline", "SS-balanced"):
+            for lab in SS:
                 specs.append(dict(ss_spec(lab, d, n, seed, threads=threads), trim_heap=True))
             for sp in comparators(d, n, seed, threads=threads, bsp_plans=(16,), rf=("master",),
                                   exact=(n <= 100000), dense=(n <= 10000)):

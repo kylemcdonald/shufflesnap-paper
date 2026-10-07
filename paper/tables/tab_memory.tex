@@ -3,11 +3,12 @@
  & \multicolumn{3}{c}{uniform} & \multicolumn{3}{c}{Gaussian mixture} \\
 method & $10^4$ & $10^5$ & $10^6$ & $10^4$ & $10^5$ & $10^6$ \\
 \midrule
-ShuffleSnap baseline & 0.4 & 2.9 & 36.7 & 0.4 & 3.0 & 37.1 \\
-ShuffleSnap balanced & 0.3 & 2.9 & 22.2 & 0.3 & 3.0 & 22.9 \\
+ShuffleSnap fast & 0.6 & 5.4 & 52.2 & 0.6 & 5.5 & 52.2 \\
+ShuffleSnap balanced & 0.6 & 5.4 & 52.2 & 0.6 & 5.5 & 52.2 \\
+ShuffleSnap quality & 0.6 & 5.4 & 52.2 & 0.6 & 5.5 & 52.2 \\
 BSP-OT, 16 plans & 2.2 & 24.2 & 243 & 2.4 & 24.3 & 244 \\
 RasterFairy master & 6.2 & 63.4 & 647 & 6.2 & 62.9 & 647 \\
-exact, certified sparse & 49.4 & 421 & -- & 81.1 & 767 & -- \\
+exact, certified sparse & 49.5 & 437 & -- & 76.5 & 772 & -- \\
 exact, dense SciPy & 1563 & -- & -- & 1564 & -- & -- \\
 bisection only & 0.1 & 1.2 & 11.4 & 0.1 & 1.1 & 13.3 \\
 \bottomrule

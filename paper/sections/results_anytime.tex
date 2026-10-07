@@ -17,10 +17,10 @@ Figure~\ref{fig:anytime} compares the methods at matched time budgets. BSP-OT im
 slowly with more plans and levels off far from the optimum. From 1 to 16 to 1024 plans,
 its excess drops from 249\% to 53\% to 28\% on uniform points, from 28\% to 3.1\% to
 2.1\% on the mixture, and from 16\% to 3.6\% to 1.6\% on MNIST. The 1024-plan runs take
-31--46\,s on one thread. The \ShuffleSnap\ baseline passes that best BSP-OT result after
-1.1--1.3\,s and finishes at 2.5\%, 0.004\% and 0.014\% respectively. At equal elapsed
-time, \ShuffleSnap\ is ahead from 0.7--1.3\,s onward. With less time than that (on one
-thread at $10^5$ points), BSP-OT is the better choice, because \ShuffleSnap\ has only
-finished its coarsest levels. With 24 threads, the crossover moves to 0.04--0.09\,s.
-RasterFairy's leaf size hardly matters except on uniform points (73\% with no exact leaves,
-45\% with 1000-point leaves).
+31--46\,s on one thread. The fast \ShuffleSnap\ preset passes that best BSP-OT result after
+0.2--0.5\,s and the default after 0.5--1.3\,s. They finish at 3.7\%, 0.002\% and 0.027\%
+(fast) and at 0.97\%, 0.0005\% and 0.002\% (default). BSP-OT with 1--8 plans is the better
+choice only for budgets below 0.12--0.36\,s on one thread, when \ShuffleSnap\ has finished
+only its coarsest levels. With 24 threads, the fast preset is ahead at every budget for which
+BSP-OT returns a result. RasterFairy's leaf size hardly matters except on uniform points
+(73\% with no exact leaves, 45\% with 1000-point leaves).

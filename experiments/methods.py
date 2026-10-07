@@ -49,7 +49,7 @@ def ratio_schedule(width, height, window=6, ratio=2.0, rounds=1, start_stride=No
     return np.array(st, dtype=np.int32)
 
 
-def m_shufflesnap(Pn, g, window=6, ratio=2.0, rounds=1, init="random", seed=0, threads=0, solver="hungarian_greedy",
+def m_shufflesnap(Pn, g, window=6, ratio=2.0, rounds=1, init="random", seed=0, threads=0, solver="geometric",
                   time_budget=None, final_rounds=None, offsets=None, skip_clean=True, start_stride=None):
     stages = ratio_schedule(g.width, g.height, window, ratio, rounds, start_stride)
     if final_rounds is not None:

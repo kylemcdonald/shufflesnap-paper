@@ -5,24 +5,26 @@
 to the optimum for the smooth, clustered layouts that motivate the problem. On the two
 real 70{,}000-point UMAP embeddings, the default preset is within \RealBalancedExcess\ of
 the certified optimum and visually indistinguishable from it. The method needs no dense
-matrix, runs in 0.2--1.4\,s with all 24 threads at $10^5$ points (balanced preset), gives the same result for
-any number of threads, and never increases the cost.
+matrix, runs in 0.15--0.4\,s with all 24 threads at $10^5$ points (default preset), gives the
+same result for any number of threads, and never increases the cost. At the running time of
+BSP-OT with 16 or 64 plans, it is closer to the optimum on eight or nine of ten distributions.
 
 \paragraph{What it did not survive.} \ShuffleSnap\ is a local search, and its failures
-follow from that. (i)~On near-uniform data, its relative excess grows with $N$ (for the
-baseline, from about 1\% at $10^3$ points to 2.5\% at $10^5$ and 5.3\% at $10^6$). The excess consists of a
-few long closed loops of one-cell shifts that no window can see whole. (ii)~Masks with
-concave bays and grids with surplus cells need global rerouting of mass, which the
-baseline gets wrong. With uniform points on the S-shaped mask it was 18\% above optimal,
-worse than BSP-OT. The $\sqrt2$ schedule removes most of this (1.3\% for balanced, 0.13\%
-for quality), but not all of it. (iii)~A good start does not help,
-and structured starts hurt. (iv)~On a jittered lattice, where the optimum is almost the
-identity, every heuristic we tested stays far from optimal in relative terms.
+follow from that. (i)~Near-uniform data stay hardest: the default is 0.84\% above the
+optimum at $10^5$ points, and its excess grows with $N$ (0.1\% at $10^3$ points, 1.3\% at
+$10^6$). The excess consists of a few long closed loops of one-cell shifts that no
+window can see whole. (ii)~Masks with concave bays and grids with surplus cells need global
+rerouting of mass, which coarse schedules get wrong: on the S-shaped mask, points drawn
+inside the S end up lined along its bays. The default's larger windows and $\sqrt2$ schedule
+reduce this (1.4\% on the S with uniform points, against 9.3\% for BSP-OT), but surplus cells
+remain hard (3.1\% with less than a row of surplus), and a mask can even cut exchanges
+between usable cells off entirely. (iii)~Structured starts do not help: bisection starts
+hurt on every input, and row-sorted starts on most.
 
 \paragraph{The exact solver changes the question.} We built the certified solver as an
 evaluation tool. It turned out to be practical. Starting from \ShuffleSnap's answer, it proved optimality
-at $10^5$ points in 7\,s to 23\,min on one core (median about 2\,min), and at $10^6$
-uniform points in 12\,min.
+at $10^5$ points in 17\,s to 23\,min on one core (median about 2\,min), and at $10^6$
+uniform points in 11\,min.
 When a certified optimum is worth the wait, it is the better choice at this scale, and
 \ShuffleSnap's role is then that of a fast, good-enough answer, a warm start, and a
 method for sizes and time budgets where exact solving is out of reach. We report this
@@ -42,21 +44,24 @@ does not guarantee it.
 \item If a proven optimum is worth minutes of computation, use the certified solver
   started from \ShuffleSnap. We tested it up to $10^6$ uniform and $2\times10^5$ clustered
   points.
-\item For interactive use, the balanced (or fast) preset gives near-optimal layouts of
-  $10^5$ points in about a second on a multicore machine.
-\item Under very tight budgets (below about 1\,s on one core at $10^5$ points), BSP-OT
-  gives the best result available.
+\item For interactive use, the default preset gives near-optimal layouts of $10^5$ points
+  in about 0.2\,s on a multicore machine, or 2.3\,s on one core; the fast preset takes
+  0.09\,s or 0.77\,s, about as long as BSP-OT with 16 plans, and is closer to the optimum on
+  eight of ten distributions.
+\item Under very tight budgets (below 0.12--0.36\,s on one core at $10^5$ points), BSP-OT
+  gives the best result available. With 24 threads we found no such budget.
 \item When the position of empty cells does not matter, an exact-fit mask is both simpler
   and handled far better than surplus cells, by every method.
 \end{itemize}
 
 \paragraph{Limitations of this study.} Everything ran on one workstation, CPU only.
 BSP-OT has a CUDA implementation that we did not test. The objective is squared
-Euclidean displacement in 2D. The window solver works for any cost, but we did not
-evaluate other costs or 3D grids. The certified solver depends on OR-Tools and on
+Euclidean displacement in 2D. The window solver is exact for any cost, but its geometric
+start is derived for squared distances, and we did not evaluate other costs or 3D grids. The certified solver depends on OR-Tools and on
 integer scaling. Its certificate accounts for the scaling, but its running time depends
 on the candidate set and the warm start. Real data consist of two UMAP embeddings with
-one parameter setting. The bbox normalization is part of the problem definition; other
+one parameter setting. The billion-point run is a single instance
+and has no known optimum. The bbox normalization is part of the problem definition; other
 normalizations change the optimum. Timings exclude warm-up (imports, thread start-up) and follow one
 pinning policy, and unrelated background services were running (load about 1). We
 compared against the representative settings of each comparator, but not every setting.
@@ -68,12 +73,13 @@ and its PyPI release does not run on Python~3.
 
 Treated as a hypothesis, the Shellsort idea largely held up. Strided exact windows,
 refined from coarse to fine, bring clustered layouts, including two real UMAP embeddings
-of 70{,}000 points, to within hundredths of a percent of a proven optimum in about a
-second, with little memory and deterministic parallelism. The idea also has sharp
+of 70{,}000 points, to within hundredths of a percent of a proven optimum in a
+fraction of a second on a multicore machine, with little memory and deterministic parallelism. The idea also has sharp
 limits. Its remaining error forms long loops that no window can see, which makes uniform
-data, lattices, concave masks and surplus cells hard, with an unbounded worst case. A
-finer $\sqrt2$ stride schedule with larger windows is a better default than the original
-halving schedule. The most consequential finding may be the exact solver built to judge
+data, lattices, concave masks and surplus cells hard, with an unbounded worst case. Window
+size matters most, and a window solver that starts from closed-form transport duals lets
+\ShuffleSnap\ use windows large enough to beat BSP-OT at equal running time. The most consequential finding may be the
+exact solver built to judge
 the heuristic: seeded with \ShuffleSnap's answer, proven optima are within reach at
 $10^5$--$10^6$ points. For point-to-grid layout, exactness is therefore a matter of
 minutes, not a matter of impossibility.

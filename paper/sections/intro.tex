@@ -22,33 +22,43 @@ This paper develops and evaluates \ShuffleSnap, a simple heuristic for this regi
 taking its name from Shellsort~\citep{shell1959highspeed}. Shellsort sorts interleaved
 subsequences at a decreasing sequence of gaps. \ShuffleSnap\ does the same in 2D: at stride $s$
 it splits the grid into $s^2$ interleaved subgrids and solves small \emph{exact}
-assignment problems inside $6\times6$ windows of each subgrid, halving $s$ until it
-reaches 1 (Figure~\ref{fig:method}). All work is at full resolution; nothing is
+assignment problems inside $8\times8$ windows of each subgrid, dividing $s$ by $\sqrt2$
+until it reaches 1 (Figure~\ref{fig:method}). All work is at full resolution; nothing is
 aggregated or downsampled.
 
 We treat the idea as a hypothesis to test, not a result to promote. Our aim throughout
 was to find where it fails. The main contributions are:
 
 \begin{itemize}
-\item \textbf{A careful implementation} of the specified baseline, with documented
-  boundary, rectangular-grid, surplus-cell and mask rules. It is a parallel C++ kernel
-  with a Python API whose results do not depend on the number of threads.
+\item \textbf{A careful implementation} with documented rules for boundaries,
+  rectangular grids, surplus cells and masks. It is a parallel C++ kernel with a Python
+  API whose results do not depend on the number of threads, and three presets: \emph{fast}
+  ($5\times5$ windows), \emph{balanced} ($8\times8$, the default) and \emph{quality}
+  ($12\times12$).
+\item \textbf{A geometric window solver.} Each window is solved exactly, starting from dual
+  potentials derived in closed form from per-axis optimal transport between the window's
+  points and cells. This removes the conflicts that make clustered windows slow for
+  standard solvers. It is 5.0--5.4$\times$ faster than the Hungarian method with a greedy start
+  on clustered data and 2--2.4$\times$ faster on uniform points, with the same results. The
+  saved time buys larger windows at the same running time.
 \item \textbf{A certified exact solver that reaches $10^6$ points.} It solves min-cost
   flow on sparse candidate edges, then prices every edge of the \emph{dense} problem
   through a Lagrangian bound, adding edges until the bound meets the primal cost. It gives
-  true optimality gaps, not progress relative to our own best answer, for all 211 benchmark
-  instances (up to 200{,}000 points) and for uniform instances up to $10^6$ points. It
-  turned out to be a strong practical baseline as well.
-\item \textbf{Measured improvements and non-improvements.} Changes were chosen on a
-  development set and evaluated on held-out instances. A finer stride sequence (ratio
-  $\sqrt2$ instead of 2) with $8\times8$ windows reduces the excess over the optimum
-  2.6--14$\times$, at about three times the running time. Several intuitive ideas did not
-  help:
+  true optimality gaps, not progress relative to our own best answer, for all 202 benchmark
+  instances (up to 200{,}000 points) and for uniform instances up to $10^6$ points. Where
+  SciPy's dense solver fits, both found the same optimum on every instance: 600 small ones
+  and all ten distributions at $10^4$ points. It turned out to be a strong practical
+  baseline as well.
+\item \textbf{Measured design choices.} The presets were chosen on a development set and
+  every claim is evaluated on held-out instances. Window size is the main quality knob,
+  and dividing the stride by $\sqrt2$ is best or close to best at every window size.
+  Several intuitive ideas did not help:
   \begin{itemize}
-  \item sorted or bisection starts make results \emph{worse};
-  \item polishing at coarser strides and merging independent runs help little or not
-    at all;
-  \item a Jonker--Volgenant window solver is slower.
+  \item bisection starts make results \emph{worse}, and so do row-sorted starts on most inputs;
+  \item polishing at coarser strides changes almost nothing, and merging independent runs
+    helps less than a larger window;
+  \item a Jonker--Volgenant window solver is slower, and an auction warm start helps less
+    than the geometric one.
   \end{itemize}
 \item \textbf{A diagnosis of the remaining error.} The gap to the optimum is concentrated
   in a few long closed loops of points, each displaced by about one cell. No window
@@ -57,9 +67,12 @@ was to find where it fails. The main contributions are:
 \item \textbf{A benchmark against exact LAP, RasterFairy and BSP-OT.} We first verified
   each comparator's capabilities: we found and worked around coordinate truncation in the
   PyPI release of RasterFairy, and used its much stronger upstream version. The
-  benchmark covers varied and adversarial distributions, masks, prime point counts, two
+  fast and default presets take about as long as BSP-OT with 16 and 64 plans, so the two
+  methods can be compared at equal time: \ShuffleSnap\ is closer to the optimum on eight and
+  nine of ten distributions. The benchmark covers varied and adversarial distributions,
+  masks, prime point counts, two
   real UMAP embeddings with 70{,}000 points each, multiple seeds, matched-budget curves,
-  and scaling to $10^6$ points. We report cost, time, peak memory, and neighbourhood
+  and scaling to $10^6$ points, plus one run on $10^9$ points. We report cost, time, peak memory, and neighbourhood
   preservation, and we keep displacement and neighbourhood measures separate.
 \end{itemize}
 

@@ -9,7 +9,8 @@ without initialization~\citep{crouse2016implementing,virtanen2020scipy}. The
 \texttt{lap} and \texttt{lapjv} packages provide dense JV with heuristic initialization
 (\texttt{lap} also provides a sparse variant)~\citep{kazmar_lap,markovtsev_lapjv}.
 Auction algorithms~\citep{bertsekas1979distributed,bertsekas1988auction} and cost-scaling
-push--relabel~\citep{goldberg1995efficient} handle sparse problems. The min-cost-flow
+push--relabel~\citep{goldberg1995efficient} handle sparse problems, and Volgenant's core-oriented
+method solves a dense problem on a sparse core of its cost matrix~\citep{volgenant1996linear}. The min-cost-flow
 solver in OR-Tools, which we use, is a cost-scaling push--relabel
 method~\citep{ortools,ortools_mincostflow_doc}. \citet{burkard2009assignment} survey the
 field. Geometric bipartite matching admits near-linear $\varepsilon$-approximations in
@@ -24,7 +25,11 @@ solvers~\citep{merigot2011multiscale,levy2015numerical} and behind the potential
 certificate. Multiscale methods solve coarsened problems and refine
 them~\citep{merigot2011multiscale,schmitzer2016sparse,gerber2017multiscale}. Schmitzer's
 sparse multiscale algorithm in particular alternates sparse subproblems with global
-optimality checks~\citep{schmitzer2016sparse}, as our exact solver does. Entropic
+optimality checks~\citep{schmitzer2016sparse}, as our exact solver does. Multiscale
+solvers also warm-start each level with duals from the coarser
+one~\citep{merigot2011multiscale,schmitzer2016sparse}; our window solver instead derives
+starting duals for every small subproblem in closed form, from the per-axis sorted matching
+that sliced transport also builds on~\citep{rabin2012wasserstein,bonneel2015sliced}. Entropic
 regularization~\citep{cuturi2013sinkhorn} and sliced
 transport~\citep{rabin2012wasserstein,bonneel2015sliced} trade exactness for speed; see
 \citet{peyre2019computational} for a survey. BSP-OT~\citep{genest2025bspot} builds many

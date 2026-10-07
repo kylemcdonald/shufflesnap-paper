@@ -1,0 +1,64 @@
+{
+ "side": 31623,
+ "n": 1000014129,
+ "instance_seed": 0,
+ "init": "random permutation, default_rng(0)",
+ "preset": "quality",
+ "window": 12,
+ "ratio": 1.4142135623730951,
+ "solver": "geometric",
+ "threads": 24,
+ "budget_s": 15407.770586453005,
+ "shufflesnap_version": "0.1.0",
+ "gen_s": 56.10465077599656,
+ "scale_s": 0.7990639449999435,
+ "init_s": 1.1583133629974327,
+ "occupancy_s": 5.26383894400351,
+ "grid_build_s": 8.436578772001667,
+ "solve_s": 8566.530243051995,
+ "total_s": 8573.751459303996,
+ "finished": true,
+ "final_cost": 4.777415931223275e+16,
+ "mean_sq_displacement": 47773484.32067279,
+ "start_cost": 4.77741598887e+16,
+ "stages": [
+  [
+   4,
+   4,
+   1,
+   0
+  ],
+  [
+   3,
+   3,
+   1,
+   0
+  ],
+  [
+   2,
+   2,
+   1,
+   0
+  ],
+  [
+   1,
+   1,
+   -1,
+   1
+  ]
+ ],
+ "phases": 4248,
+ "stride1_rounds": 1059,
+ "time_to_stride1_s": 8515.681084256996,
+ "time_within_1pct_s": 6201.366991091995,
+ "time_within_0p1pct_s": 6201.366991091995,
+ "time_within_0p01pct_s": 6201.366991091995,
+ "peak_rss_gib": 49.297218322753906,
+ "compare_costs": {
+  "billion_meander_31623_seed0.npy": 4.777498943424079e+16,
+  "billion_bspot_31623_seed0.npy": 5.1669515878356344e+16
+ },
+ "resume": "results/billion/billion_assignment_31623_seed0_6h.npy",
+ "resume_stride": 4,
+ "time_offset_s": 6192.229413546995
+}

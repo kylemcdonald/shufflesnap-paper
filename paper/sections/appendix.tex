@@ -4,6 +4,7 @@
 The paper repository contains every script, raw result, and figure source. The
 implementation is a separate repository (\texttt{shufflesnap}). Starting from a checkout
 of both side by side:
+{\small
 \begin{verbatim}
 pip install ./shufflesnap[exact]   # C++ build, ~2 s
 pip install -r shufflesnap-paper/requirements.txt
@@ -19,6 +20,7 @@ python experiments/fig_visual.py mnist; python experiments/fig_visual.py fashion
 python experiments/fig_masks.py
 cd paper && tectonic main.tex
 \end{verbatim}
+}
 Raw results are JSON lines in \texttt{results/raw/}: one record per run, holding the
 full run specification, timings, memory, validity check, cost, displacement statistics,
 and the software environment (library versions, commit hashes of the comparator
@@ -31,6 +33,21 @@ process, after a warm-up call on a 256-point instance. It includes method-specif
 preprocessing and excludes instance generation, the shared normalization, and
 validation. Peak memory is the rise of peak RSS during the call.
 
+\section{A serial reference implementation}
+\label{app:reference}
+
+Listing~\ref{lst:reference} is the complete algorithm in NumPy and SciPy, without threads,
+skipped windows or time budgets. It ships with the package as \texttt{shufflesnap.reference}.
+On inputs without exact ties it returns exactly the assignment of the compiled kernel. The
+package's tests check this for all three presets, and for $6\times6$ windows with halving
+strides, on six kinds of target: an exact-fit square,
+a partially filled last row, surplus cells, a thin rectangle, a disk and a random mask. With
+exact ties, SciPy's solver and the kernel's may pick different optimal window solutions.
+
+\lstinputlisting[caption={Serial \ShuffleSnap\ (\texttt{shufflesnap/reference.py}). Points are in
+grid units; \texttt{snap(P, mask)} is the default (balanced) preset, and \texttt{w=5} and
+\texttt{w=12} give the fast and quality presets.},label=lst:reference]{reference.py}
+
 \section{Additional tables}
 \label{app:tables}
 
@@ -40,8 +57,7 @@ validation. Peak memory is the rise of peak RSS during the call.
 \caption{Absolute excess over the certified optimum, in cells$^2$ per point, at $N=100{,}000$
 (same runs as Table~\ref{tab:main}). ``Optimum'' is the certified optimal mean squared
 displacement. Relative and absolute excess tell different stories on the heavy-tailed
-input, where outliers dominate the optimum, and on the jittered lattice, where the
-optimum is tiny.}
+input, where outliers dominate the optimum.}
 \label{tab:abs}
 \resizebox{\linewidth}{!}{\input{tables/tab_abs_100k_t1}}
 \end{table}
@@ -75,9 +91,9 @@ certified solver).}
 \begin{table}[tbp]
 \centering\scriptsize
 \caption{All held-out ablations (24 threads): mean excess over the certified optimum (\%) and
-median time (s) over instance seeds 1--3. Each row changes one setting of the baseline
-($6\times6$ windows, stride ratio 2, four tilings, random start, one round per level,
-greedy-start Hungarian solver, unchanged windows skipped, automatic start stride).}
+median time (s) over instance seeds 1--3. Each row changes one setting of the default
+($8\times8$ windows, stride ratio $\sqrt2$, four tilings, random start, one round per level,
+geometric window solver, unchanged windows skipped, automatic start stride).}
 \label{tab:ablation}
 \resizebox{\linewidth}{!}{\input{tables/tab_ablation}}
 \end{table}

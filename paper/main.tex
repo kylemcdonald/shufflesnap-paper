@@ -13,6 +13,10 @@
 \usepackage{enumitem}
 \usepackage[hidelinks,pdfusetitle]{hyperref}
 \usepackage[section]{placeins}
+\usepackage{listings}
+\lstset{language=Python,basicstyle=\ttfamily\fontsize{8.3}{9.6}\selectfont,keywordstyle=\color{blue!50!black},
+  commentstyle=\color{black!55},stringstyle=\color{green!35!black},showstringspaces=false,breaklines=true,
+  columns=fullflexible,keepspaces=true,frame=single,rulecolor=\color{black!20},captionpos=t}
 \captionsetup{font=small,labelfont=bf}
 % let tall full-width figures sit near their text instead of drifting to the end
 \renewcommand{\topfraction}{0.92}
@@ -28,11 +32,11 @@
 \newcommand{\ShuffleSnap}{ShuffleSnap}
 \input{numbers}
 \hypersetup{pdftitle={ShuffleSnap: strided windowed exact reassignment for point-to-grid layout, evaluated against certified optima},
-            pdfauthor={Draft}, pdfsubject={Point-to-grid assignment},
+            pdfauthor={Kyle McDonald}, pdfsubject={Point-to-grid assignment},
             pdfkeywords={linear assignment, optimal transport, grid layout, UMAP, visualization}}
 
 \title{\ShuffleSnap: strided windowed exact reassignment for point-to-grid layout,\\ evaluated against certified optima}
-\author{Draft --- author list to be decided}
+\author{Kyle McDonald}
 \date{September 2026}
 
 \begin{document}

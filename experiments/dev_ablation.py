@@ -33,13 +33,21 @@ CONFIGS = {
     "w12-r1.41": dict(window=12, ratio=R2),
 }
 
+# 2026-09-26: with the geometric window solver larger windows became cheap, so the search was
+# widened (window sides up to 24, four stride ratios, two rounds per level for a few sizes)
+# to choose the fast / balanced / quality presets again.
+CONFIGS_GEOMETRIC = {f"w{w}-r{r:.3g}": dict(window=w, ratio=r)
+                     for w in (6, 8, 10, 12, 14, 16, 20, 24) for r in (2.0, 2 ** 0.75, R2, 2 ** 0.25)}
+CONFIGS_GEOMETRIC.update({f"w{w}-r1.41-R2": dict(window=w, ratio=R2, rounds=2) for w in (8, 12, 16)})
+
 INSTANCES = [(d, 10000, "square") for d in ["uniform", "gaussian", "gmm", "spiral", "jitter", "unequal2", "mnist"]]
 INSTANCES += [(d, 10000, g) for d in ["uniform", "gmm", "spiral"] for g in ["free10", "logo", "disk"]]
 INSTANCES += [(d, 100000, "square") for d in ["uniform", "gaussian", "gmm", "spiral", "jitter", "unequal2"]]
 INSTANCES += [("mnist", 70000, "square")]
 
 
-def main(out, seeds=range(5)):
+def main(out, seeds=range(5), configs=None):
+    configs = CONFIGS if configs is None else configs
     done = set()
     if os.path.exists(out):
         for line in open(out):
@@ -52,7 +60,7 @@ def main(out, seeds=range(5)):
             print("no reference yet:", dist, n, grid, flush=True)
             continue
         Pn, g, _, _ = datasets.instance(dist, n, 0, grid)
-        for name, cfg in CONFIGS.items():
+        for name, cfg in configs.items():
             for s in seeds:
                 if (dist, n, grid, name, s) in done:
                     continue
@@ -69,5 +77,9 @@ def main(out, seeds=range(5)):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(__file__), "..", "results", "raw",
-                                                             "dev_ablation.jsonl"))
+    # python experiments/dev_ablation.py [out.jsonl] [--geometric]
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    geometric = "--geometric" in sys.argv
+    raw = os.environ.get("SS_RESULTS_RAW", os.path.join(os.path.dirname(__file__), "..", "results", "raw"))
+    default = "dev_ablation_geometric.jsonl" if geometric else "dev_ablation.jsonl"
+    main(args[0] if args else os.path.join(raw, default), configs=CONFIGS_GEOMETRIC if geometric else None)

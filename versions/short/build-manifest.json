@@ -1,0 +1,9 @@
+{
+  "edition": "short",
+  "body_pages": 3,
+  "target_body_pages": 3,
+  "total_pages": 5,
+  "pdf": "shufflesnap-short.pdf",
+  "pdf_sha256": "1d2e763b8b5f98c007da1981a7843ebe49b7b35208aa9e52d68fc8d0cd20ff74",
+  "source_archive": "shufflesnap-short-source.zip"
+}

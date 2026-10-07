@@ -5,15 +5,16 @@
   \centering
   \includegraphics[width=\linewidth]{figures/fig_visual_mnist.pdf}
   \caption{All 70{,}000 MNIST digits, UMAP layout snapped to a $265\times265$ grid. Each
-  point has the same color in every panel, set by its position in the input layout, so
-  color jumps show where a method tears the layout. The number under each method name is
+  point has the same color in every panel, set by its position in the input layout, and the
+  dark bands are graph-paper lines drawn on the input, so bent lines show how a method
+  deforms the layout, and color jumps or broken lines show where it tears it. The number under each method name is
   the mean squared displacement in cells$^2$. Row~2 enlarges the $64\times64$ box. Row~3
   shows each point's displacement. Row~4 shows lattice precision: the fraction of a
   point's occupied 8-neighbour cells whose points are among its 8 nearest input
   neighbours (higher is better). \ShuffleSnap\ is visually indistinguishable from the
   certified optimum. BSP-OT is within 3\% of the optimal displacement but halves lattice
-  precision, because it scrambles local order (speckled boundaries in row~2). RasterFairy's
-  recursive slicing leaves rectangular seams.}
+  precision, because it scrambles local order (frayed lines and speckled boundaries in
+  rows~1--2). RasterFairy's recursive slicing breaks the lines at rectangular seams.}
   \label{fig:visual}
 \end{figure}
 
@@ -31,8 +32,10 @@ of occupied 8-neighbour cells holding one of the point's 8 nearest input neighbo
 \end{table}
 
 Figure~\ref{fig:visual} and Table~\ref{tab:real} compare the methods on the full MNIST
-and Fashion-MNIST embeddings. In the runs shown, the balanced preset is within 0.002\%
-of the certified optimum on both datasets, and the baseline within 0.014\%.
+and Fashion-MNIST embeddings. The default preset is within 0.002\% of the certified
+optimum on both datasets, and the fast preset within 0.031\%. At about the same time as BSP-OT
+with 16 plans (0.66\,s against 0.49\,s on one core), the fast preset is at 0.031\% and
+0.008\%, where BSP-OT is at 3.7\% and 9.2\%.
 In every panel their colour fields match the optimum's.
 
 The two measures disagree on BSP-OT. With 64 plans, its displacement is only 2.4\% (MNIST) and

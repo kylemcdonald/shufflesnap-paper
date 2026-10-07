@@ -34,10 +34,12 @@ problem, yet certifies optimality against it.
 The certificate is the gap $C(\sigma)-\mathrm{LB}(v)$, computed in floating point from
 real-valued costs. It is valid whatever errors occur in steps 1--3. Integer rounding
 can only loosen it, by at most $4N/S$ in total; we count an instance as certified when
-the gap is at most $\max(10^{-9}C, 4N/S)$. On small instances ($N\le2{,}500$, 720
-instances across six distributions and three grid types), the certified optimum agreed
-with SciPy's dense solver to relative $10^{-9}$ every time
-(Section~\ref{sec:correctness}).
+the gap is at most $\max(10^{-9}C, 4N/S)$. The result is therefore the exact optimum of
+the dense problem, whatever candidate edges it started from; the start affects only the
+time. Wherever SciPy's dense solver fits, both found the same optimum: on 600 small
+instances ($N\le2{,}500$, five distributions, three grid types) to relative $10^{-9}$
+(Section~\ref{sec:correctness}), and on all ten distributions at $N=10^4$ to relative
+$10^{-10}$.
 
 \paragraph{A pitfall.} Our first version flagged a ``negative cycle'' on some clustered
 instances with masks. It declared a cycle once a node had been queued more than $n$
@@ -46,8 +48,8 @@ we use. The fix is to verify a suspected cycle by walking parent pointers. A reg
 test covers it.
 
 \paragraph{Cost.} Started from \ShuffleSnap, the solver reached a certificate on every
-instance we gave it: the 211 reference instances (up to 200{,}000 points), every timed run,
-and uniform instances up to $10^6$ points. Started from bisection, it failed on 4 of 11
+instance we gave it: the 202 reference instances (up to 200{,}000 points), every timed run,
+and uniform instances up to $10^6$ points. Started from bisection, it failed on 4 of 10
 instances at $10^5$ points (Section~\ref{sec:main}). The number of pricing rounds was 1 for
 uniform inputs, up to about 8 for clustered, curved or masked inputs, and up to 13 for the
 input with 16 heavily duplicated sites. Massive ties are the slowest case: one

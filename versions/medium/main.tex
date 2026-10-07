@@ -1,0 +1,260 @@
+\documentclass[11pt]{article}
+\usepackage[letterpaper,margin=1in]{geometry}
+\usepackage{fontspec}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx,booktabs,xcolor,microtype}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage[font=small,labelfont=bf]{caption}
+\usepackage[hidelinks,pdfusetitle]{hyperref}
+\usepackage{enumitem}
+\setlist{itemsep=1pt,topsep=3pt}
+\graphicspath{{figures/}}
+\newcommand{\ShuffleSnap}{ShuffleSnap}
+\newcommand{\panel}[2]{\par\begin{center}\begin{minipage}{\linewidth}\centering
+  \includegraphics[width=\linewidth]{#1}\captionof{figure}{#2}\end{minipage}\end{center}}
+
+\title{\ShuffleSnap: strided windowed exact reassignment\\for point-to-grid layout}
+\author{Kyle McDonald}
+\date{September 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Giving each point of a 2D embedding its own grid cell with the least total squared
+displacement is a linear assignment problem too large for dense solvers at $10^5$ points.
+\ShuffleSnap, inspired by Shellsort, solves small exact assignment problems in windows whose
+cells lie a stride apart, and shrinks the stride to one. Against certified optima it comes
+within hundredths of a percent on clustered layouts, including real UMAP embeddings, in
+seconds, closer than BSP-OT and RasterFairy on most inputs. Its errors are loops of one-cell shifts that
+no window can see, which make uniform points, concave masks and surplus cells hard.
+\end{abstract}
+
+\section{Introduction}
+
+An image collection is often shown by embedding the items in the plane, for example with
+t-SNE or UMAP~\citep{vandermaaten2008tsne,mcinnes2018umap}, and placing each thumbnail in
+its own grid cell. Rounding every point to its nearest cell causes collisions and holes, so
+the cells must be assigned jointly: we seek the assignment $\sigma$ of points $p_i$ to
+distinct cells $c_{\sigma(i)}$ that minimizes $C(\sigma)=\sum_i \lVert p_i - c_{\sigma(i)}\rVert^2$.
+This is a linear assignment problem, and a discrete optimal-transport
+problem~\citep{peyre2019computational}. Dense exact
+solvers~\citep{kuhn1955hungarian,jonker1987shortest} need the full cost matrix, 80\,GB at
+$10^5$ points. Practical tools instead split the cloud recursively, like
+RasterFairy~\citep{klingemann2015rasterfairy}, or merge randomized partitions, like
+BSP-OT~\citep{genest2025bspot}.
+
+\ShuffleSnap\ borrows from Shellsort~\citep{shell1959highspeed}, which sorts interleaved
+subsequences at a shrinking gap. It solves only small assignment problems, but exactly,
+with their cells spread across the grid first and brought together later
+(Figure~\ref{fig:schematic}). We treat the idea as a hypothesis, and measure its true gaps
+with a solver that proves optimality on the same instances.
+
+\panel{fig_schematic}{(a)~A window collects the points that occupy its cells and
+reassigns them among the same cells by an exact linear assignment. (b)~At stride $s$ a
+window takes every $s$-th row and column: it keeps 64 cells but spans $7s+1$ cells per
+axis, so points can travel far. (c)~Each subgrid is tiled four times, shifted by half a
+window, so that points can cross every window border.\label{fig:schematic}}
+
+\clearpage
+
+\section{The method}
+
+\ShuffleSnap\ improves a valid assignment in place:
+\begin{enumerate}
+\item \textbf{Start} from a seeded random permutation of the points over the cells.
+\item \textbf{Stride.} At stride $s$, cells whose row and column have the same residues
+  modulo $s$ form one of $s^2$ interleaved subgrids. Each subgrid is cut into windows of
+  $8\times8$ of its cells, which span $7s+1$ cells of the grid per axis.
+\item \textbf{Solve.} In every window, the current occupants are reassigned among the
+  window's cells, empty ones included, by an exact linear assignment on squared distances
+  to the original coordinates. The result replaces the old assignment only if it is cheaper
+  by more than a relative $10^{-12}$.
+\item \textbf{Shift.} A round tiles every subgrid four times, shifted by $(0,0)$,
+  $(0,4)$, $(4,0)$ and $(4,4)$. Windows that cross an edge are clipped, never dropped.
+\item \textbf{Schedule.} On an axis of length $L$ the first stride is the smallest power
+  of two with $8s\ge L$, so that the first windows span the grid. After each round the
+  stride is divided by $\sqrt2$ and rounded; at stride 1, rounds repeat until one moves no
+  point.
+\end{enumerate}
+Because the old assignment is feasible for every window, the total cost never increases,
+the layout is valid after every step, and ties cannot cause cycling. The windows of one
+tiling are disjoint, so they run in parallel with a result that does not depend on the
+number of threads. Each level costs about the same, linear in the number of cells. The
+final no-move round is a fixed point of the windows, not a proof of optimality.
+
+Rectangular grids use one stride per axis, masked cells never enter a window, and empty
+cells do, so with more cells than points the solver also chooses which cells stay empty.
+The kernel is C++ with OpenMP and a Python interface, needs about 55 bytes per point, and
+skips windows whose occupants have not changed. It solves each window exactly from starting
+duals derived in closed form from per-axis optimal transport, so that the points of a distant
+cluster do not all compete for one corner cell. A 70-line serial version in NumPy and SciPy
+reproduces its assignments exactly. We chose the window side and the stride ratio on
+development instances. Larger windows were better in every test but slower: each step from
+$8\times8$ to $12\times12$ to $16\times16$ cost 2--2.6 times the time and removed one half to
+two thirds of the remaining excess. We offer \emph{fast} ($5\times5$), \emph{balanced}
+($8\times8$, default) and \emph{quality} ($12\times12$); fast and balanced take about as long
+as BSP-OT with 16 and 64 plans, so the two compare at equal time. Dividing the stride by $\sqrt2$ halves the area a window spans from
+one level to the next, so each level starts from a layout already sorted at nearly its own
+scale; it was the best or close to the best ratio at every window size.
+
+\panel{fig_progress}{Progress on 10{,}000 points of a UMAP embedding of MNIST
+digits~\citep{lecun1998gradient}. Every point keeps the color of its input position, and
+the dark bands are graph-paper lines drawn on the input: both travel with the points
+(every second stride shown). The coarse strides sort the layout globally, stride 1 polishes
+it. Numbers are the mean squared
+displacement in cells$^2$, next to the certified optimum.\label{fig:progress}}
+
+\clearpage
+
+\section{Certified optima}
+
+Gaps need a true optimum, but at $10^5$ points no dense solver fits in memory. For any cell potentials $v$, however,
+\[
+  \mathrm{LB}(v)=\sum_{i=1}^N \min_j\bigl(\lVert p_i-c_j\rVert^2-v_j\bigr)+\sum_{j=1}^M v_j-(M-N)\max_j v_j
+\]
+is a lower bound on the optimal cost, by weak duality of the
+assignment linear program, where $M\ge N$ is the number of cells; it is tight for optimal
+potentials. Our solver therefore works on a sparse problem and checks it against the dense
+one. It solves a min-cost flow on candidate edges (each point's nearest cells and the
+neighbourhood of its cell in a starting layout) with OR-Tools~\citep{ortools}, computes
+potentials from that solution by shortest paths, evaluates $\mathrm{LB}$ over \emph{all}
+cells, adds every edge that the bound shows to be missing, and repeats until the bound
+meets the cost. The result is then the exact optimum of the dense problem; the start affects
+only the time. This is the core-and-price idea of sparse
+assignment and transport solvers~\citep{volgenant1996linear,schmitzer2016sparse}. Wherever
+SciPy's dense solver fits, both found the same optimum: on 600 instances of up to 2{,}500
+points and on all ten distributions at $10^4$ points. Started from \ShuffleSnap's layout, it certified all 202
+benchmark instances up to $2\times10^5$ points, and uniform instances up to $10^6$.
+
+\section{Setup}
+
+All runs used one workstation (Intel i9-12900KS, 24 hardware threads). Single-thread runs
+were pinned to one performance core; every run was a fresh process, and times include each
+method's own preparation but not generating the instance. Design decisions used one set of
+instances, and all results below use three held-out ones. The inputs are ten synthetic
+distributions with $10^5$ points on near-square grids (Table~\ref{tab:main}), the complete
+UMAP embeddings of MNIST and Fashion-MNIST~\citep{xiao2017fashion} with
+70{,}000 points each, and masks. Every method received identical coordinates and cells. We
+compare BSP-OT through its official Python binding with 16 and 64 merged plans, and
+RasterFairy in its current upstream version, which solves leaf blocks exactly and is far
+better than its 2019 PyPI release. Table~\ref{tab:main} lists the results for all ten distributions.
+
+\begin{center}
+\begin{minipage}{\linewidth}\centering
+\captionof{table}{Excess over the certified optimum (\%) at $N=100{,}000$, mean of three
+held-out instances, one thread. The last column is the certified solver's time, started
+from \ShuffleSnap; the bottom row is the median time of each method.\label{tab:main}}
+\small
+\input{tables/tab_main_compact_100k_t1}
+\end{minipage}
+\end{center}
+
+\clearpage
+
+\section{Quality, time and scale}
+
+\panel{fig_summary}{Excess over the certified optimum against time on one core. Points
+are means over three instances (for MNIST, three runs on the one embedding); bars span
+their range. The three \ShuffleSnap\ presets use $5\times5$, $8\times8$ (default) and
+$12\times12$ windows from left to right. The vertical line is the time of the certified exact
+solver.\label{fig:summary}}
+
+On clustered data, the kind of layout that embeddings produce, \ShuffleSnap\ is close to
+optimal (Figure~\ref{fig:summary}, Table~\ref{tab:main}). At $10^5$ points the default
+preset is within 0.06\% of the optimum on nine of the ten distributions, and within
+0.005\% on six, in a median 2.3\,s on one core. At equal time it beats BSP-OT: the fast preset
+(0.77\,s) is closer to the optimum than BSP-OT with 16 plans (0.71\,s) on eight distributions,
+and the default than 64 plans (2.9\,s) on nine; on uniform points they reach 2.6\% and 0.84\%,
+against 45\% and 32\%. BSP-OT is ahead only on the near-line and the 90/10 clusters.
+RasterFairy is 17--425\% above the optimum on seven distributions. Only below 0.12--0.36\,s on
+one core, before \ShuffleSnap\ has finished its coarse levels, is BSP-OT's result the better
+one.
+
+With 24 threads \ShuffleSnap\ runs 7--14 times faster and returns bit-identical layouts:
+$10^5$ points take 0.09\,s with the fast preset and 0.19\,s with the default, less than
+BSP-OT's 0.13\,s and 0.41\,s. Time grows nearly linearly with $N$; $10^6$ uniform points take
+21\,s on one core and 1.5\,s on 24 threads with the default, using about 55 bytes per point, against about 250 and 670 for BSP-OT and
+RasterFairy. A billion points converged in 1\,h\,43\,min using 53\,GiB, passing a six-hour run of an
+earlier implementation after 44 minutes; a single-plan BSP-OT ended 8.2\% above. The exact solver scales worse but further than we expected. Seeded with
+\ShuffleSnap's answer, it proved optimality at $10^5$ points in 17\,s to 23\,min on one
+core, with a median near two minutes, and at $10^6$ uniform points in 11\,min.
+
+What mattered in the design: larger windows are the main quality knob, the coarse levels
+are essential, without shifted tilings the method fails outright, and the $\sqrt2$ schedule
+is best or close to best among the stride ratios we tried. Structured starts, extra
+polishing at stride 2, merging independent runs and a Jonker--Volgenant window solver did
+not pay off. Starting each window solve from closed-form transport duals made it 2--5 times
+faster, which buys larger windows at equal time.
+
+\paragraph{Masks and surplus cells.} With 20{,}000 points on disks and rings, the default
+preset stays within 0.07\% of the optimum (fast: 0.14\%), where BSP-OT is 2.5--9.3\% and
+RasterFairy 11--54\% above it. Surplus cells, where a method must also choose which cells
+stay empty, hurt the comparators most: with 10\% surplus, BSP-OT's partial matching is
+18--109\% above the optimum and RasterFairy, which removes surplus cells at random,
+72--350\%, while the default stays within 0.91\%. Concave masks and fewer surplus cells are
+harder (Section~\ref{sec:fail}).
+
+\clearpage
+
+\section{Real embeddings: displacement is not neighbourhood}
+
+\panel{fig_gallery_mnist}{All 70{,}000 MNIST digits on a $265\times265$ grid. Colors and
+graph-paper lines follow each point's input position; numbers are the mean squared
+displacement in cells$^2$. The bottom row shows lattice precision, the fraction of a point's
+occupied neighbour cells that hold one of its 8 nearest input neighbours.\label{fig:gallery}}
+
+On both embeddings the default preset is within 0.002\% of the certified optimum, and its
+layout is visually indistinguishable from the optimal one: the graph-paper lines bend in
+the same places (Figure~\ref{fig:gallery}). The two comparators fail in opposite ways.
+BSP-OT is within 2.4\% (MNIST) and 6.7\% (Fashion-MNIST) of the optimal displacement, yet it
+halves both neighbourhood measures (the fraction of each point's 10 nearest input neighbours
+among its 10 nearest grid neighbours is 0.31--0.33, against 0.61--0.65 for the optimum): its merged partitions follow the optimal map on average
+but scramble points locally, which frays the lines. RasterFairy moves points 20--25\% more
+than necessary, but keeps local order inside its slices and breaks it only along their
+seams, so its neighbourhood measures stay close to the optimum's. Even the optimum tears
+the layout along cluster boundaries, visible as pale lines in the bottom row. Minimizing
+displacement and preserving neighbourhoods are different goals; neither implies the other.
+
+\clearpage
+
+\section{Where it fails}
+\label{sec:fail}
+
+\panel{fig_failures_row}{(a,\,b)~Where \ShuffleSnap\ and the optimum disagree on uniform
+points, the difference is a few long closed loops of one-cell moves (loops longer than 30
+points in blue), and at $10^5$ points loops of more than 300 points carry most of the excess.
+(c,\,d)~Points drawn uniformly inside a blocky S-shaped mask, whose optimum moves every point
+by less than a cell: $6\times6$ windows with halving strides route points across the concave
+bays, where they line up along the edges; the default preset leaves fewer such lines. Numbers are mean squared
+displacements.\label{fig:failures}}
+
+\ShuffleSnap\ is a local search, and its failures follow from that. The excess sits in long
+loops in which every point is shifted by about one cell (Figure~\ref{fig:failures}a,b).
+Such a loop is optimal inside every window that sees only part of it, and a strided window
+cannot shift a point by one cell. We built inputs on which the method never moves while the
+optimum costs zero, so its relative excess is unbounded. Uniform points are the hardest
+common input: the default's excess grows with $N$, from 0.1\% at $10^3$ points to 0.84\% at
+$10^5$ and 1.3\% at $10^6$. On masks with concave bays, coarse schedules route points across
+the bays (Figure~\ref{fig:failures}c,d). The default reduces this, and with uniform points on
+the S mask it is 1.4\% above the optimum (BSP-OT: 9.3\%). A mask can even cut two usable cells off from each other, when no
+scheduled window contains both. Grids with a few surplus cells are hard too, because the
+solver must also choose where the holes go (3.1\% with less than a row of them).
+
+\paragraph{When to use it.} For interactive layouts of $10^5$ points, the default preset
+gives near-optimal results in about 0.2\,s on a multicore machine (fast: 0.09\,s). When a proven optimum
+is worth minutes, the certified solver started from \ShuffleSnap\ is the better choice.
+Below 0.12--0.36\,s on one core, BSP-OT gives the best available result. If the position
+of empty cells does not matter, an exact-fit mask is easier than surplus cells for every
+method. The code, raw results and figure scripts are released in two repositories.
+
+\paragraph{Limits of this study.} All measurements come from one workstation, CPU only;
+BSP-OT also has a GPU implementation that we did not test. The objective is squared
+Euclidean displacement in 2D, the real data are two UMAP embeddings with one parameter
+setting, and each comparator ran at representative settings, not at every setting.
+\label{page:body-end}
+
+\clearpage
+\bibliographystyle{plainnat}
+\bibliography{refs}
+\end{document}

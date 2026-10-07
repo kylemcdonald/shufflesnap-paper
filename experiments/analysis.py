@@ -29,7 +29,8 @@ def _ref_table():
 
 
 def load(pattern="*.jsonl", with_refs=True):
-    files = sorted(glob.glob(os.path.join(ROOT, "results", "raw", pattern)))
+    raw = os.environ.get("SS_RESULTS_RAW", os.path.join(ROOT, "results", "raw"))
+    files = sorted(glob.glob(os.path.join(raw, pattern)))
     recs = []
     for f in files:
         base = os.path.basename(f)

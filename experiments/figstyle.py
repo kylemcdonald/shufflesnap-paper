@@ -17,7 +17,7 @@ MUTED = "#898781"
 GRID = "#e1e0d9"
 AXIS = "#c3c2b7"
 
-SS_RAMP = {"SS-baseline": "#86b6ef", "SS-fast": "#3987e5", "SS-balanced": "#1c5cab", "SS-quality": "#0d366b"}
+SS_RAMP = {"SS-fast": "#5b9ceb", "SS-balanced": "#1c5cab", "SS-quality": "#0d366b"}
 COLORS = dict(SS_RAMP)
 COLORS.update({
     "BSP-OT": "#eb6834",
@@ -28,11 +28,11 @@ COLORS.update({
     "Exact-dense-scipy": INK2,
     "Bisection": MUTED,
 })
-MARKERS = {"SS-baseline": "o", "SS-fast": "o", "SS-balanced": "o", "SS-quality": "o", "BSP-OT": "s",
+MARKERS = {"SS-fast": "o", "SS-balanced": "o", "SS-quality": "o", "BSP-OT": "s",
            "RasterFairy-master": "^", "RasterFairy-pypi": "v", "Exact-certified": "D", "Exact-certified-bisect": "P", "Exact-dense-scipy": "d",
            "Bisection": "x"}
-NAMES = {"SS-baseline": "ShuffleSnap baseline (6×6, halving)", "SS-fast": "ShuffleSnap fast (6×6, √2)",
-         "SS-balanced": "ShuffleSnap balanced (8×8, √2)", "SS-quality": "ShuffleSnap quality (12×12, √2)",
+NAMES = {"SS-fast": "ShuffleSnap fast (5×5)", "SS-balanced": "ShuffleSnap balanced (8×8, default)",
+         "SS-quality": "ShuffleSnap quality (12×12)",
          "BSP-OT": "BSP-OT", "RasterFairy-master": "RasterFairy (GitHub master)",
          "RasterFairy-pypi": "RasterFairy (PyPI 1.0.6)", "Exact-certified": "Exact (certified, sparse)",
          "Exact-certified-bisect": "Exact (certified, bisection start)",
@@ -128,6 +128,25 @@ def position_colors(P, L=62.0, chroma=58.0):
     xd = x * np.sqrt(np.maximum(0.0, 1 - y * y / 2))
     yd = y * np.sqrt(np.maximum(0.0, 1 - x * x / 2))
     return _lab_to_srgb(np.full(len(P), L), chroma * xd, chroma * yd)
+
+
+def graph_paper(P, colors, n_lines=12, width=0.16, darken=0.5):
+    """Draw graph paper on the *input* layout: points within width/2 line spacings of one
+    of n_lines equally spaced lines per axis (over the point bounding box) are darkened.
+    The lines travel with the points, so in an assignment they show how the input grid
+    was bent, sheared or torn, which a smooth color field alone can hide."""
+    P = np.asarray(P, dtype=float)
+    u = (P - P.min(0)) / np.maximum(P.max(0) - P.min(0), 1e-12)
+    f = u * n_lines
+    on = (np.abs(f - np.round(f)) < width / 2).any(1)
+    out = np.array(colors, dtype=float, copy=True)
+    out[on] *= darken
+    return out
+
+
+def source_colors(P, **lines):
+    """Input-position colors with graph-paper lines (the convention of every gallery)."""
+    return graph_paper(P, position_colors(P), **lines)
 
 
 def grid_image(grid, cell, values, fill=(1, 1, 1)):

@@ -118,6 +118,17 @@ def _glyph_mask(n: int, text: str = "S"):
     return ss.Grid.from_image(np.asarray(img), n)
 
 
+def s_mask(n: int, res: int = 600) -> ss.Grid:
+    """The blocky rectilinear S of the earlier ShuffleSnap work (three horizontal bars joined
+    by a left bar in the upper half and a right bar in the lower half, all 18-20% thick),
+    rasterized to exactly n cells; any surplus is trimmed from the end of the bottom bar."""
+    y, x = np.mgrid[:res, :res] / (res - 1)  # y grows downwards (row order)
+    horizontal = (y < 0.18) | ((y > 0.41) & (y < 0.59)) | (y > 0.82)
+    vertical = ((x < 0.2) & (y < 0.5)) | ((x > 0.8) & (y >= 0.5))
+    img = np.where(horizontal | vertical, 0, 255).astype(np.uint8)
+    return ss.Grid.from_image(img, n)
+
+
 def ring_mask(n: int, inner: float = 0.5) -> ss.Grid:
     """Annulus with inner/outer radius ratio `inner` and exactly n cells."""
     area = np.pi * (1 - inner ** 2)
@@ -163,6 +174,8 @@ def grid_for(kind: str, n: int) -> ss.Grid:
         return ring_mask(n)
     if kind == "logo":
         return _glyph_mask(n, "S")
+    if kind == "srect":
+        return s_mask(n)
     raise ValueError(kind)
 
 

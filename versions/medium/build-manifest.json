@@ -1,0 +1,9 @@
+{
+  "edition": "medium",
+  "body_pages": 6,
+  "target_body_pages": 6,
+  "total_pages": 7,
+  "pdf": "shufflesnap-medium.pdf",
+  "pdf_sha256": "fd06282e45883e1b3af3f53d3c7e67c253ec9f14f671fc91d8fd27d6e36c5a86",
+  "source_archive": "shufflesnap-medium-source.zip"
+}
