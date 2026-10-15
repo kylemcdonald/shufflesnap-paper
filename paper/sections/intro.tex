@@ -44,7 +44,7 @@ report where the method fails as well as where it works. The main contributions 
 \item \textbf{A certified exact solver that reaches $10^6$ points.} It solves min-cost
   flow on sparse candidate edges, then prices every edge of the \emph{dense} problem
   through a Lagrangian bound, adding edges until the bound meets the primal cost. It gives
-  true optimality gaps, not progress relative to our own best answer, for all 202 benchmark
+  true optimality gaps, not progress relative to our own best answer, for all 232 benchmark
   instances (up to 200{,}000 points) and for uniform instances up to $10^6$ points. Where
   SciPy's dense solver fits, both found the same optimum on every instance: 600 small ones
   and all ten distributions at $10^4$ points. It turned out to be a strong practical
@@ -63,7 +63,10 @@ report where the method fails as well as where it works. The main contributions 
 \item \textbf{A diagnosis of the remaining error.} The gap to the optimum is concentrated
   in a few long closed loops of points, each displaced by about one cell. No window
   smaller than a loop can remove it. Masks with concave bays and grids with surplus
-  cells expose the same mechanism at a larger scale.
+  cells expose the same mechanism at a larger scale. From random starts the result is
+  predictable: over 50 uniform point sets and 50 random starts each, the excess per point
+  follows nearly the same, nearly log-normal distribution on every set, and the start, not the
+  set, causes 96\% of its variance.
 \item \textbf{A benchmark against exact LAP, RasterFairy and BSP-OT.} We first verified
   each comparator's capabilities: we found and worked around coordinate truncation in the
   PyPI release of RasterFairy, and used its much stronger upstream version. The
@@ -76,5 +79,5 @@ report where the method fails as well as where it works. The main contributions 
   preservation, and we keep displacement and neighbourhood measures separate.
 \end{itemize}
 
-The implementation is on PyPI as \texttt{shufflesnap}; this paper's experiment code, raw
-results and figure scripts are in a separate repository.
+The implementation is on PyPI as \texttt{shufflesnap} (\href{https://github.com/kylemcdonald/shufflesnap}{\nolinkurl{github.com/kylemcdonald/shufflesnap}}); this paper's experiment
+code, raw results and figure scripts are at \href{https://github.com/kylemcdonald/shufflesnap-paper}{\nolinkurl{github.com/kylemcdonald/shufflesnap-paper}}.

@@ -28,6 +28,8 @@ EXPERIMENTS = {
     "anytime": specs.anytime,
     "ablations": specs.ablations,
     "memory": specs.memory,
+    "swap": specs.swap_optimizer,
+    "swap_long": specs.swap_optimizer_long,
 }
 
 PARALLEL_METHODS = {"shufflesnap", "bspot"}

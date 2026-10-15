@@ -10,7 +10,8 @@ files it uses, compiled with tectonic, and rejected if the log shows an overfull
 an undefined reference or citation.  The body ends at \\label{page:body-end}; references
 start on a new page and do not count.  The body must have exactly the target length
 (10, 6 or 3 pages) unless --draft is given.  Outputs: dist/shufflesnap-<edition>.pdf,
-a source archive next to it, and versions/<edition>/build-manifest.json.
+a source archive next to it (ready for arXiv, with a 00README.json that selects XeLaTeX), and
+versions/<edition>/build-manifest.json.
 """
 from __future__ import annotations
 
@@ -29,6 +30,11 @@ ROOT = Path(__file__).resolve().parents[1]
 PAPER = ROOT / "paper"
 DIST = ROOT / "dist"
 TARGETS = {"long": 10, "medium": 6, "short": 3}
+# arXiv processing instructions, written into every source archive: the papers load fontspec,
+# so they need XeLaTeX (supported by arXiv since November 2025; fonts are loaded by file name,
+# as arXiv requires).  https://info.arxiv.org/help/00README.html
+ARXIV_README = {"process": {"compiler": "xelatex"}, "texlive_version": 2025,
+                "sources": [{"filename": "main.tex", "usage": "toplevel"}]}
 PACKAGE_REFERENCE = ROOT.parent / "shufflesnap" / "src" / "shufflesnap" / "reference.py"
 
 
@@ -39,6 +45,18 @@ def _assets(tex: str):
     listings = re.findall(r"\\lstinputlisting(?:\[[^\]]*\])?\{([^}]+)\}", tex)
     keep = lambda xs: sorted({x for x in xs if "#" not in x})  # skip macro parameters
     return keep(figures), keep(inputs), keep(listings)
+
+
+def _expand(edition_dir: Path, tex: str, seen=()) -> str:
+    """The source with every \\input file's text appended (recursively), so that the
+    figures and listings used inside an input file are staged too."""
+    out = tex
+    for rel in re.findall(r"\\input\{([^}]+)\}", tex):
+        rel = rel if rel.endswith(".tex") else rel + ".tex"
+        if "#" in rel or rel in seen:
+            continue
+        out += "\n" + _expand(edition_dir, _resolve(edition_dir, rel).read_text(), seen + (rel,))
+    return out
 
 
 def _resolve(edition_dir: Path, rel: str, exts=("",)) -> Path:
@@ -101,7 +119,7 @@ def build(name: str, strict: bool = True):
     edition = ROOT / "versions" / name
     src = edition / "main.tex"
     tex = src.read_text()
-    figures, inputs, listings = _assets(tex)
+    figures, inputs, listings = _assets(_expand(edition, tex))
     if listings:
         _check_reference_copy()
     with tempfile.TemporaryDirectory(prefix=f"shufflesnap-{name}-") as tmp:
@@ -147,6 +165,7 @@ def _publish(name, stage: Path, count, target):
         for p in sorted(stage.rglob("*")):
             if p.is_file() and p.suffix in keep and p.name != "main.pdf":
                 z.write(p, p.relative_to(stage))
+        z.writestr("00README.json", json.dumps(ARXIV_README, indent=2) + "\n")
     total = int(re.search(r"Pages:\s+(\d+)", subprocess.run(["pdfinfo", str(dest)], capture_output=True,
                                                              text=True).stdout).group(1))
     result = dict(edition=name, body_pages=count, target_body_pages=target, total_pages=total, pdf=dest.name,

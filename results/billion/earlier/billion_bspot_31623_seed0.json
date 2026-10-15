@@ -1,0 +1,51 @@
+{
+ "side": 31623,
+ "n": 1000014129,
+ "instance_seed": 0,
+ "solver": "bspot_grid_giga (single-plan port of computeGaussianMatching)",
+ "plans": 1,
+ "rng_seed": 0,
+ "threads": 1,
+ "solve_time_s": 392.119733037,
+ "assignment_cost": 45657426.740265705,
+ "shufflesnap_final_cost_6h": 42216054.14781454,
+ "excess_over_shufflesnap_pct": 8.151810163028506,
+ "peak_rss_gib": 48.4317626953125,
+ "ref_1e8": {
+  "side": 10000,
+  "coordinate_system": "unit-square",
+  "shufflesnap_final_cost_500s_run": 1837910.9903731905,
+  "BSP-OT_revision": "7aa1c013931cc1718a34cebcb121944c13f136e7",
+  "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+  "timestamp_utc": "2026-09-17T10:50:14Z",
+  "raw_logs": "hundred_m_logs/",
+  "stock_16plan_cost": 2069637.6067400174,
+  "stock_16plan_time_s": 248.387999701,
+  "stock_16plan_peak_rss_gib_omp4": 29.271453857421875,
+  "stock_1plan_cost": 2383729.3646998284,
+  "stock_1plan_time_s": 44.1702998,
+  "stock_1plan_peak_rss_gib": 8.944385528564453,
+  "giga_1plan_cost": 2348735.433070673,
+  "giga_1plan_time_s": 36.66213793,
+  "giga_1plan_peak_rss_gib": 4.84588623046875,
+  "shufflesnap_reference": {
+   "source": "billion_10000_seed0.json",
+   "initializer": "deterministic random permutation",
+   "budget_s": 500.0,
+   "elapsed_s": 536.026233528,
+   "rounds": 14,
+   "converged": false,
+   "final_cost": 1837910.9903731905
+  }
+ },
+ "shufflesnap_6h_reference": {
+  "source": "billion_31623_seed0.json",
+  "initializer": "deterministic random permutation",
+  "budget_s": 21600.0,
+  "elapsed_s": 21901.998205511,
+  "rounds": 53,
+  "converged": false,
+  "final_cost": 42216054.14781454
+ },
+ "coordinate_system": "legacy-inset-0.03"
+}

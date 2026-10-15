@@ -13,7 +13,9 @@ BSP-OT with 16 or 64 plans, it is closer to the optimum on eight or nine of ten 
 follow from that. (i)~Near-uniform data stay hardest: the default is 0.84\% above the
 optimum at $10^5$ points, and its excess grows with $N$ (0.1\% at $10^3$ points, 1.3\% at
 $10^6$). The excess consists of a few long closed loops of one-cell shifts that no
-window can see whole. (ii)~Masks with concave bays and grids with surplus cells need global
+window can see whole. Constructed starts make the relative excess unbounded, but a random
+start gives a draw from a narrow distribution that hardly depends on the input: at $10^4$
+uniform points, 90\% of 2{,}500 runs were 0.55--1.38\% above the optimum. (ii)~Masks with concave bays and grids with surplus cells need global
 rerouting of mass, which coarse schedules get wrong: on the S-shaped mask, points drawn
 inside the S end up lined along its bays. The default's larger windows and $\sqrt2$ schedule
 reduce this (1.4\% on the S with uniform points, against 9.3\% for BSP-OT), but surplus cells
@@ -65,8 +67,8 @@ and has no known optimum. The bbox normalization is part of the problem definiti
 normalizations change the optimum. Timings exclude warm-up (imports, thread start-up) and follow one
 pinning policy, and unrelated background services were running (load about 1). We
 compared against the representative settings of each comparator, but not every setting.
-In particular, RasterFairy's swap optimizer was excluded: it needs dense $N\times N$ memory,
-and its PyPI release does not run on Python~3.
+In particular, RasterFairy's swap optimizer was tested only at $N=2{,}500$: it needs dense
+$N\times N$ memory, and its PyPI release does not run on Python~3.
 
 \section{Conclusion}
 \label{sec:conclusion}

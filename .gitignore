@@ -1,7 +1,7 @@
 __pycache__/
 data/openml/
 paper/*.aux
-paper/*.log
+*.log
 paper/*.out
 paper/*.bbl
 paper/*.blg

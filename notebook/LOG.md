@@ -378,3 +378,138 @@ available.
 - Paper: full-paper paragraph, figure (three segments, y axis to 1e-7 %), abstract and
   limitations updated; long and medium editions' sentence now reads "converged in 1 h 43 min ...
   passing a six-hour run of an earlier implementation after 44 minutes". Short edition unchanged.
+
+## 2026-10-08 — RasterFairy's swap optimizer at N=2,500
+
+- Asked to test the optimizer the paper had excluded. Upstream `rfoptimizer.SwapOptimizer`
+  (master 610fc84) through `methods.m_rasterfairy(swap_iterations=...)`: start from
+  RasterFairy's layout (or a random permutation, as in upstream demo2), NumPy global seed = 0
+  or the instance seed. It normalizes points and positions by their bounding boxes; for
+  bbox-normalized points on a full square this is our cost / (W-1)^2 (checked: identical).
+  Full rectangles only. Each iteration recomputes the whole cost (`sumDistances`, O(N)), and
+  the N x N float64 `cdist` matrix is 49 MB at N=2,500. The harness warm-up caps it at 1000
+  iterations.
+- Instances: ten distributions, 50x50 grid, seeds 1-3; 30 new certified references (232
+  benchmark instances in total), checked against dense SciPy (max |diff| 1e-13 %).
+  `experiments/run_swap.sh`: CPU 8 for all methods, 1e4/1e5/1e6 iterations and random start
+  1e6; 1e7 on seed 1 concurrently on CPU 12, then seeds 2-3 on CPUs 0,2,4,6,10 in parallel
+  (`run_swap_long_seeds.py`).
+- Exploration first (seed 1, uniform/gmm/spiral, continuation runs, not recorded): from
+  RasterFairy 17.8 -> 17.5 % in 3e5 iterations on uniform; from random start still 270-21000 %.
+  Six exploration processes were still running when the benchmark first started; that start was
+  killed, its records deleted, and the benchmark restarted on an idle machine.
+- Mistake: the seeds 2-3 step was appended to run_swap.sh while it was running; bash read the
+  new line and started a second copy, so two runs shared each pinned core (times ~1140 s instead
+  of ~620 s). Both copies were killed, all seeds 2-3 records deleted and rerun alone.
+- Results (means over seeds 1-3): 1e6 iterations take 63 s and remove a median of 26 % of
+  RasterFairy's excess (7-91 %; least on Gaussian 7 % and uniform 9 %, most on near-line 19.2 -> 1.65 %); still 4-550x
+  the fast preset's excess (0.012 s), below BSP-OT-64 only on uniform, Gaussian and heavy tails.
+  Random start 1e6: 0.4-6300 %. Dense SciPy: optimum in 2.7 s median.
+- Paper: full paper gets a results paragraph, appendix Table 10 (tab_swap), and updated setup
+  and limitation sentences (now 37 pages); long and medium editions one sentence each in the
+  setup (page counts kept). Reference count 202 -> 232 everywhere. Short edition unchanged.
+- 1e7 iterations (all three seeds, 572-702 s each, ~10 min): remove a median of 43 % (13-96 %)
+  of RasterFairy's excess; 3.6-317x the fast preset's excess; below BSP-OT-64 on four
+  distributions (uniform, Gaussian, checkerboard, heavy tails).
+
+## 2026-10-14 — Spread across inputs and random starts (10^4 uniform points)
+
+- Prompted by reviewer feedback asking for quality evidence in a non-pathological case.
+  `experiments/seed_study.py`: 50 uniform clouds of 10^4 points (instance seeds 100-149, unused
+  elsewhere), square grid, bbox normalization; default preset from 50 random starts each
+  (method seeds 0-49), one thread per run, 20 worker processes. Current package 0.4.0, whose
+  kernel is identical to the frozen bspmatch snapshot (only `__version__` differs).
+- Optimum per cloud from dense SciPy; the certified solver, warm-started from each of the 2,500
+  ShuffleSnap layouts, reached the same optimum on 2,500/2,500.
+- Results (`results/seed_study/n10000/summary.txt`): excess mean 0.91 % (sd 0.26), median 0.87,
+  p99 1.72, max 2.44 % (2.7x mean), min 0.32. Absolute excess mean 0.0112, max 0.030 cells^2 per
+  point; optima 0.95-1.88 cells^2 per point. Points on their optimal cell: 82 % mean, 75 % min.
+- Variance within clouds (starts) is twice the variance of cloud means. Absolute excess is
+  nearly constant across clouds (CV 5 %); relative excess correlates -0.94 with the optimum.
+- Sanity check: seeds 1-3 reproduce the paper's 10^4 table (optimum 1.41-1.60, excess 0.59-0.87 %).
+- Paper: full paper gets Section 7.9 with Figure 10 (`seed_study_report.py`), plus sentences in
+  the abstract, intro, setup (seed policy), discussion and reproduction appendix (38 pages). Long
+  and medium editions get one sentence each in the failure analysis; the long edition's last
+  page was trimmed to keep 10 pages.
+
+## 2026-10-15 — Histograms, short-paper sentence, annotated reference
+
+- Full paper: Figure 11 (`fig_seed_hists`, from `seed_study_report.py`), one histogram per cloud
+  over its 50 starts, clouds sorted by optimum; it shows the histograms keep their shape and
+  shift left as the optimum grows (constant absolute excess).
+- Short paper: one sentence after the unbounded-worst-case claim ("Those inputs need a start the
+  method never chooses: ... worst of 2,500 runs 2.4 %, 2.7 times the mean"). To keep 3 pages:
+  dropped the bisection-start sentence, dropped "on one workstation" from the setup sentence, and
+  tightened four sentences on page 3.
+- `shufflesnap/reference.py` rewritten for teaching: 56 code lines (was 70), lines <= 79 chars.
+  Windows are groups of cells sharing a residue class and a tile (replaces four nested loops);
+  `coarse_stages` -> `schedule` via `zip_longest`; `solve_window` split out; plain NumPy sums
+  instead of sequential sums (the 1e-12 tolerance absorbs the rounding). Package tests (173) pass,
+  including the 25 kernel-equivalence tests; also identical to the kernel on uniform 10^4 (fast,
+  balanced), gmm 4,900 (quality), spiral and ring 2,500.
+- New `experiments/fig_reference.py`: four diagrams computed with the printed reference's own
+  functions (schedule, windows/tilings, one window solve with cost matrix, a 32x32 run with cost
+  per tiling) and `paper/sections/reference_annotated.tex`: three landscape pages (pdflscape),
+  diagram + explanation left, code right, line ranges read from the file with `ast`. Used by the
+  full paper (Appendix) and the short paper (Appendix B). The builder now scans `\input` files
+  for figures and listings. Full paper 41 pages; short 8 pages in total (body still 3).
+
+## 2026-10-15 — Report the distribution over starts, not the worst run
+
+- Question: the per-cloud histograms suggested one cost distribution per cloud, with random
+  starts landing at different points on it; is that a more useful headline than the worst run?
+  Checked before rewriting. Not Gaussian: within-cloud skewness 0.93, 31/50 clouds fail
+  Shapiro-Wilk, 23 runs > 3 sd above their cloud mean (normal: 3.4). On a log scale it is close
+  to normal (skewness 0.28, 5/50 fail). Pooled absolute excess fits a log-normal (median 0.0109
+  cells^2 per point, sigma 0.226, KS p = 0.11; normal KS p = 8e-11). The worst run (0.030) is
+  still 4.5 sigma out under the fit, so the right tail is a little heavier than log-normal.
+- In absolute terms the distribution is nearly the same on every cloud: the start causes 96 %
+  of the variance (67 % for relative excess), and 7/50 clouds differ from the pooled
+  distribution (KS, 5 %; 2.5 expected by chance). 5th-95th percentile 0.0076-0.0160 cells^2
+  (0.71-1.48x the median), relative 0.55-1.38 %.
+- Best of k starts (resampled per cloud): k = 1, 2, 4, 10 give 0.91, 0.79, 0.72, 0.65 %; the
+  quality preset gives 0.28 % at 10^4 at about three times the default's time, so restarts are
+  a poor use of time.
+- `seed_study_report.py`: these statistics added to summary.txt; Figure 10 redrawn as absolute
+  excess by cloud (sorted by optimum, median bars) plus the pooled histogram with the
+  log-normal fit and 5th/50th/95th percentile lines (the worst-run line is gone).
+- Paper: Section 7.9, abstract, intro, discussion rewritten around the distribution (the
+  worst run is mentioned once, as the observed extreme). Short, medium and long editions: the
+  worst-run sentence replaced by the distribution and its 90 % range. To keep the long edition
+  at 10 pages, the last page was tightened (six-hour comparison shortened, mask and LAS/FLAS
+  sentences shortened). Full paper 42 pages.
+- Public-release check: no credentials, hostnames or private addresses in the tree or the git
+  history; absolute home-directory paths remain only in run logs. `../frozen/` is not public,
+  so `experiments/make_frozen_snapshot.sh` rebuilds the reported snapshot from tag v0.4.0 in a
+  temporary worktree (sources identical apart from `__version__`; same assignment checked on
+  uniform 10^4, seed 0). README and the full paper's reproduction appendix now point at
+  `results/raw_final/` and list run_final, run_swap, the seed study and fig_reference.
+
+## 2026-10-15 — Preparing the repository for publication
+
+- Licenses: MIT for the code (`LICENSE`, as the package), CC BY 4.0 for text and figures
+  (`LICENSE-CC-BY-4.0.txt`); README section added.
+- All editions now link github.com/kylemcdonald/shufflesnap and
+  github.com/kylemcdonald/shufflesnap-paper (short and long: the closing sentence shortened to
+  "Code: ...; results and figure scripts: ..." to keep the page counts; the short edition's
+  billion-point sentence lost "on one workstation" and "the layout looks right").
+- Short edition: new Appendix B with the billion-point render at full resolution
+  (`paper/figures/billion_render.png`, a copy of `results/billion/billion_final_interp75_10000.png`,
+  10,000 x 10,000 pixels, embedded losslessly at 1538 ppi). `fig_billion.py` now writes that copy
+  instead of the unused 2,400-pixel downsample. Short PDF 9 pages in total.
+- `run_all.sh` rewritten as the single recipe for the reported set: the full list of
+  run_bspmatch.sh (main, real, anytime, scaling, threads, masks incl. srect, primes, ablations,
+  memory, solvers, small exactness, polish) against the v0.4.0 snapshot.
+- Short edition's billion-point render downsampled to 3,900 pixels (600 ppi at text width,
+  area averaging; 3.6 MB, short PDF 4.7 MB).
+- Repository trimmed to what the papers use, found by running every figure, table and number
+  generator and recording the files they open. `results/raw/` is now the reported set (the
+  former `raw_final/`) plus the development-set search files; the superseded result sets
+  (old `raw/`, `raw_geometric/`, `raw_presets/`, `raw_bspmatch/`), unused assignments, the w16
+  billion-point run, run logs, unused figures and tables, the README-diagram and print scripts
+  were removed (kept outside the repository). The earlier implementation's billion-point
+  summaries and trace are now in `results/billion/earlier/`, so `fig_billion.py` runs from this
+  repository alone. With the new layout every generator reproduces the papers' tables,
+  `numbers.tex` and `billion_numbers.json` byte for byte. Logs are ignored.
+- History rewritten (git filter-repo): logs, absolute paths, the MNIST download and the removed
+  result sets are gone from every commit; `make_embeddings.py` downloads MNIST from OpenML.

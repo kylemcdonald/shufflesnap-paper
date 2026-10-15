@@ -69,6 +69,8 @@ def run_child(spec):
         wparams = dict(params)
         if spec["method"] == "shufflesnap":
             wparams.pop("time_budget", None)
+        if wparams.get("swap_iterations"):
+            wparams["swap_iterations"] = min(wparams["swap_iterations"], 1000)
         fn(Pw, gw, **wparams)
     except Exception as e:  # warm-up failures are reported, the real run may still work
         rec["warmup_error"] = repr(e)

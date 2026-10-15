@@ -55,6 +55,17 @@ on uniform points) and takes 80\,s at this size. Its targets at 50k and 100k poi
 last row, which sends it into its much slower mask code path; at $N=10^4$, a full
 $100\times100$ square, it needs 0.03\,s.
 
+\paragraph{RasterFairy's swap optimizer} needs a dense $N\times N$ distance matrix, so we ran
+it only at $N=2{,}500$ (49\,MB), on the same ten distributions (Table~\ref{tab:swap}). Started
+from RasterFairy's layout, it keeps only improvements, but each iteration recomputes the full
+cost in Python. A million iterations take 63\,s and remove a median of 26\% of
+RasterFairy's excess (7--91\%; most on the near-line, least on Gaussian and uniform points). Ten million iterations
+(10 minutes) remove a median of 43\% (13--96\%). Even then the excess is 4--320 times that of
+the fast preset, which takes 0.012\,s, and below that of BSP-OT with 64 plans on only four
+distributions. The dense SciPy solver finds the
+optimum in 2.7\,s. Started from a random permutation, as in upstream's demo, a million
+iterations leave 0.4--6300\% excess.
+
 \paragraph{With all cores.} On 24 hardware threads, \ShuffleSnap\ ran 7--14$\times$ faster than on
 one and returned bit-identical assignments in all 270 paired runs. At $10^5$ points the
 median time is 0.09\,s for fast, 0.19\,s for the default and 0.53\,s for quality.

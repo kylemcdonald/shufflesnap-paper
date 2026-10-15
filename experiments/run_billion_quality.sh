@@ -6,7 +6,8 @@ set -u
 cd "$(dirname "$0")/.."
 export PYTHONPATH=$(cd ../shufflesnap/src && pwd):experiments
 PY=${PYTHON:-../.venv/bin/python}
-OLD=../../../shufflesnap-paper/benchmarks/results/assignments
+# the earlier work's saved assignments of this instance (4 GB each, not distributed), priced for comparison
+OLD=${OLD:-../../../shufflesnap-paper/benchmarks/results/assignments}
 LOG=results/billion/run_quality.log
 SPENT=$($PY -c "import json; print(sum(json.load(open(f'results/billion/billion_31623_seed0{t}.json'))['total_s'] for t in ('', '_6h')))")
 BUDGET=$($PY -c "print(21600 - $SPENT)")

@@ -27,7 +27,8 @@ the call, and the resident size at that moment is subtracted. It therefore measu
 what the method needs on top of its inputs.
 
 \paragraph{Seeds and held-out evaluation.} All design decisions were made on instance
-seed 0. Reported results use instance seeds 1--3, which were not used for tuning. For
+seed 0. Reported results use instance seeds 1--3, which were not used for tuning; the study
+of spread across inputs (Section~\ref{sec:spread}) uses fresh seeds 100--149. For
 the real embeddings, which have one fixed instance each, the seeds vary only the
 methods' own randomness.
 
@@ -57,9 +58,10 @@ float64 coordinates and cell centers and returns one cell per point. We check va
   uses the removed NumPy alias \texttt{np.float}, and it orders points by
   \emph{integer-truncated} coordinates. With grid-unit inputs this discards sub-cell order:
   excess was 193\% without our remedy of multiplying inputs by 1000, and 82\% with it
-  (uniform, $N=2{,}500$). RasterFairy's optional swap optimizer is excluded: the PyPI copy is
+  (uniform, $N=2{,}500$). RasterFairy's optional swap optimizer cannot run at the benchmark sizes: the PyPI copy is
   Python~2 code (a \texttt{SyntaxError} on Python~3), and the upstream copy, which does run
-  on Python~3, allocates a dense $N\times N$ distance matrix (80\,GB at $10^5$ points). The upstream GitHub master (July 2026)
+  on Python~3, allocates a dense $N\times N$ distance matrix (80\,GB at $10^5$ points). We test
+  the upstream copy separately at $N=2{,}500$ (Section~\ref{sec:main}, Table~\ref{tab:swap}). The upstream GitHub master (July 2026)
   normalizes internally, sorts on floats, and solves leaf blocks of up to 200 points
   exactly with SciPy. It is much better (9\% excess on the same instance), and it is our
   representative setting. Its per-leaf console printing is captured so that it does not

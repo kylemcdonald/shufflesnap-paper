@@ -25,7 +25,10 @@ single-plan BSP-OT ended 8.2\% above it.
 
 The method's limits are structural. Its error consists of long closed loops of one-cell
 shifts that no window can remove, and we construct inputs on which its relative gap is
-unbounded. Uniform points remain the hardest common input (0.8\% at $10^5$).
+unbounded. Uniform points remain the hardest common input (0.8\% at $10^5$), yet random starts give a
+predictable result: on 50 clouds of $10^4$ uniform points with 50 random starts each, every
+cloud showed nearly the same right-skewed, nearly log-normal spread of absolute excess, and
+90\% of the 2{,}500 runs were 0.55--1.38\% above the optimum (mean 0.91\%).
 Bisection starts make results worse, and polishing at coarser strides changes almost
 nothing. Warm-started from \ShuffleSnap, the certified solver reaches proven optima in
 seconds to minutes at $10^5$ points.

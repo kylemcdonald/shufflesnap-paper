@@ -1,0 +1,27 @@
+runs: 2500 (50 clouds x 50 inits), default preset, one thread
+certified solver reached the dense optimum on 2500/2500 pairs (certified flag set on 2500)
+optimum per point: mean 1.262, range 0.945-1.883 cells^2
+
+excess over the optimum, % (all runs)
+  mean 0.908  sd 0.262  min 0.317
+  median 0.871  p90 1.231  p95 1.380  p99 1.720  max 2.439
+  worst / mean = 2.69x;  worst - mean = 1.532 points of %
+  absolute excess per point: mean 0.0112, max 0.0300 cells^2
+  worst run: cloud 141, init 5, 74.9% of points on their optimal cell
+  points on their optimal cell: mean 82.2%, min 74.9%
+
+where the spread comes from (variance of excess %)
+  within a cloud (init): 0.0471   between clouds (cloud mean): 0.0228   init share 67%
+  per-cloud max - min: median 0.985, largest 1.822
+  per-cloud worst / per-cloud mean: median 1.68x, largest 2.39x
+  cloud means range 0.610-1.153; corr(cloud mean excess, optimum/pt) = -0.94
+
+shape of the distribution over starts (absolute excess per point)
+  within-cloud skewness 0.93 (log scale 0.28); clouds failing Shapiro-Wilk at 5%: 31/50 (log scale 5)
+  runs > 3 sd above their cloud mean: 23 (normal: 3.4; log scale 7)
+  pooled log-normal fit: median 0.0109 cells^2, sigma 0.226 (KS p = 0.11; normal KS p = 8e-11)
+  5th-95th percentile: absolute 0.0076-0.0160 cells^2 (0.71-1.48x the median), relative 0.55-1.38%
+  variance share of the start: absolute 96% (relative 67%); clouds whose absolute distribution differs from the pooled one (KS, 5%): 7
+  best of k random starts, mean over clouds (%): k=1 0.907, k=2 0.794, k=4 0.716, k=10 0.645
+
+time: ShuffleSnap median 0.170s, certified median 1.03s, dense SciPy median 23.8s (parallel workers, one thread each)

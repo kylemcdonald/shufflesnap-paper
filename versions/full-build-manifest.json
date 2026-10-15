@@ -1,9 +1,9 @@
 {
   "edition": "full",
-  "body_pages": 36,
+  "body_pages": 42,
   "target_body_pages": null,
-  "total_pages": 36,
+  "total_pages": 42,
   "pdf": "shufflesnap-full.pdf",
-  "pdf_sha256": "cd8566aca984b4ee028669800c489449514dacefb336ff6b3176b5c86b27eacd",
+  "pdf_sha256": "24525805219c1ca0e5c2ef7403a284d074f4df9efb4bb8ea04e7b25523e30ad7",
   "source_archive": "shufflesnap-full-source.zip"
 }

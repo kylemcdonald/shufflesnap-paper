@@ -6,7 +6,8 @@ set -u
 cd "$(dirname "$0")/.."
 export PYTHONPATH=$(cd ../shufflesnap/src && pwd):experiments
 PY=${PYTHON:-../.venv/bin/python}
-OLD=../../../shufflesnap-paper/benchmarks/results/assignments
+# the earlier work's saved assignments of this instance (4 GB each, not distributed), priced for comparison
+OLD=${OLD:-../../../shufflesnap-paper/benchmarks/results/assignments}
 LOG=results/billion/run_6h.log
 idle=0
 while [ $idle -lt 3 ]; do

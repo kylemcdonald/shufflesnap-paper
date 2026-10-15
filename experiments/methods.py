@@ -117,10 +117,15 @@ def _rf_target(g):
 
 
 def m_rasterfairy(Pn, g, version="master", prescale=1000.0, hungarian_threshold=None, empty_strategy=None,
-                  quiet=True):
+                  quiet=True, swap_iterations=0, swap_start="rasterfairy", swap_seed=0):
     """version="pypi": rasterfairy 1.0.6 from PyPI (needs the np.float alias; sorts on
     integer-truncated coordinates, so inputs are multiplied by `prescale`).
-    version="master": upstream GitHub master (normalizes internally)."""
+    version="master": upstream GitHub master (normalizes internally).
+    swap_iterations > 0 (master only): then run upstream's SwapOptimizer (rfoptimizer.py) for
+    that many iterations, from RasterFairy's layout or (swap_start="random") from a random
+    permutation instead, as in upstream's demo2. Full rectangular grids only."""
+    if swap_iterations:
+        return _rf_swap(Pn, g, version, swap_iterations, swap_start, swap_seed, quiet)
     if version == "master":
         sys.path.insert(0, os.path.join(THIRD, "RasterFairy"))
     import rasterfairy
@@ -157,6 +162,38 @@ def m_rasterfairy(Pn, g, version="master", prescale=1000.0, hungarian_threshold=
         raise RuntimeError("rasterfairy produced out-of-range cells")
     cell = g.index[xy[:, 1], xy[:, 0]].astype(np.int32)
     return cell, {"stdout_lines": sink.getvalue().count("\n")}
+
+
+def _rf_swap(Pn, g, version, iterations, start, seed, quiet):
+    if version != "master" or not (g.mask.all() and g.n_cells == g.width * g.height == len(Pn)):
+        raise ValueError("the swap optimizer runs on upstream master with a full rectangular grid only")
+    if start == "rasterfairy":
+        cell, info = m_rasterfairy(Pn, g, version=version, quiet=quiet)
+    elif start == "random":
+        cell, info = np.random.default_rng(seed).permutation(len(Pn)).astype(np.int32), {}
+    else:
+        raise ValueError(start)
+    if os.path.join(THIRD, "RasterFairy") not in sys.path:
+        sys.path.insert(0, os.path.join(THIRD, "RasterFairy"))
+    from rasterfairy import rfoptimizer
+
+    assert os.path.join(THIRD, "RasterFairy") in rfoptimizer.__file__, rfoptimizer.__file__
+    # Upstream API: `grid` holds one cell position per point (the starting layout); the
+    # returned swap table gives each point the index of its new position in `grid`. The
+    # optimizer normalizes points and positions to [0, 1] per axis by their bounding boxes,
+    # which for bbox-normalized points on a full rectangle is a uniform rescaling of our
+    # cost (its objective = our cost / (W-1)^2 on square grids).
+    grid_xy = g.centers[cell].astype(np.float64)
+    np.random.seed(seed)  # the optimizer draws from NumPy's global generator
+    sink = io.StringIO()
+    with (contextlib.redirect_stdout(sink) if quiet else contextlib.nullcontext()):
+        table = rfoptimizer.SwapOptimizer().optimize(Pn, grid_xy, g.width, g.height, int(iterations))
+    if table is None:
+        raise RuntimeError("SwapOptimizer failed: " + sink.getvalue()[-500:])
+    xy = np.rint(grid_xy[np.asarray(table)]).astype(np.int64)
+    out = g.index[xy[:, 1], xy[:, 0]].astype(np.int32)
+    info = dict(info, start_cost=float(ss.assignment_cost(Pn, g, cell)))
+    return out, info
 
 
 # --------------------------------------------------------------------------- BSP-OT

@@ -116,7 +116,7 @@ changed its occupant. A window whose cells are unchanged since it was last solve
 same stage is already optimal, and skipping it does not change the result (also tested).
 This matters in the stride-1 convergence rounds, where most windows are untouched. The
 cost is recomputed exactly after every phase, which gives an anytime trace, and a time
-budget is checked between windows. A serial reference of about 70 lines of NumPy and SciPy
+budget is checked between windows. A serial reference of about 55 lines of NumPy and SciPy
 (Appendix~\ref{app:reference}) returns exactly the kernel's assignments and serves as an
 executable specification. There is no just-in-time compilation, so nothing is compiled at run time. Compiling the
 extension takes 2.6\,s with parallel Ninja (8.1\,s on one core). A complete isolated wheel

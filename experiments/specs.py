@@ -148,6 +148,33 @@ def anytime(dists=("uniform", "gmm", "mnist"), threads=1, seed=1):
     return specs
 
 
+def swap_optimizer(n=2500, seeds=(1, 2, 3), dists=MAIN_DISTS, threads=1,
+                   budgets=(10 ** 4, 10 ** 5, 10 ** 6), long_budget=10 ** 7):
+    """RasterFairy's swap optimizer (upstream rfoptimizer.py) at a size where its dense
+    N x N distance matrix fits: started from RasterFairy's layout, and from a random
+    permutation as in upstream's demo, against the other methods on the same instances.
+    The long budget runs on the first seed only (`--long` in run.py)."""
+    specs = []
+    for d in dists:
+        for s in seeds:
+            for lab in SS:
+                specs.append(ss_spec(lab, d, n, s, threads=threads))
+            specs += comparators(d, n, s, threads=threads, rf=("master",), exact=False, dense=True)
+            for it in budgets:
+                specs.append(dict(method="rasterfairy", label=f"RasterFairy-swap-{it:.0e}", dist=d, n=n, seed=s,
+                                  grid="square", params=dict(version="master", swap_iterations=it)))
+            specs.append(dict(method="rasterfairy", label=f"RasterFairy-swap-random-{budgets[-1]:.0e}", dist=d, n=n,
+                              seed=s, grid="square",
+                              params=dict(version="master", swap_iterations=budgets[-1], swap_start="random",
+                                          swap_seed=s)))
+    return specs
+
+
+def swap_optimizer_long(n=2500, dists=MAIN_DISTS, threads=1, seed=1, iterations=10 ** 7):
+    return [dict(method="rasterfairy", label=f"RasterFairy-swap-{iterations:.0e}", dist=d, n=n, seed=seed,
+                 grid="square", params=dict(version="master", swap_iterations=iterations)) for d in dists]
+
+
 WINDOW_SOLVERS = ("hungarian", "hungarian_greedy", "jv", "auction", "geometric")
 
 # Every group changes one setting of the default (8x8 windows, ratio sqrt 2, four tilings
@@ -187,7 +214,7 @@ def ablations(dists=("uniform", "gmm", "mnist"), seeds=(1, 2, 3), threads=1):
 def all_instances():
     """Unique (dist, n, seed, grid) needed by any experiment, for the reference cache."""
     specs = main_quality() + real_embeddings() + masks() + primes() + scaling() + anytime() + ablations()
-    specs += [sp for _, sp in threads_scaling()]
+    specs += [sp for _, sp in threads_scaling()] + swap_optimizer()
     inst = {(sp["dist"], sp["n"], sp["seed"], sp.get("grid", "square")) for sp in specs}
     # certified references only where tractable (<= 200k points)
     return sorted((i for i in inst if i[1] <= 200000), key=lambda i: (i[1], i[0], i[3], i[2]))

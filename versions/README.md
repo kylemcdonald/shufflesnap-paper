@@ -2,13 +2,13 @@
 
 | Edition | Body length | PDF | Source |
 | --- | --- | --- | --- |
-| Full | 36 pages with appendices | `dist/shufflesnap-full.pdf` | `paper/main.tex` |
+| Full | 42 pages with appendices | `dist/shufflesnap-full.pdf` | `paper/main.tex` |
 | Long | 10 pages | `dist/shufflesnap-long.pdf` | `versions/long/main.tex` |
 | Medium | 6 pages | `dist/shufflesnap-medium.pdf` | `versions/medium/main.tex` |
 | Short | 3 pages | `dist/shufflesnap-short.pdf` | `versions/short/main.tex` |
 
 References start on a new page after the body and do not count toward its length; the
-PDFs have 12, 7 and 5 pages in total. Each shorter edition is a standalone manuscript, not
+PDFs have 12, 7 and 9 pages in total. Each shorter edition is a standalone manuscript, not
 an excerpt: it is written for its length and keeps the full paper's claims, numbers and
 figures (it adds no new result).
 
@@ -16,7 +16,9 @@ figures (it adds no new result).
 
 - **Short (3 pages):** the problem, the method (schematic and a real progress strip), the
   certified solver in one paragraph, and one page of evidence: quality against time on
-  four inputs, the real-embedding result, and the limits. No tables.
+  four inputs, the real-embedding result, and the limits. No tables. Appendices: the full
+  MNIST figure, the billion-point render (3,900 pixels across, 600 ppi at text width) and the
+  annotated reference implementation.
 - **Medium (6 pages):** adds the method as numbered steps, the certified solver and setup,
   a table for all eleven distributions, the MNIST gallery with neighbourhood maps, the
   anatomy of the error, masks and surplus cells, and when to use which method.
@@ -25,8 +27,8 @@ figures (it adds no new result).
   correctness checks, the full quality/time figure, matched budgets and scaling, the full
   MNIST figure, masks with the design-choice ablations, and limitations.
 - **Full:** everything, including the ablation table and figure, parallel scaling, prime
-  point counts, memory, small-instance exactness, the tables at 10k and 50k points, and the
-  serial reference implementation as a listing.
+  point counts, memory, small-instance exactness, the spread over inputs and random starts,
+  the tables at 10k and 50k points, and the annotated reference implementation.
 
 All editions use 11-point body text, one-inch margins on US letter, and figures at the full
 paper's size (text width). Captions stay with their figures, and page breaks follow
@@ -59,5 +61,9 @@ The builder stages each edition with only the files it uses, compiles it with te
 and fails on any overfull box, undefined reference or undefined citation, and on a body
 length other than the target (unless `--draft`). It writes the PDF and a source archive to
 `dist/` and a `build-manifest.json` next to each edition. `paper/reference.py` is printed
-in the full paper; the builder checks that it equals the package's
-`shufflesnap/reference.py`.
+in the full and short papers; the builder checks that it equals the package's
+`shufflesnap/reference.py`. Both print it through `paper/sections/reference_annotated.tex`
+(landscape pages, each part of the code beside a diagram), which
+`experiments/fig_reference.py` generates together with the `fig_ref_*` diagrams and the line
+ranges; rerun it whenever `reference.py` changes. Figures and listings used inside an
+`\input` file are staged too.

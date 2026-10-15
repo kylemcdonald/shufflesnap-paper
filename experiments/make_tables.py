@@ -324,6 +324,30 @@ def table_memory(df):
     write("tab_memory.tex", text)
 
 
+def table_swap(df, n=2500):
+    """RasterFairy's swap optimizer (swap_t1 / swap_long_t1) next to the other methods."""
+    d = _ok(df[(df["n"] == n) & df["file"].str.startswith("swap")])
+    cols = [("SS-fast", "SS fast"), ("SS-balanced", "SS bal."), ("SS-quality", "SS qual."),
+            ("BSP-OT-16", "BSP 16"), ("BSP-OT-64", "BSP 64"), ("RasterFairy-master", "RF"),
+            ("RasterFairy-swap-1e+04", "$10^4$"), ("RasterFairy-swap-1e+05", "$10^5$"),
+            ("RasterFairy-swap-1e+06", "$10^6$"), ("RasterFairy-swap-1e+07", "$10^7$\\textsuperscript{a}"),
+            ("RasterFairy-swap-random-1e+06", "rand.\\ $10^6$")]
+    rows = []
+    for dist in DIST_NAMES:
+        s = d[d["dist"] == dist]
+        if s.empty:
+            continue
+        cells = [DIST_NAMES[dist]] + [fmt_pct(s.loc[s["label"] == lab, "excess_pct"].mean()) for lab, _ in cols]
+        rows.append(" & ".join(cells) + r" \\")
+    trow = [r"\emph{median time (s)}"] + [fmt_t(d.loc[d["label"] == lab, "time_s"].median()) for lab, _ in cols]
+    head = (r" & & & & & & & \multicolumn{4}{c}{RF + swap optimizer} & \\" + "\n" +
+            r"\cmidrule(lr){8-11}" + "\n" +
+            " & ".join(["distribution"] + [c for _, c in cols]) + r" \\")
+    text = ("\\begin{tabular}{l" + "r" * len(cols) + "}\n\\toprule\n" + head + "\n\\midrule\n" +
+            "\n".join(rows) + "\n\\midrule\n" + " & ".join(trow) + r" \\" + "\n\\bottomrule\n\\end{tabular}\n")
+    write("tab_swap.tex", text)
+
+
 def main():
     df = analysis.load()
     for n in (10000, 50000, 100000):
@@ -337,6 +361,8 @@ def main():
     table_real(df)
     table_ablation(df)
     table_memory(df)
+    if df["file"].str.startswith("swap").any():
+        table_swap(df)
 
 
 if __name__ == "__main__":

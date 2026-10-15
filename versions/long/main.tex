@@ -62,7 +62,7 @@ problems inside $8\times8$ windows of each, dividing $s$ by $\sqrt2$ until it re
 (Figure~\ref{fig:schematic}). All work is at full resolution; nothing is aggregated.
 
 We measure every gap against a proven optimum and report where the method fails. We
-contribute a careful parallel implementation with a 70-line serial reference that reproduces
+contribute a careful parallel implementation with a 55-line serial reference that reproduces
 it exactly; a window solver that starts from closed-form transport duals; a certified exact
 solver that reaches $10^6$ points, so that every gap is measured against a proven optimum;
 measured design choices; a diagnosis of the remaining error, with inputs on which the relative gap
@@ -172,7 +172,7 @@ phase. Because windows in a phase are disjoint and each solve is deterministic, 
 is bit-identical for any thread count. A window whose cells have not changed occupant since
 it was last solved in the same stage is already optimal and is skipped, which matters in the
 stride-1 rounds. The exact cost is recorded after every phase, which gives an anytime trace.
-A serial reference of about 70 lines of NumPy and SciPy reproduces the kernel's assignments
+A serial reference of about 55 lines of NumPy and SciPy reproduces the kernel's assignments
 exactly and serves as an executable specification. A phase at any stride has about $M/w^2$
 windows of at most $w^2$ cells, so each level costs about the same, and with $O(\log L)$
 levels the schedule costs $O(M\log M)$ plus the convergence rounds; the working memory is
@@ -211,7 +211,7 @@ errors occur along the way; integer rounding can only loosen it, by at most $4N/
 $S$. The result is therefore the exact optimum of the dense problem. Wherever SciPy's dense
 solver fits, both found the same optimum: on 600 small instances and on all ten
 distributions at $10^4$ points. Started from
-\ShuffleSnap's layout, it certified all 202 benchmark instances up to $2\times10^5$ points,
+\ShuffleSnap's layout, it certified all 232 benchmark instances up to $2\times10^5$ points,
 and uniform instances up to $10^6$, in 1 to 13 pricing rounds. Started from bisection
 instead, it failed on four of ten instances at $10^5$ points.
 
@@ -246,7 +246,10 @@ Each comparator received the same coordinates and cells, and every output was ch
 validity independently. \emph{RasterFairy}'s 2019 PyPI release orders points by
 integer-truncated coordinates, which discards sub-cell order unless inputs are scaled up; its
 current upstream version normalizes internally and solves leaf blocks of up to 200 points
-exactly, and is our representative setting. \emph{BSP-OT} ran through its official Python
+exactly, and is our representative setting. Its optional swap optimizer needs a dense
+$N\times N$ distance matrix; at $N=2{,}500$, a million iterations (63\,s) removed a median of
+26\% of RasterFairy's excess, which left 4--550 times the excess of \ShuffleSnap's fast preset
+(0.012\,s). \emph{BSP-OT} ran through its official Python
 binding with 16 and 64 merged plans. The binding exposes no seed, so repeated calls differ:
 the costs of the same instance with 1 and 24 threads differed by $-8\%$ to $+13\%$, with no
 trend. We measure neighbourhood preservation separately, as the fraction of each point's 10
@@ -378,23 +381,24 @@ per second than a larger window.
 \subsection{Anatomy of the remaining error}
 
 \panel{fig_failures_row}{(a,\,b)~Where \ShuffleSnap\ and the optimum disagree on uniform
-points, the difference is a few long closed loops of one-cell moves (loops longer than 30
-points in blue); at $10^5$ points loops of more than 300 points carry most of the excess.
+points, the difference is a few long closed loops of one-cell moves (loops over 30 points
+in blue); at $10^5$ points, loops over 300 points carry most of the excess.
 (c,\,d)~Points drawn inside the S mask (optimum $\approx$ identity): $6\times6$ windows with
 halving strides route points across the bays, where they line up; the default leaves fewer.
-Numbers are mean squared displacements.\label{fig:failures}}
+Numbers: mean squared displacement.\label{fig:failures}}
 
-Why does a method that solves every window exactly miss the optimum? The permutation that
-turns a \ShuffleSnap\ layout into the optimal one splits into cycles, and almost all of the
+The permutation that turns a \ShuffleSnap\ layout into the optimal one splits into cycles, and almost all of the
 excess sits in a few very long ones, in which every point is shifted by about one cell
 (Figure~\ref{fig:failures}a,b). Inside a window, part of such a loop is a run of consistently
 shifted points, which is already optimal for that occupant set, and a strided window cannot
-move a point by one cell. On points placed exactly on the cells, with an axis-aligned ring
-of cells rotated by one step, the full schedule never moves a ring larger than the window,
-so the relative excess over the optimum of zero is unbounded. The same mechanism appears at
+move a point by one cell. With points exactly on the cells and a ring of cells rotated
+by one step, the full schedule never moves a ring larger than the window, so the
+relative excess is unbounded. From random starts the result
+is predictable: on 50 clouds of $10^4$ uniform points with 50 starts each, the per-point
+excess was nearly log-normal and alike on every cloud, with 90\% of runs at 0.55--1.38\%. The same mechanism appears at
 a larger scale on masks: coarse windows route mass across concave bays, which no stride-1
-window can undo (Figure~\ref{fig:failures}c,d), and a mask can even cut two usable cells off
-from each other when no scheduled window contains both.
+window can undo (Figure~\ref{fig:failures}c,d), and a mask can cut off two cells
+that share no window.
 
 \section{Discussion}
 
@@ -402,20 +406,20 @@ Coarse-to-fine strided windows get very close to the optimum on the smooth, clus
 layouts that motivate the problem, in a fraction of a second with all cores at $10^5$ points,
 deterministically and with little memory. They fail where a local search must: on uniform
 data, lattices and surplus cells, whose errors need moves no window can see.
-A billion points converged in 1\,h\,43\,min using 53\,GiB, passing a six-hour run of an
-earlier implementation after 44 minutes; a single-plan BSP-OT ended 8.2\% above.
-Built as an evaluation tool, the exact solver proved optimality at
-$10^5$ points in a median of about two minutes when started from \ShuffleSnap. When a proven
-optimum is worth that wait, it is the better choice; otherwise the default preset is the
+A billion points converged in 1\,h\,43\,min using 53\,GiB, passing an earlier version's six-hour run
+after 44 minutes; a single-plan BSP-OT ended 8.2\% above.
+Started from \ShuffleSnap, the exact solver proved optimality at $10^5$
+points in a median of about two minutes. When a proven optimum is worth that wait, it is
+the better choice; otherwise the default preset is the
 fast, near-optimal answer, and BSP-OT is best only under budgets below 0.12--0.36\,s on one
 core.
-If neighbourhoods matter, they should be optimized or measured directly, for example with
-LAS/FLAS~\citep{barthel2023improved}.
+If neighbourhoods matter, optimize or measure them directly
+(LAS/FLAS~\citep{barthel2023improved}).
 
 \paragraph{Limitations.} Everything ran on one workstation, CPU only (BSP-OT's GPU version
 was not tested), for squared Euclidean displacement in 2D, on two real UMAP embeddings, with
-representative settings of each comparator. The package is on PyPI as
-\texttt{shufflesnap}; raw results and figure scripts are in a separate repository.
+representative settings of each comparator. Code: \href{https://github.com/kylemcdonald/shufflesnap}{\nolinkurl{github.com/kylemcdonald/shufflesnap}} (PyPI: \texttt{shufflesnap}); results and figure scripts:
+\href{https://github.com/kylemcdonald/shufflesnap-paper}{\nolinkurl{github.com/kylemcdonald/shufflesnap-paper}}.
 \label{page:body-end}
 
 \clearpage

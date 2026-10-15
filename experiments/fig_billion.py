@@ -7,7 +7,8 @@ over the final endpoint, next to the single-plan BSP-OT port.  The earlier imple
 to this frame: it priced both points and cells in [0.03, 0.97], a uniform scale of the grid
 frame, so costs differ by one constant factor, recovered by pricing its saved assignment here).
 
-Writes paper/figures/fig_billion.{pdf,png} and results/billion/billion_numbers.json.
+Writes paper/figures/fig_billion.{pdf,png}, the render at 600 ppi paper/figures/billion_render.png
+and results/billion/billion_numbers.json.
 """
 from __future__ import annotations
 
@@ -29,7 +30,7 @@ import figstyle as fs  # noqa: E402
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.join(HERE, "..")
 RES = os.path.join(ROOT, "results", "billion")
-OLD = os.path.join(ROOT, "..", "..", "..", "shufflesnap-paper", "benchmarks", "results")
+OLD = os.path.join(RES, "earlier")  # the earlier implementation's 6 h run and the BSP-OT port (summaries, trace)
 OUT = os.path.join(ROOT, "paper", "figures")
 OLD_ASSIGNMENT = "billion_meander_31623_seed0.npy"
 BSPOT_ASSIGNMENT = "billion_bspot_31623_seed0.npy"
@@ -80,8 +81,10 @@ def main():
     if not os.path.exists(render):
         render = os.path.join(RES, "billion_shufflesnap_interp75_10000.png")
     Image.MAX_IMAGE_PIXELS = None
-    img = Image.open(render).resize((2400, 2400), Image.Resampling.BOX)
-    img.save(os.path.join(OUT, "billion_interp75.png"))
+    full = Image.open(render)
+    # short paper appendix: text width (6.5 in) at 600 ppi
+    full.resize((3900, 3900), Image.Resampling.BOX).save(os.path.join(OUT, "billion_render.png"), optimize=True)
+    img = full.resize((2400, 2400), Image.Resampling.BOX)
     ax_img.imshow(np.asarray(img), interpolation="none")
     ax_img.set_axis_off()
 
